@@ -1,0 +1,9 @@
+venv/
+logs/
+runtime/
+__pycache__/
+*.pyc
+*.log
+*.gz
+.pki/
+config/config_email.json
