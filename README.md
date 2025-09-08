@@ -1,6 +1,12 @@
+
+# Monitoramento de Leiautes Bacen (Finaud)
+
+Automação desenvolvida para monitorar atualizações nos leiautes do Banco Central (Bacen).  
+Verifica novos documentos ou alterações, envia e-mail com log detalhado e atualiza o status da execução em painel público.
+
 ## 📁 Estrutura da pasta
 
-```text
+```
 leiautes/
 ├── config/                       # Configurações do projeto (ex: config_email.json)
 ├── logotipo/                     # Logo da Finaud usado nos e-mails HTML
@@ -18,8 +24,7 @@ leiautes/
 ├── venv/                         # Ambiente virtual com dependências Python
 ├── requirements.txt              # Lista de pacotes (usado no pip install -r)
 └── run.sh                        # Script principal que executa o monitoramento
-
-
+```
 
 ---
 
@@ -52,50 +57,64 @@ Para verificar rapidamente se a execução diária funcionou corretamente:
 
 ```bash
 tail -n 30 logs/execucao_$(date +%Y%m%d).log
+```
 
+---
 
-▶️ Como executar o projeto
-🧪 Execução manual
+## ▶️ Como executar o projeto
+
+### 🧪 Execução manual
 
 Ative o ambiente virtual:
 
+```bash
 source venv/bin/activate
+```
 
 Execute o script principal:
 
+```bash
 ./run.sh
+```
 
-Você também pode executar diretamente com Python:
+Ou diretamente com Python:
 
+```bash
 python3 scripts/verifica_leiautes_finaud.py
+```
 
-
-Execução automática via cron
+### ⏰ Execução automática via cron
 
 Para agendar a execução diária automática, adicione esta linha ao crontab do usuário (crontab -e):
 
+```bash
 0 9 * * * /home/tsalachtech.com.br/apps/leiautes/run.sh >> /home/tsalachtech.com.br/apps/leiautes/logs/cron_$(date +\%Y\%m\%d).log 2>&1
+```
 
 Essa linha roda o script todos os dias às 9h da manhã, registrando a saída e erros no log do dia.
 
-Verificando a execução
+---
 
-✅ Ver status rápido (usado no painel HTML):
+## ✅ Verificando a execução
 
-/home/tsalachtech.com.br/apps/leiautes/logs/execucao_YYYYMMDD.log
+- Log completo do dia:  
+  `/home/tsalachtech.com.br/apps/leiautes/logs/execucao_YYYYMMDD.log`
 
-📬 Confirmar envio de e-mail com log e anexos.
+- Confirme se o e-mail foi enviado com o log e anexos.
 
+---
 
-Configuração de e-mail
+## 📬 Configuração de e-mail
 
 As credenciais e dados de envio ficam no arquivo:
 
+```
 config/config_email.json
-
+```
 
 Exemplo de estrutura:
 
+```json
 {
   "from": "seu-email@dominio.com",
   "to": ["destinatario1@empresa.com", "destinatario2@empresa.com"],
@@ -103,52 +122,18 @@ Exemplo de estrutura:
   "assunto_email": "Monitoramento Leiautes Bacen",
   "enviar_sempre": true
 }
+```
 
+### Campos principais:
 
-Campos principais:
+- `from`: endereço de e-mail do remetente (usado na autenticação)  
+- `to`: lista de destinatários que receberão o e-mail  
+- `senha`: senha do app (ou token gerado no Gmail, Outlook etc.)  
+- `assunto_email`: aparece no título do e-mail enviado  
+- `enviar_sempre`: se `true`, o e-mail será enviado mesmo que nenhum documento novo seja encontrado  
 
-from: endereço de e-mail do remetente (usado na autenticação)
-
-to: lista de destinatários que receberão o e-mail
-
-senha: senha do app (ou token gerado no Gmail, Outlook etc.)
-
-assunto_email: aparece no título do e-mail enviado
-
-enviar_sempre: se true, o e-mail será enviado mesmo que nenhum documento novo seja encontrado
-
-⚠️ Nunca versionar esse arquivo com senha no GitHub ou repositórios públicos!
-
-
-
+⚠️ **Nunca versionar esse arquivo com senha no GitHub ou repositórios públicos!**
 
 ---
 
-docs(README): melhora formatação da estrutura de pastas
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+> docs(README): melhora documentação com estrutura, logs e execução
