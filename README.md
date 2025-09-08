@@ -1,29 +1,23 @@
-# Monitoramento de Leiautes Bacen (Finaud)
-
-Automação desenvolvida para monitorar atualizações nos leiautes do Banco Central (Bacen).  
-Verifica novos documentos ou alterações, envia e-mail com log detalhado e atualiza o status da execução em painel público.
-
----
-
 ## 📁 Estrutura da pasta
 
+```text
 leiautes/
-├── config/ # Configurações do projeto (ex: config_email.json)
-├── logotipo/ # Logo da Finaud usado nos e-mails HTML
-├── logs/ # Logs de execução do sistema:
-│ ├── execucao_YYYYMMDD.log # Log detalhado da execução principal
-│ ├── cron_YYYYMMDD.log # Log da execução automática via cron
-│ ├── monitor_leiautes_YYYYMMDD.log # Log complementar (pode incluir testes ou execuções parciais)
-│ ├── execucao_cron.log # Log curto usado pelo painel público (_status_tail.txt)
-│ ├── execucao_cron.log-YYYYMMDD # Versões diárias do log de status
-│ └── *.gz # Logs compactados antigos (backup/rotação)
-├── pdfs/ # (Opcional) PDFs baixados para envio
-├── .pki/ # Cache gerado pelo navegador do Playwright (seguro limpar)
-├── runtime/ # Arquivos temporários da execução (HTMLs, PDFs, etc.)
-├── scripts/ # Scripts Python (principal: verifica_leiautes_finaud.py)
-├── venv/ # Ambiente virtual com dependências Python
-├── requirements.txt # Lista de pacotes (usado no pip install -r)
-└── run.sh # Script principal que executa o monitoramento
+├── config/                       # Configurações do projeto (ex: config_email.json)
+├── logotipo/                     # Logo da Finaud usado nos e-mails HTML
+├── logs/                         # Logs de execução do sistema:
+│   ├── execucao_YYYYMMDD.log         # Log detalhado da execução principal
+│   ├── cron_YYYYMMDD.log             # Log da execução automática via cron
+│   ├── monitor_leiautes_YYYYMMDD.log # Log complementar (pode incluir testes ou execuções parciais)
+│   ├── execucao_cron.log             # Log curto usado no painel público (_status_tail.txt)
+│   ├── execucao_cron.log-YYYYMMDD    # Versões diárias do log de status
+│   └── *.gz                          # Logs compactados antigos (backup/rotação)
+├── pdfs/                         # (Opcional) PDFs baixados para envio
+├── .pki/                         # Cache gerado pelo navegador do Playwright (seguro limpar)
+├── runtime/                      # Arquivos temporários da execução (HTMLs, PDFs, etc.)
+├── scripts/                      # Scripts Python (principal: verifica_leiautes_finaud.py)
+├── venv/                         # Ambiente virtual com dependências Python
+├── requirements.txt              # Lista de pacotes (usado no pip install -r)
+└── run.sh                        # Script principal que executa o monitoramento
 
 
 
@@ -126,6 +120,11 @@ enviar_sempre: se true, o e-mail será enviado mesmo que nenhum documento novo s
 ⚠️ Nunca versionar esse arquivo com senha no GitHub ou repositórios públicos!
 
 
+
+
+---
+
+docs(README): melhora formatação da estrutura de pastas
 
 
 
