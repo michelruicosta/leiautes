@@ -7,3 +7,8 @@ __pycache__/
 *.gz
 .pki/
 config/config_email.json
+# Backups
+*.backup.json
+
+# Scripts de teste
+scripts/teste_*.py
