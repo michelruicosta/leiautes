@@ -12,3 +12,5 @@ config/config_email.json
 
 # Scripts de teste
 scripts/teste_*.py
+
+scripts/manifest_arquivos.json
