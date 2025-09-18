@@ -1,0 +1,34 @@
+{
+  "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/Documento%20de%20Saldos%20Cont%C3%A1beis%20Di%C3%A1rios%20-%20Instru%C3%A7%C3%B5es%20de%20Preenchimento.pdf": {
+    "etag": "\"{F75FEDAD-61B9-4363-B52F-686A6FFC43A7},16\"",
+    "last_modified": "Wed, 23 Aug 2023 21:03:49 GMT",
+    "content_length": "617293",
+    "final_url": "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/Documento%20de%20Saldos%20Cont%C3%A1beis%20Di%C3%A1rios%20-%20Instru%C3%A7%C3%B5es%20de%20Preenchimento.pdf",
+    "partial_fp": null,
+    "checked_at": "2025-09-18T15:39:55.203688"
+  },
+  "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/saldosDiariosInstrucoesPreenchimentoV2.pdf": {
+    "etag": "\"{587B1D80-46AA-4706-B47F-D6B079C4ED52},8\"",
+    "last_modified": "Thu, 24 Jul 2025 15:11:25 GMT",
+    "content_length": "1153462",
+    "final_url": "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/saldosDiariosInstrucoesPreenchimentoV2.pdf",
+    "partial_fp": null,
+    "checked_at": "2025-09-18T15:39:55.838734"
+  },
+  "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/XSD_4111.xsd": {
+    "etag": "\"{02FB50B8-E944-4C74-9900-C2CF8F12B73F},8\"",
+    "last_modified": "Mon, 07 Aug 2023 18:48:13 GMT",
+    "content_length": "4046",
+    "final_url": "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/XSD_4111.xsd",
+    "partial_fp": null,
+    "checked_at": "2025-09-18T15:39:56.518926"
+  },
+  "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/XSD_4111V1.xsd": {
+    "etag": "\"{C86EF013-5291-461C-8ACA-CDA256A2D3E4},4\"",
+    "last_modified": "Thu, 28 Aug 2025 18:34:20 GMT",
+    "content_length": "4063",
+    "final_url": "https://www.bcb.gov.br/content/estabilidadefinanceira/Documents/Leiaute_de_documentos/XSD_4111V1.xsd",
+    "partial_fp": null,
+    "checked_at": "2025-09-18T15:39:57.182333"
+  }
+}

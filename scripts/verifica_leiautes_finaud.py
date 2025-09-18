@@ -1,14 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-Monitor de leiautes Bacen (v3.2a)
+Monitor de leiautes Bacen (v3.2a+4111)
 - Logo inline por CID
 - Config de e-mail em JSON (config_email.json no diretório do projeto)
 - Data "hoje" dinâmica + MONITOR_TEST_DATE opcional
 - Playwright com flags para ambiente compartilhado
 - **NOVO**: Envia e-mail mesmo sem novidades (configurável) e deixa o texto de "Não há documentos" alinhado à esquerda e na cor azul do logotipo (#2e3192)
+- **NOVO**: Suporte ao Documento 4111 (Saldos Contábeis Diários - SCD)
 """
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 from email.mime.text import MIMEText
@@ -18,13 +19,8 @@ from email.mime.base import MIMEBase
 from email.utils import make_msgid
 from email import encoders
 
-import ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes
+import ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes, traceback
 from urllib.parse import urlparse, unquote
-from concurrent.futures import ThreadPoolExecutor, as_completed
-
-from datetime import datetime, timedelta
-from pathlib import Path
-import traceback
 
 # >>> ajuste este caminho por projeto
 TAIL_PATH_BASE = "/home/tsalachtech.com.br/public_html/monitoramentos/leiautes/_status_tail.txt"
@@ -36,16 +32,6 @@ def _write_status_tail(proj: str,
                        resumo: dict,
                        ultimos: list[str] | None = None,
                        extra_info: str | None = None) -> None:
-    """
-    Escreve um _status_tail.txt mais rico.
-    - proj: "normativos" | "leiautes"
-    - header_status: ex. "🟢 OK | ..." ou "🟡 AVISO | ..." ou "🔴 ERRO | ..."
-    - resumo: dict com pares "Chave" -> "Valor"
-    - ultimos: lista com títulos/itens recentes (máx. 3)
-    - extra_info: linha adicional (opcional)
-    """
-
-    # Determina status numérico para o painel
     status_code = 0
     if "AVISO" in header_status:
         status_code = 1
@@ -57,7 +43,6 @@ def _write_status_tail(proj: str,
     tail_path = TAIL_PATH_BASE.format(proj=proj)
     log_path  = LOG_PATH_BASE.format(proj=proj, data=now.strftime("%Y%m%d"))
 
-    # Monta conteúdo a ser escrito no _status_tail
     lines = []
     lines.append(f"{now_fmt} | {header_status}")
     if extra_info:
@@ -77,7 +62,6 @@ def _write_status_tail(proj: str,
     lines.append("")
     lines.append(f"ℹ️ Log completo: {log_path}")
 
-    # Escreve com delimitadores para o painel reconhecer
     bloco = []
     bloco.append(f"===== INÍCIO {now_fmt} =====")
     bloco.extend(lines)
@@ -87,12 +71,10 @@ def _write_status_tail(proj: str,
         f.write("\n".join(bloco) + "\n\n")
 
 
-    
-
 # ====== CAMINHOS/TEMPOS ======
 SCRIPT_DIR = Path(__file__).resolve().parent
 BASE = SCRIPT_DIR.parent
-CONFIG_PATH = BASE / "config" / "config_email.json"   # <= aqui
+CONFIG_PATH = BASE / "config" / "config_email.json"
 LOGO_PATH = BASE / "logotipo" / "FINAUD_TEC_LOG.jpg"
 
 CONNECT_TIMEOUT = 10
@@ -118,17 +100,16 @@ if not logger.handlers:
     logger.addHandler(sh)
 
 # ====== AJUSTES ======
-QUIET_BASELINE = False         # 1ª execução não alerta anexos
-ONLY_ATUAL = True              # monitora só URLs com /Atual/
+QUIET_BASELINE = False
+ONLY_ATUAL = True
 EXCLUDE_PATTERNS = ["versoes_anteriores", "anteriores", "historico"]
 
 ATTACH_CHANGED_FILES = True
 MAX_ATTACHMENTS = 8
-MAX_SINGLE_ATTACH_SIZE = 4 * 1024 * 1024    # 4 MB
-MAX_TOTAL_ATTACH_SIZE = 18 * 1024 * 1024    # 18 MB
+MAX_SINGLE_ATTACH_SIZE = 4 * 1024 * 1024
+MAX_TOTAL_ATTACH_SIZE = 18 * 1024 * 1024
 
-# **NOVO**: controle para enviar e-mail mesmo sem novidades
-SEND_EMAIL_WHEN_NO_CHANGES = True  # deixe True para sempre enviar; False para manter comportamento antigo
+SEND_EMAIL_WHEN_NO_CHANGES = True
 
 # ====== PÁGINAS A MONITORAR ======
 urls = [
@@ -137,11 +118,11 @@ urls = [
     "https://www.bcb.gov.br/estabilidadefinanceira/leiautedoc2061",
     "https://www.bcb.gov.br/estabilidadefinanceira/leiautedoc2062",
     "https://www.bcb.gov.br/estabilidadefinanceira/leiaute_drl2160",
+    "https://www.bcb.gov.br/estabilidadefinanceira/leiautedocumentoscrd",  # 4111 - SCD
 ]
 
 # ====== DATA DE REFERÊNCIA ======
-hoje = datetime.now().strftime("%d/%m/%Y")  # Produção
-#hoje = "04/09/2025"  # Testes (fixo)
+hoje = datetime.now().strftime("%d/%m/%Y")
 ASSUNTO = f"📢 Atenção: Atualização na página de Leiautes do Bacen na data: {hoje}"
 
 # ====== MANIFEST ======
@@ -158,24 +139,11 @@ def _load_manifest():
 def _save_manifest(data):
     MANIFEST_PATH.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
 
-# ====== REDE/REQUESTS ======
-
+# ====== REDE ======
 def _session():
     sess = requests.Session()
     sess.headers.update({"User-Agent": "FINAUD-Monitor/1.0 (+https://local)"})
-    try:
-        from requests.adapters import HTTPAdapter
-        from urllib3.util import Retry
-        retry = Retry(total=3, backoff_factor=0.5,
-                      status_forcelist=[429, 500, 502, 503, 504],
-                      allowed_methods=["HEAD", "GET"])
-        adapter = HTTPAdapter(max_retries=retry, pool_maxsize=10)
-        sess.mount("https://", adapter)
-        sess.mount("http://", adapter)
-    except Exception as e:
-        logger.debug(f"Retry adapter não configurado: {e}")
     return sess
-
 
 def head_info(session, url):
     r = session.head(url, allow_redirects=True, timeout=TIMEOUT)
@@ -189,7 +157,6 @@ def head_info(session, url):
         "checked_at": datetime.now().isoformat(),
     }
 
-
 def small_range_fingerprint(session, url, length=1024):
     headers = {"Range": f"bytes=0-{length-1}"}
     r = session.get(url, headers=headers, stream=True, allow_redirects=True, timeout=TIMEOUT)
@@ -197,10 +164,8 @@ def small_range_fingerprint(session, url, length=1024):
     chunk = next(r.iter_content(length), b"")
     return hashlib.sha256(chunk).hexdigest()
 
-
-# ====== ANEXOS - VERIFICAÇÃO LEVE ======
+# ====== ANEXOS ======
 ANEXO_REGEX = re.compile(r"\.(pdf|xlsx?|xsd|zip)$", re.IGNORECASE)
-
 
 def verificar_anexos(urls_anexos, use_partial_fp=True):
     manifest = _load_manifest()
@@ -263,7 +228,20 @@ def verificar_anexos(urls_anexos, use_partial_fp=True):
     return alterados, manifest
 
 
-# ====== PLAYWRIGHT (datas + anexos + categorias) ======
+# ====== PLAYWRIGHT ======
+def extrair_anexos_4111(page):
+    linha_4111 = page.locator("tr").filter(has_text="4111")
+    urls_4111, categorias = [], {}
+    if linha_4111.count() > 0:
+        links = linha_4111.locator("a")
+        for i in range(links.count()):
+            href = links.nth(i).get_attribute("href")
+            if href:
+                abs_url = page.evaluate("url => new URL(url, document.baseURI).toString()", href)
+                if any(s in abs_url.lower() for s in [".pdf", ".xsd"]):
+                    urls_4111.append(abs_url)
+                    categorias[abs_url] = "4111 - SCD"
+    return urls_4111, categorias
 
 def extrair_datas_categorias_e_anexos(url):
     with sync_playwright() as p:
@@ -273,7 +251,11 @@ def extrair_datas_categorias_e_anexos(url):
         try: page.wait_for_selector("table", timeout=5000)
         except: pass
 
-        # datas dd/mm/aaaa
+        if "leiautedocumentoscrd" in url.lower():
+            anexos_4111, categorias_4111 = extrair_anexos_4111(page)
+            browser.close()
+            return [], anexos_4111, categorias_4111
+
         datas = []
         try:
             for cell in page.query_selector_all("td"):
@@ -282,35 +264,18 @@ def extrair_datas_categorias_e_anexos(url):
                     datas.append(text)
         except: pass
 
-        # links + categoria
         try:
-            items = page.evaluate("""
-                () => {
-                  const res = [];
-                  const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
-                  const getCat = (el) => {
-                    let node = el;
-                    while (node) {
-                      let prev = node.previousElementSibling;
-                      while (prev) {
-                        if (prev.tagName === 'H3' && prev.id === 'categoria') {
-                          return (prev.textContent || '').trim() || 'Sem categoria';
-                        }
-                        prev = prev.previousElementSibling;
-                      }
-                      node = node.parentElement;
-                    }
-                    return 'Sem categoria';
-                  };
-                  for (const a of Array.from(document.querySelectorAll('a[href]'))) {
-                    const href = a.getAttribute('href') || '';
-                    if (!isAsset(href)) continue;
-                    const abs = new URL(href, document.baseURI).toString();
-                    res.push({ href: abs, text: (a.textContent || '').trim(), categoria: getCat(a) });
-                  }
-                  return res;
-                }
-            """)
+            items = page.evaluate("""() => {
+              const res = [];
+              const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
+              for (const a of Array.from(document.querySelectorAll('a[href]'))) {
+                const href = a.getAttribute('href') || '';
+                if (!isAsset(href)) continue;
+                const abs = new URL(href, document.baseURI).toString();
+                res.push({ href: abs, text: (a.textContent || '').trim(), categoria: 'Sem categoria' });
+              }
+              return res;
+            }""")
         except Exception:
             items = []
 
@@ -327,14 +292,11 @@ def extrair_datas_categorias_e_anexos(url):
                 seen.add(u)
                 anexos.append(u)
                 categoria_por_url[u] = (it.get("categoria") or "Sem categoria").strip()
-
         return datas, anexos, categoria_por_url
 
 
 # ====== EMAIL HTML ======
-
-BLUE_BRAND = "#2e3192"  # azul do logotipo
-
+BLUE_BRAND = "#2e3192"
 
 def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
     return f"""
@@ -369,9 +331,7 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
 </html>
 """.strip()
 
-
 def gerar_html_sem_novidade(data_ref: str, logo_cid: str) -> str:
-    """Corpo do e-mail quando NÃO há documentos; mensagem alinhada à esquerda e azul."""
     return f"""
 <!DOCTYPE html>
 <html lang="pt-br">
@@ -402,11 +362,9 @@ def gerar_html_sem_novidade(data_ref: str, logo_cid: str) -> str:
 
 
 # ====== NOMES ======
-
 def _filename_from_url(url):
     base = unquote(urlparse(url).path).split("/")[-1].strip() or "arquivo"
     return base
-
 
 def nome_doc_por_url(url):
     if "DDR" in url: return "DDR (2011)"
@@ -414,11 +372,11 @@ def nome_doc_por_url(url):
     if "2061" in url: return "DOC 2061"
     if "2062" in url: return "DOC 2062"
     if "2160" in url: return "DRL 2160"
+    if "4111" in url: return "4111 - SCD"
     return "Desconhecido"
 
 
 # ====== DOWNLOAD P/ ANEXO ======
-
 def baixar_para_anexo(session, url, max_single=MAX_SINGLE_ATTACH_SIZE):
     try:
         hi = head_info(session, url)
@@ -448,7 +406,6 @@ def baixar_para_anexo(session, url, max_single=MAX_SINGLE_ATTACH_SIZE):
 
 
 # ====== CONFIG DE E-MAIL ======
-
 def load_email_config(path: Path):
     cfg = json.loads(path.read_text(encoding="utf-8"))
     to = cfg.get("to") or cfg.get("destinatarios") or []
@@ -468,7 +425,6 @@ def load_email_config(path: Path):
 
 
 # ===== DEFINIÇÃO DA MAIN =====
-
 def main():
     logger.info("Iniciando monitoração...")
 
@@ -516,7 +472,6 @@ def main():
                     evidencia = item.get("evidencia", "")
                     link = f'<a href="{url}" target="_blank" style="color:{BLUE_BRAND}; text-decoration:none;">{nome}</a>'
                     linha = f"<li>{link}</li>"
-
                     blocos_por_categoria.setdefault(categoria, []).append(linha)
 
                 partes = []
@@ -575,7 +530,8 @@ def main():
         "anexos_nomes": anexos_nomes,
     }
 
-# Funções auxiliares
+
+# ===== Helpers =====
 def _plural(n: int, sing: str, plur: str | None = None) -> str:
     if n == 1:
         return f"{n} {sing}"
@@ -588,6 +544,7 @@ def _fmt_duracao(delta: timedelta) -> str:
     return f"{h:02d}:{m:02d}:{s:02d}"
 
 
+# ===== MAIN RUN =====
 if __name__ == "__main__":
     try:
         inicio_exec = datetime.now()
@@ -598,7 +555,6 @@ if __name__ == "__main__":
         links_detectados_por_data = result.get("links_detectados_por_data", [])
         alterados = result.get("alterados", [])
         urls_alterados = [a["url"] for a in alterados]
-        # Verifica se os alterados não têm data correspondente
         links_com_alteracao = not any(
             any(link.startswith(url_base) for url_base in links_detectados_por_data)
             for link in urls_alterados
@@ -612,7 +568,6 @@ if __name__ == "__main__":
         leiautes_novos = len(links_detectados_por_data)
         pdfs_gerados = len(alterados)
 
-        # LOGS
         logger.info(f"Total de links únicos detectados: {leiautes_novos}")
         logger.info(f"Documentos alterados: {pdfs_gerados}")
         logger.info(f"PDFs gerados: {len(anexos_nomes)}")
@@ -626,56 +581,54 @@ if __name__ == "__main__":
         logger.info(f"E-mails enviados: {emails_enviados}")
         logger.info(f"Destinatários: {destinatarios_str}")
 
-        # Cabeçalho do status
         txt_leiautes = _plural(leiautes_novos, "leiaute novo", "leiautes novos")
         txt_pdfs     = _plural(pdfs_gerados,    "PDF gerado",   "PDFs gerados")
         
         aviso_tecnico = ""
         
         if leiautes_novos > 0:
-            # Novidades reais (data nova na página)
             header = f"🟢 OK | {txt_leiautes}, {txt_pdfs} | em {duracao}"
             if leiautes_novos > 0:
                 exemplo_nome = nome_doc_por_url(links_detectados_por_data[0])
                 header += f" | ex: {exemplo_nome}"
-        
-        elif alterados:  # ou: elif links_com_alteracao:
-            # Sem data nova, mas anexos mudaram
+        elif alterados:
             header = f"🟡 AVISO | Link(s) alterado(s), sem data nova | em {duracao}"
             aviso_tecnico = "🛈 AVISO TÉCNICO: link(s) foram alterados no Bacen, mesmo sem data nova"
-        
         else:
             header = f"🟢 OK | Nenhuma alteração detectada | em {duracao}"
 
-   
         # Gera nomes legíveis dos leiautes verificados
         codigo_para_sigla = {
             "2061": "DLO",
             "2062": "DLI",
-            "DRM": "DRM",  #referência correta
+            "DRM": "DRM",
             "2011": "DDR",
             "2160": "DRL",
-            "2060": "DRM"  #fallback para URLs que só tem "DRM"
+            "2060": "DRM",
+            "4111": "SCD",
+        
         }
         
         paginas_formatadas = []
         for url in urls:
-            encontrado = False  # inicializa como False a cada URL
+            encontrado = False
             for codigo, sigla in codigo_para_sigla.items():
                 if codigo in url.upper():
-                    # Se o código for "DRM", forçamos a usar 2060
+                    if sigla == "SCD":
+                        paginas_formatadas.append(f"{sigla} - 4111")
                     if codigo == "DRM":
                         paginas_formatadas.append("DRM - 2060")
                     else:
                         paginas_formatadas.append(f"{sigla} - {codigo}")
                     encontrado = True
                     break
-                    
             if not encontrado:
                 trecho = url.rsplit("/", 1)[-1].upper().replace("LEIAUTEDOCUMENTO", "").replace("LEIAUTEDOC", "")
-                paginas_formatadas.append(f"{trecho} - (desconhecido)")        
-                    
-            
+                if "SCRD" in trecho:  # <- correção
+                    paginas_formatadas.append("SCD - 4111")
+                else:
+                    paginas_formatadas.append(f"{trecho} - (desconhecido)")        
+        
         if len(paginas_formatadas) > 1:
             leiautes_str = ", ".join(paginas_formatadas[:-1]) + " e " + paginas_formatadas[-1]
         else:
@@ -690,7 +643,6 @@ if __name__ == "__main__":
             "📄 Arquivos com mudanças detectadas": "\n- " + "\n- ".join(anexos_nomes) if anexos_nomes else "Nenhum",
         }
 
-
         _write_status_tail("leiautes", header, resumo, [], aviso_tecnico)
 
     except Exception as e:
@@ -698,28 +650,11 @@ if __name__ == "__main__":
             resumo_err = {"Motivo": str(e).splitlines()[-1]}
         except Exception:
             resumo_err = {"Motivo": str(e)}
-
         try:
             extra = "Veja o log para o traceback completo."
             _write_status_tail("leiautes", "🔴 ERRO | Falha na execução", resumo_err, [], extra)
         except Exception as log_error:
             print("Falha ao escrever no status_tail:", log_error)
-
         raise
-
-    except Exception as e:
-        try:
-            resumo_err = {"Motivo": str(e).splitlines()[-1]}
-        except Exception:
-            resumo_err = {"Motivo": str(e)}
-
-        try:
-            extra = "Veja o log para o traceback completo."
-            _write_status_tail("leiautes", "🔴 ERRO | Falha na execução", resumo_err, [], extra)
-        except Exception as log_error:
-            print("Falha ao escrever no status_tail:", log_error)
-
-        raise
-    
     finally:
         print(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} | === FIM leiautes ===")
