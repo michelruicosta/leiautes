@@ -341,7 +341,7 @@ def gerar_html_sem_novidade(data_ref: str, logo_cid: str) -> str:
   body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; }}
   .wrap {{ width: 100%; margin: 0 auto; }}
   .rodape {{ font-size: 12px; color: #555; margin-top: 40px; text-align: center; }}
-  .msg-sem-novidade {{ text-align: left; color: {BLUE_BRAND}; font-size: 18px; margin-top: 24px; line-height:1.55; }}
+  .msg-sem-novidade {{ text-align: center; color: {BLUE_BRAND}; font-size: 18px; margin-top: 24px; line-height:1.55; }}
 </style>
 </head>
 <body>
