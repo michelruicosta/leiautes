@@ -350,7 +350,7 @@ def gerar_html_sem_novidade(data_ref: str, logo_cid: str) -> str:
       <img src="cid:{logo_cid}" alt="FINAUD TEC" style="max-width:220px; height:auto;">
     </div>
     <p class="msg-sem-novidade">
-      <strong>Não há documentos novos ou alterados na data de {data_ref}</strong>.
+      <strong>Nenhum documento novo ou alterado foi identificado na página de leiautes em {data_ref}</strong>.
     </p>
     <div class="rodape">
       Este e-mail foi gerado automaticamente pelo sistema de monitoramento <b>FINAUD TEC SOLUÇÕES EM TECNOLOGIA</b>.
