@@ -648,14 +648,48 @@ if __name__ == "__main__":
             header = f"🟢 OK | Nenhuma alteração detectada | em {duracao}"
 
    
+        # Gera nomes legíveis dos leiautes verificados
+        codigo_para_sigla = {
+            "2061": "DLO",
+            "2062": "DLI",
+            "DRM": "DRM",  #referência correta
+            "2011": "DDR",
+            "2160": "DRL",
+            "2060": "DRM"  #fallback para URLs que só tem "DRM"
+        }
+        
+        paginas_formatadas = []
+        for url in urls:
+            encontrado = False  # inicializa como False a cada URL
+            for codigo, sigla in codigo_para_sigla.items():
+                if codigo in url.upper():
+                    # Se o código for "DRM", forçamos a usar 2060
+                    if codigo == "DRM":
+                        paginas_formatadas.append("DRM - 2060")
+                    else:
+                        paginas_formatadas.append(f"{sigla} - {codigo}")
+                    encontrado = True
+                    break
+                    
+            if not encontrado:
+                trecho = url.rsplit("/", 1)[-1].upper().replace("LEIAUTEDOCUMENTO", "").replace("LEIAUTEDOC", "")
+                paginas_formatadas.append(f"{trecho} - (desconhecido)")        
+                    
+            
+        if len(paginas_formatadas) > 1:
+            leiautes_str = ", ".join(paginas_formatadas[:-1]) + " e " + paginas_formatadas[-1]
+        else:
+            leiautes_str = paginas_formatadas[0]
+        
         resumo = {
-            "📄 Páginas alvo verificadas": paginas_verificadas,
+            "📄 Leiautes verificados": leiautes_str,
             "📊 Leiautes novos": leiautes_novos,
             "📄 PDFs gerados": pdfs_gerados,
             "📧 E-mails enviados": emails_enviados,
             "✉️ Destinatários": destinatarios_str,
             "📄 Arquivos com mudanças detectadas": "\n- " + "\n- ".join(anexos_nomes) if anexos_nomes else "Nenhum",
         }
+
 
         _write_status_tail("leiautes", header, resumo, [], aviso_tecnico)
 
