@@ -1,0 +1,411 @@
+:root {
+  color: #1a1a1a;
+  background: #f5f6f8;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  line-height: 1.5;
+  --marca-cor: #3333a8;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  border-radius: 8px;
+  padding: 1rem 1.25rem;
+}
+
+.meta {
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.erro {
+  color: #b42318;
+  background: #fef3f2;
+  border: 1px solid #fecdca;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  margin-bottom: 1rem;
+}
+
+.field-label {
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+
+.field-input {
+  width: 100%;
+  padding: 0.6rem 0.75rem;
+  border: 1px solid #c5cad3;
+  border-radius: 6px;
+  background: #fff;
+}
+
+.btn-primary,
+.btn-novo {
+  padding: 0.55rem 1.1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: var(--marca-cor);
+  color: #fff;
+}
+
+.btn-link {
+  border: none;
+  background: none;
+  color: var(--marca-cor);
+  cursor: pointer;
+  font-size: 0.9rem;
+  text-decoration: underline;
+  padding: 0;
+}
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+.login-shell-marca {
+  background: var(--marca-cor);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  border-radius: 12px;
+  padding: 2rem 1.75rem;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+
+.marca-org {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e5ea;
+}
+
+.marca-org-logo-placeholder {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 8px;
+  background: var(--marca-cor);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+}
+
+.marca-org-textos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.marca-org-nome {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.marca-org-sub {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.login-submit {
+  width: 100%;
+  margin-top: 0.5rem;
+}
+
+.login-rodape {
+  margin: 1rem 0 0;
+  text-align: center;
+}
+
+.painel-layout {
+  display: flex;
+  min-height: 100vh;
+  background: #f0f2f5;
+}
+
+.painel-sidebar {
+  width: 240px;
+  background: #1e2a3b;
+  color: #e2e8f0;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.painel-sidebar-logo {
+  padding: 1.1rem 1.25rem;
+  font-weight: 700;
+  font-size: 1.05rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
+  min-height: 3.5rem;
+  display: flex;
+  align-items: center;
+}
+
+.painel-nav {
+  padding: 0.75rem 0;
+  flex: 1;
+}
+
+.painel-nav-label {
+  padding: 0.85rem 1.25rem 0.35rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #94a3b8;
+}
+
+.painel-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 0.65rem 1.25rem;
+  border: none;
+  background: none;
+  color: #cbd5e1;
+  font-size: 0.92rem;
+  text-align: left;
+  cursor: pointer;
+}
+
+.painel-nav-sub .painel-nav-item {
+  padding-left: 2rem;
+  font-size: 0.88rem;
+}
+
+.painel-nav-item:hover {
+  background: #263449;
+  color: #fff;
+}
+
+.painel-nav-item.ativo {
+  background: #2d3f5c;
+  color: #fff;
+  border-left: 3px solid var(--marca-cor);
+  padding-left: calc(1.25rem - 3px);
+}
+
+.painel-nav-sub .painel-nav-item.ativo {
+  padding-left: calc(2rem - 3px);
+}
+
+.painel-nav-ico {
+  opacity: 0.85;
+  width: 1.1rem;
+  text-align: center;
+}
+
+.painel-main-wrap {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.painel-topbar {
+  height: 56px;
+  background: #fff;
+  border-bottom: 1px solid #dde1e6;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 1.25rem;
+}
+
+.painel-content {
+  flex: 1;
+  padding: 1.5rem 1.75rem 2rem;
+  overflow-y: auto;
+}
+
+.painel-footer {
+  padding: 0.75rem 1.25rem;
+  text-align: right;
+  font-size: 0.82rem;
+  color: #64748b;
+}
+
+.user-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  border-radius: 8px;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--marca-cor);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.user-menu-email {
+  font-size: 0.88rem;
+}
+
+.admin-page {
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.page-cabecalho {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.page-title {
+  margin: 0 0 0.25rem;
+  font-size: 1.35rem;
+}
+
+.page-sub {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.92rem;
+}
+
+.admin-ajuda {
+  margin: 0 0 1rem;
+  padding: 0.85rem 1rem;
+  background: #f0f4ff;
+  border: 1px solid #d6e0ff;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: #343a40;
+}
+
+.cards-resumo {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.numero-grande {
+  margin: 0.45rem 0 0.1rem;
+  font-size: 1.45rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.tabela-wrap {
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.tabela {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.tabela th,
+.tabela td {
+  padding: 0.65rem 0.85rem;
+  border-bottom: 1px solid #eef0f2;
+  text-align: left;
+  vertical-align: top;
+}
+
+.tabela th {
+  background: #f8f9fa;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: #64748b;
+}
+
+.tag {
+  font-size: 0.75rem;
+  background: #eef2ff;
+  color: var(--marca-cor);
+  padding: 0.2rem 0.5rem;
+  border-radius: 999px;
+}
+
+.tags-inline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+
+.status-ok {
+  color: #2b8a3e;
+}
+
+.status-erro {
+  color: #c92a2a;
+}
+
+@media (max-width: 760px) {
+  .painel-layout {
+    flex-direction: column;
+  }
+
+  .painel-sidebar {
+    width: 100%;
+  }
+
+  .painel-nav {
+    display: flex;
+    overflow-x: auto;
+  }
+
+  .painel-nav-label,
+  .painel-nav-sub {
+    display: none;
+  }
+}

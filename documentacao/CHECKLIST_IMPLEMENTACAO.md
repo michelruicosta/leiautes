@@ -59,21 +59,21 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 ## 6. Base do frontend
 
-- [ ] Criar estrutura `frontend`.
-- [ ] Configurar React + Vite + TypeScript.
-- [ ] Reaproveitar padrao visual do `normativos_ia`.
-- [ ] Criar `AppShell`.
-- [ ] Criar tela de login.
-- [ ] Commit: base do frontend.
+- [x] Criar estrutura `frontend`.
+- [x] Configurar React + Vite + TypeScript.
+- [x] Reaproveitar padrao visual do `normativos_ia`.
+- [x] Criar `AppShell`.
+- [x] Criar tela de login.
+- [x] Commit: base do frontend.
 
 ## 7. Telas principais
 
-- [ ] Dashboard.
-- [ ] Leiautes.
+- [x] Dashboard.
+- [x] Leiautes.
 - [ ] Alteracoes.
 - [ ] Detalhe da alteracao.
 - [ ] E-mail do gestor.
-- [ ] Robo.
+- [x] Robo.
 - [ ] Configuracoes.
 - [ ] Usuarios e perfis.
 - [ ] Commit: telas principais.
