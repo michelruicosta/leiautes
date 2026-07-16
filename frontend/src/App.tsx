@@ -1,10 +1,12 @@
 import { useState } from "react";
 import AppShell, { type RotaPainel } from "./components/AppShell";
+import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
 import RoboPage from "./pages/RoboPage";
+import UsuariosPage from "./pages/UsuariosPage";
 
 export default function App() {
   const [autenticado, setAutenticado] = useState(false);
@@ -32,15 +34,9 @@ export default function App() {
         subtitulo="Prévia do comunicado com resumo executivo das diferenças."
       />
     ) : rota === "configuracoes" ? (
-      <PlaceholderPage
-        titulo="Configurações"
-        subtitulo="Parâmetros do robô, e-mail, URLs, anexos e comparação."
-      />
+      <ConfiguracoesPage />
     ) : (
-      <PlaceholderPage
-        titulo="Usuários e perfis"
-        subtitulo="Controle de usuários e permissões do menu."
-      />
+      <UsuariosPage />
     );
 
   return (

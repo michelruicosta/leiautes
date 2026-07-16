@@ -54,8 +54,29 @@ export type ConfiguracoesResponse = {
   configuracoes: Record<string, unknown>;
 };
 
+export type ConfiguracoesMapa = Record<string, unknown>;
+
 export type RoboStatusResponse = {
   script_motor: string;
   script_existe: boolean;
   ultima_execucao?: ExecucaoResumo | null;
+};
+
+export type UsuarioResumo = {
+  id: number;
+  email: string;
+  nome: string;
+  perfil_codigo: string;
+  cargo?: string | null;
+  departamento?: string | null;
+  ativo: boolean;
+};
+
+export type UsuarioListaResponse = {
+  total: number;
+  usuarios: UsuarioResumo[];
+};
+
+export type PermissoesPerfilResponse = {
+  permissoes: Record<string, string[]>;
 };

@@ -74,15 +74,15 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 - [ ] Detalhe da alteracao.
 - [ ] E-mail do gestor.
 - [x] Robo.
-- [ ] Configuracoes.
-- [ ] Usuarios e perfis.
+- [x] Configuracoes.
+- [x] Usuarios e perfis.
 - [ ] Commit: telas principais.
 
 ## 8. Integracao frontend/backend
 
 - [ ] Criar cliente API.
 - [ ] Integrar dashboard.
-- [ ] Integrar configuracoes.
+- [x] Integrar configuracoes.
 - [ ] Integrar leiautes.
 - [ ] Integrar alteracoes.
 - [ ] Integrar execucao manual do robo.

@@ -326,6 +326,113 @@ textarea {
   color: #343a40;
 }
 
+.login-sucesso {
+  color: #2b8a3e;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 1.25rem 0;
+}
+
+.admin-tabs button {
+  padding: 0.4rem 0.9rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.admin-tabs button.ativo {
+  background: var(--marca-cor);
+  color: #fff;
+  border-color: var(--marca-cor);
+}
+
+.config-painel-aba {
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 10px;
+  padding: 1.25rem 1.35rem;
+}
+
+.config-marca-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.config-logo-preview {
+  width: 140px;
+  height: 72px;
+  border: 1px dashed #c5cad3;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f8f9fa;
+  font-weight: 700;
+  font-size: 1.25rem;
+}
+
+.btn-secondary {
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #c5cad3;
+  background: #fff;
+  color: #343a40;
+}
+
+.config-dupla {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+.config-cor-picker {
+  width: 48px;
+  height: 40px;
+  padding: 2px;
+  border: 1px solid #c5cad3;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.admin-textarea {
+  resize: vertical;
+  min-height: 4rem;
+}
+
+.textarea-alta {
+  min-height: 8rem;
+}
+
+.admin-dias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.admin-dia-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  cursor: pointer;
+}
+
 .cards-resumo {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -388,6 +495,55 @@ textarea {
 
 .status-erro {
   color: #c92a2a;
+}
+
+.badge-perfil {
+  display: inline-block;
+  padding: 0.2rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-perfil-operador {
+  background: #f1f3f5;
+  color: #495057;
+  border: 1px solid #dee2e6;
+}
+
+.badge-perfil-gestor {
+  background: #e7f5ff;
+  color: #1864ab;
+  border: 1px solid #a5d8ff;
+}
+
+.badge-perfil-administrador {
+  background: #f0f0ff;
+  color: var(--marca-cor);
+  border: 1px solid #c8c8e8;
+}
+
+.permissao-toggle {
+  padding: 0.3rem 0.75rem;
+  border: 1px solid #d0d5dd;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  min-width: 3.1rem;
+}
+
+.permissao-toggle-sim {
+  background: var(--marca-cor);
+  color: #fff;
+  border-color: var(--marca-cor);
+}
+
+.permissao-toggle:disabled {
+  cursor: default;
+  opacity: 0.85;
 }
 
 @media (max-width: 760px) {

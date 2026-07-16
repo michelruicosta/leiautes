@@ -117,3 +117,47 @@ class RoboExecutarResponse(BaseModel):
     returncode: int
     stdout_tail: str = ""
     stderr_tail: str = ""
+
+
+class UsuarioResumo(BaseModel):
+    id: int
+    email: str
+    nome: str
+    perfil_codigo: str
+    cargo: Optional[str] = None
+    departamento: Optional[str] = None
+    ativo: bool = True
+
+
+class UsuarioListaResponse(BaseModel):
+    total: int
+    usuarios: list[UsuarioResumo]
+
+
+class UsuarioCreateRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    nome: str = Field(min_length=2, max_length=120)
+    perfil_codigo: str = Field(pattern=r"^(operador|gestor|administrador)$")
+    cargo: Optional[str] = Field(default=None, max_length=80)
+    departamento: Optional[str] = Field(default=None, max_length=80)
+    ativo: bool = True
+
+
+class UsuarioUpdateRequest(BaseModel):
+    email: Optional[str] = Field(default=None, min_length=3, max_length=200)
+    nome: Optional[str] = Field(default=None, min_length=2, max_length=120)
+    perfil_codigo: Optional[str] = Field(
+        default=None,
+        pattern=r"^(operador|gestor|administrador)$",
+    )
+    cargo: Optional[str] = Field(default=None, max_length=80)
+    departamento: Optional[str] = Field(default=None, max_length=80)
+    ativo: Optional[bool] = None
+
+
+class PermissoesPerfilResponse(BaseModel):
+    permissoes: dict[str, list[str]]
+
+
+class PermissoesPerfilUpdateRequest(BaseModel):
+    permissoes: dict[str, list[str]]

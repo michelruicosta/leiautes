@@ -29,6 +29,8 @@ GET /configuracoes
 PUT /configuracoes
 GET /robo/status
 POST /robo/executar
+GET /usuarios
+GET /usuarios/perfis/permissoes
 ```
 
 ## Observacoes

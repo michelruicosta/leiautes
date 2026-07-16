@@ -3,7 +3,9 @@ import type {
   ConfiguracoesResponse,
   DashboardResponse,
   LeiauteListaResponse,
+  PermissoesPerfilResponse,
   RoboStatusResponse,
+  UsuarioListaResponse,
 } from "./types";
 
 export function obterDashboard() {
@@ -24,4 +26,18 @@ export function salvarConfiguracoes(configuracoes: Record<string, unknown>) {
 
 export function obterStatusRobo() {
   return apiGet<RoboStatusResponse>("/robo/status");
+}
+
+export function listarUsuarios() {
+  return apiGet<UsuarioListaResponse>("/usuarios");
+}
+
+export function obterPermissoesPerfis() {
+  return apiGet<PermissoesPerfilResponse>("/usuarios/perfis/permissoes");
+}
+
+export function salvarPermissoesPerfis(permissoes: Record<string, string[]>) {
+  return apiPut<PermissoesPerfilResponse>("/usuarios/perfis/permissoes", {
+    permissoes,
+  });
 }
