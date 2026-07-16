@@ -45,3 +45,6 @@ GET /email-gestor/preview
 - A rota `/robo/executar` chama o motor atual em
   `scripts/verifica_leiautes_finaud.py` e registra a execucao no banco. A
   modularizacao interna do motor sera feita em etapa propria do checklist.
+- Por seguranca, execucoes disparadas pela API definem
+  `LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br`, redirecionando o envio para o
+  e-mail de teste enquanto o app esta em desenvolvimento.

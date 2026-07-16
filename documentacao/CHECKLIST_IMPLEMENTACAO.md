@@ -94,6 +94,7 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 ## 9. Testes e validacao
 
+- [x] Redirecionar envio de teste para michel@finaud.com.br.
 - [ ] Testar execucao sem alteracao.
 - [ ] Testar execucao com arquivo novo.
 - [ ] Testar execucao com arquivo alterado.

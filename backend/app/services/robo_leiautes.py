@@ -45,6 +45,7 @@ def executar_robo_atual(
     env = os.environ.copy()
     execucao_id = iniciar_execucao(log_path=None)
     env["LEIAUTES_EXECUCAO_ID"] = str(execucao_id)
+    env.setdefault("LEIAUTES_EMAIL_TEST_TO", "michel@finaud.com.br")
     if modo_teste:
         env["LEIAUTES_MODO_TESTE"] = "1"
     if data_teste:

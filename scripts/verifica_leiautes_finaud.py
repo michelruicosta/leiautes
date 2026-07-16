@@ -485,6 +485,9 @@ def load_email_config(path: Path):
     to = cfg.get("to") or cfg.get("destinatarios") or []
     if isinstance(to, str):
         to = [x.strip() for x in to.split(",") if x.strip()]
+    test_to = os.environ.get("LEIAUTES_EMAIL_TEST_TO", "").strip()
+    if test_to:
+        to = [x.strip() for x in re.split(r"[,;]", test_to) if x.strip()]
     smtp = cfg.get("smtp", {})
     return {
         "from": cfg.get("from") or cfg.get("user"),
