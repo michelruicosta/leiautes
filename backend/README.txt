@@ -27,6 +27,8 @@ GET /execucoes
 GET /execucoes/ultima
 GET /configuracoes
 PUT /configuracoes
+GET /robo/status
+POST /robo/executar
 ```
 
 ## Observacoes
@@ -36,5 +38,6 @@ PUT /configuracoes
   execucoes, arquivos, versoes, alteracoes, e-mails enviados e auditoria.
 - A persistencia ja esta separada em modulos por dominio, seguindo a direcao
   usada no `normativos_ia`.
-- O motor atual em `scripts/verifica_leiautes_finaud.py` ainda nao foi migrado;
-  a migracao sera feita em etapa propria do checklist.
+- A rota `/robo/executar` chama o motor atual em
+  `scripts/verifica_leiautes_finaud.py` e registra a execucao no banco. A
+  modularizacao interna do motor sera feita em etapa propria do checklist.

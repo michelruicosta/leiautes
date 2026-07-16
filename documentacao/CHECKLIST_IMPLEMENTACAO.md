@@ -44,7 +44,7 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 - [ ] Separar extracao de anexos.
 - [ ] Separar verificacao de metadados.
 - [ ] Separar download para historico.
-- [ ] Preservar envio de e-mail atual.
+- [x] Preservar envio de e-mail atual.
 - [ ] Ler parametros do banco/configuracao.
 - [ ] Commit: motor do robo modularizado.
 

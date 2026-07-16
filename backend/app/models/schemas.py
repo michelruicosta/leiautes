@@ -97,3 +97,23 @@ class ConfiguracoesResponse(BaseModel):
 
 class ConfiguracoesUpdateRequest(BaseModel):
     configuracoes: dict
+
+
+class RoboStatusResponse(BaseModel):
+    script_motor: str
+    script_existe: bool
+    ultima_execucao: Optional[ExecucaoResumo] = None
+
+
+class RoboExecutarRequest(BaseModel):
+    modo_teste: bool = False
+    data_teste: Optional[str] = Field(default=None, max_length=10)
+    timeout_segundos: int = Field(default=900, ge=30, le=7200)
+
+
+class RoboExecutarResponse(BaseModel):
+    execucao_id: int
+    status: str
+    returncode: int
+    stdout_tail: str = ""
+    stderr_tail: str = ""
