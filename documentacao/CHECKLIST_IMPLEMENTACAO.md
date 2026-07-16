@@ -15,17 +15,17 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 - [x] Documentar arquitetura alvo.
 - [x] Documentar checklist de implementacao.
 - [x] Documentar menus e parametros.
-- [ ] Commit: documentacao inicial.
+- [x] Commit: documentacao inicial.
 
 ## 2. Base do backend
 
-- [ ] Criar estrutura `backend/app`.
-- [ ] Criar `backend/requirements-api.txt`.
-- [ ] Criar `app/main.py` com FastAPI.
-- [ ] Criar rotas `health`.
-- [ ] Criar `config.py`.
-- [ ] Criar camada de persistencia inicial.
-- [ ] Commit: base do backend.
+- [x] Criar estrutura `backend/app`.
+- [x] Criar `backend/requirements-api.txt`.
+- [x] Criar `app/main.py` com FastAPI.
+- [x] Criar rotas `health`.
+- [x] Criar `config.py`.
+- [x] Criar camada de persistencia inicial.
+- [x] Commit: base do backend.
 
 ## 3. Persistencia
 

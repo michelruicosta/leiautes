@@ -1,7 +1,10 @@
 venv/
 logs/
 runtime/
+dados/
+storage/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.log
 *.gz
