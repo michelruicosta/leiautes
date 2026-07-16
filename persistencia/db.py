@@ -28,6 +28,10 @@ def _connect() -> sqlite3.Connection:
     return conn
 
 
+def conectar() -> sqlite3.Connection:
+    return _connect()
+
+
 def _agora() -> str:
     return datetime.now().isoformat(timespec="seconds")
 
@@ -43,6 +47,25 @@ def init_db() -> None:
             CREATE TABLE IF NOT EXISTS configuracoes (
                 chave TEXT PRIMARY KEY,
                 valor TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                email TEXT NOT NULL UNIQUE,
+                nome TEXT NOT NULL,
+                perfil_codigo TEXT NOT NULL DEFAULT 'operador',
+                senha_hash TEXT,
+                cargo TEXT,
+                departamento TEXT,
+                ativo INTEGER NOT NULL DEFAULT 1,
+                criado_em TEXT NOT NULL,
+                atualizado_em TEXT NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS perfis_permissoes (
+                perfil_codigo TEXT PRIMARY KEY,
+                rotas_permitidas TEXT NOT NULL DEFAULT '[]',
                 atualizado_em TEXT NOT NULL
             );
 
@@ -154,6 +177,7 @@ def init_db() -> None:
             """
         )
     seed_configuracoes_padrao()
+    seed_perfis_padrao()
     seed_leiautes_padrao()
 
 
@@ -244,6 +268,33 @@ def seed_leiautes_padrao() -> None:
                 ) VALUES (?, ?, ?, ?, ?, 1, ?, ?)
                 """,
                 (codigo, nome, categoria, url, _json(tipos), agora, agora),
+            )
+
+
+def seed_perfis_padrao() -> None:
+    permissoes = {
+        "operador": ["dashboard", "leiautes", "alteracoes", "admin-robo"],
+        "gestor": ["dashboard", "leiautes", "alteracoes", "email-gestor"],
+        "administrador": [
+            "dashboard",
+            "leiautes",
+            "alteracoes",
+            "email-gestor",
+            "admin-robo",
+            "admin-configuracoes",
+            "admin-usuarios",
+        ],
+    }
+    agora = _agora()
+    with _connect() as conn:
+        for perfil, rotas in permissoes.items():
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO perfis_permissoes (
+                    perfil_codigo, rotas_permitidas, atualizado_em
+                ) VALUES (?, ?, ?)
+                """,
+                (perfil, _json(rotas), agora),
             )
 
 

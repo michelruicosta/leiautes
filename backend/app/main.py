@@ -5,7 +5,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import API_VERSION
-from app.routers import health
+from app.routers import configuracoes, dashboard, execucoes, health, leiautes
 from persistencia.db import init_db
 
 app = FastAPI(
@@ -36,6 +36,10 @@ app.add_middleware(
 )
 
 app.include_router(health.router)
+app.include_router(dashboard.router)
+app.include_router(leiautes.router)
+app.include_router(execucoes.router)
+app.include_router(configuracoes.router)
 
 
 @app.on_event("startup")

@@ -29,14 +29,14 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 ## 3. Persistencia
 
-- [ ] Criar banco SQLite.
-- [ ] Criar tabelas de configuracoes.
-- [ ] Criar tabelas de usuarios/perfis.
-- [ ] Criar tabelas de leiautes monitorados.
-- [ ] Criar tabelas de execucoes.
-- [ ] Criar tabelas de arquivos e versoes.
-- [ ] Criar tabelas de alteracoes detectadas.
-- [ ] Commit: persistencia inicial.
+- [x] Criar banco SQLite.
+- [x] Criar tabelas de configuracoes.
+- [x] Criar tabelas de usuarios/perfis.
+- [x] Criar tabelas de leiautes monitorados.
+- [x] Criar tabelas de execucoes.
+- [x] Criar tabelas de arquivos e versoes.
+- [x] Criar tabelas de alteracoes detectadas.
+- [x] Commit: persistencia inicial.
 
 ## 4. Migracao do robo
 

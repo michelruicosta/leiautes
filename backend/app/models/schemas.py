@@ -17,6 +17,7 @@ class LeiauteResumo(BaseModel):
     nome: str
     categoria: str
     url_bacen: str
+    tipos_arquivo: list[str] = Field(default_factory=list)
     ativo: bool = True
     ultima_leitura_em: Optional[str] = None
 
@@ -24,6 +25,24 @@ class LeiauteResumo(BaseModel):
 class LeiauteListaResponse(BaseModel):
     total: int
     leiautes: list[LeiauteResumo]
+
+
+class LeiauteCreateRequest(BaseModel):
+    codigo: str = Field(min_length=2, max_length=40)
+    nome: str = Field(min_length=2, max_length=160)
+    categoria: str = Field(min_length=2, max_length=40)
+    url_bacen: str = Field(min_length=10, max_length=500)
+    tipos_arquivo: list[str] = Field(default_factory=list)
+    ativo: bool = True
+
+
+class LeiauteUpdateRequest(BaseModel):
+    codigo: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    nome: Optional[str] = Field(default=None, min_length=2, max_length=160)
+    categoria: Optional[str] = Field(default=None, min_length=2, max_length=40)
+    url_bacen: Optional[str] = Field(default=None, min_length=10, max_length=500)
+    tipos_arquivo: Optional[list[str]] = None
+    ativo: Optional[bool] = None
 
 
 class ExecucaoResumo(BaseModel):
@@ -62,3 +81,19 @@ class AlteracaoResumo(BaseModel):
 class AlteracaoListaResponse(BaseModel):
     total: int
     alteracoes: list[AlteracaoResumo]
+
+
+class DashboardResponse(BaseModel):
+    ultima_execucao: Optional[ExecucaoResumo] = None
+    qtd_leiautes: int = 0
+    qtd_arquivos: int = 0
+    qtd_alteracoes: int = 0
+    alteracoes_recentes: list[AlteracaoResumo] = Field(default_factory=list)
+
+
+class ConfiguracoesResponse(BaseModel):
+    configuracoes: dict
+
+
+class ConfiguracoesUpdateRequest(BaseModel):
+    configuracoes: dict
