@@ -23,6 +23,7 @@ Endpoints iniciais para as telas:
 ```text
 GET /dashboard
 GET /leiautes
+GET /alteracoes
 GET /execucoes
 GET /execucoes/ultima
 GET /configuracoes
@@ -31,6 +32,7 @@ GET /robo/status
 POST /robo/executar
 GET /usuarios
 GET /usuarios/perfis/permissoes
+GET /email-gestor/preview
 ```
 
 ## Observacoes

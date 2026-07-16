@@ -26,6 +26,13 @@ export type AlteracaoResumo = {
   itens_alterados: string[];
 };
 
+export type AlteracaoListaResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  alteracoes: AlteracaoResumo[];
+};
+
 export type DashboardResponse = {
   ultima_execucao?: ExecucaoResumo | null;
   qtd_leiautes: number;
@@ -79,4 +86,13 @@ export type UsuarioListaResponse = {
 
 export type PermissoesPerfilResponse = {
   permissoes: Record<string, string[]>;
+};
+
+export type EmailGestorPreviewResponse = {
+  assunto: string;
+  destinatarios: string[];
+  copia: string[];
+  resumo: string;
+  alteracoes: AlteracaoResumo[];
+  anexos: string[];
 };

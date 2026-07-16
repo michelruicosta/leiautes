@@ -1,7 +1,9 @@
 import { useState } from "react";
 import AppShell, { type RotaPainel } from "./components/AppShell";
+import AlteracoesPage from "./pages/AlteracoesPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
+import EmailGestorPage from "./pages/EmailGestorPage";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -24,15 +26,9 @@ export default function App() {
     ) : rota === "robo" ? (
       <RoboPage />
     ) : rota === "alteracoes" ? (
-      <PlaceholderPage
-        titulo="Alterações"
-        subtitulo="Histórico e comparação entre a versão anterior e atual."
-      />
+      <AlteracoesPage />
     ) : rota === "email" ? (
-      <PlaceholderPage
-        titulo="E-mail do gestor"
-        subtitulo="Prévia do comunicado com resumo executivo das diferenças."
-      />
+      <EmailGestorPage />
     ) : rota === "configuracoes" ? (
       <ConfiguracoesPage />
     ) : (

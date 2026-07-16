@@ -80,6 +80,8 @@ class AlteracaoResumo(BaseModel):
 
 class AlteracaoListaResponse(BaseModel):
     total: int
+    limit: int = 50
+    offset: int = 0
     alteracoes: list[AlteracaoResumo]
 
 
@@ -161,3 +163,12 @@ class PermissoesPerfilResponse(BaseModel):
 
 class PermissoesPerfilUpdateRequest(BaseModel):
     permissoes: dict[str, list[str]]
+
+
+class EmailGestorPreviewResponse(BaseModel):
+    assunto: str
+    destinatarios: list[str] = Field(default_factory=list)
+    copia: list[str] = Field(default_factory=list)
+    resumo: str
+    alteracoes: list[AlteracaoResumo] = Field(default_factory=list)
+    anexos: list[str] = Field(default_factory=list)

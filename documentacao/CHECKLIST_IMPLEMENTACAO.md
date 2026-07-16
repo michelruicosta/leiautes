@@ -70,13 +70,13 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 - [x] Dashboard.
 - [x] Leiautes.
-- [ ] Alteracoes.
+- [x] Alteracoes.
 - [ ] Detalhe da alteracao.
-- [ ] E-mail do gestor.
+- [x] E-mail do gestor.
 - [x] Robo.
 - [x] Configuracoes.
 - [x] Usuarios e perfis.
-- [ ] Commit: telas principais.
+- [x] Commit: telas principais.
 
 ## 8. Integracao frontend/backend
 
@@ -84,7 +84,7 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 - [ ] Integrar dashboard.
 - [x] Integrar configuracoes.
 - [ ] Integrar leiautes.
-- [ ] Integrar alteracoes.
+- [x] Integrar alteracoes.
 - [ ] Integrar execucao manual do robo.
 - [ ] Commit: integracao inicial.
 

@@ -2,6 +2,8 @@ import { apiGet, apiPut } from "./client";
 import type {
   ConfiguracoesResponse,
   DashboardResponse,
+  EmailGestorPreviewResponse,
+  AlteracaoListaResponse,
   LeiauteListaResponse,
   PermissoesPerfilResponse,
   RoboStatusResponse,
@@ -16,6 +18,10 @@ export function listarLeiautes() {
   return apiGet<LeiauteListaResponse>("/leiautes");
 }
 
+export function listarAlteracoes() {
+  return apiGet<AlteracaoListaResponse>("/alteracoes");
+}
+
 export function obterConfiguracoes() {
   return apiGet<ConfiguracoesResponse>("/configuracoes");
 }
@@ -26,6 +32,10 @@ export function salvarConfiguracoes(configuracoes: Record<string, unknown>) {
 
 export function obterStatusRobo() {
   return apiGet<RoboStatusResponse>("/robo/status");
+}
+
+export function obterPreviewEmailGestor() {
+  return apiGet<EmailGestorPreviewResponse>("/email-gestor/preview");
 }
 
 export function listarUsuarios() {

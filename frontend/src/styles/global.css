@@ -546,6 +546,108 @@ textarea {
   opacity: 0.85;
 }
 
+.status-andamento {
+  color: var(--marca-cor);
+}
+
+.alteracoes-layout {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.alteracoes-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.alteracao-card {
+  display: grid;
+  gap: 0.25rem;
+  width: 100%;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+}
+
+.alteracao-card.ativo {
+  border-color: #b8c4ff;
+  background: #f8faff;
+  box-shadow: inset 3px 0 0 var(--marca-cor);
+}
+
+.detalhe-alteracao h2 {
+  margin: 0;
+}
+
+.detalhe-secao {
+  margin-bottom: 1rem;
+}
+
+.detalhe-secao h3,
+.diff-grid h3 {
+  margin: 0 0 0.35rem;
+  font-size: 0.9rem;
+  color: #64748b;
+}
+
+.diff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.diff-grid > div {
+  background: #f8f9fb;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  padding: 0.85rem 1rem;
+}
+
+.diff-grid ul {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+
+.admin-acoes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.email-preview {
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.email-preview-head {
+  padding: 1rem 1.15rem;
+  border-bottom: 1px solid #eef0f2;
+  background: #f8f9fa;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.email-preview-body {
+  padding: 1.15rem;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (max-width: 760px) {
+  .alteracoes-layout,
+  .diff-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 760px) {
   .painel-layout {
     flex-direction: column;
