@@ -109,6 +109,7 @@ class RoboStatusResponse(BaseModel):
 
 class RoboExecutarRequest(BaseModel):
     modo_teste: bool = False
+    enviar_email: bool = False
     data_teste: Optional[str] = Field(default=None, max_length=10)
     timeout_segundos: int = Field(default=900, ge=30, le=7200)
 

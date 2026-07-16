@@ -506,6 +506,11 @@ def main():
     logger.info("Iniciando monitoração...")
     execucao_id_env = os.environ.get("LEIAUTES_EXECUCAO_ID", "").strip()
     execucao_id = int(execucao_id_env) if execucao_id_env.isdigit() else None
+    disable_email = os.environ.get("LEIAUTES_DISABLE_EMAIL", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    )
 
     anexos_detectados = []
     categoria_por_url = {}
@@ -533,7 +538,9 @@ def main():
     emails_enviados = 0
     destinatarios = []
 
-    if alterados or SEND_EMAIL_WHEN_NO_CHANGES:
+    if disable_email:
+        logger.info("Envio de e-mail desativado por LEIAUTES_DISABLE_EMAIL=1.")
+    elif alterados or SEND_EMAIL_WHEN_NO_CHANGES:
         email_cfg = load_email_config(CONFIG_PATH)
         destinatarios = email_cfg.get("to", [])
         if not destinatarios:

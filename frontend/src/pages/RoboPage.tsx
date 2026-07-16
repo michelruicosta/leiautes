@@ -18,7 +18,7 @@ export default function RoboPage() {
           <p className="page-sub">Execução manual, status e histórico operacional.</p>
         </div>
         <button type="button" className="btn-novo">
-          Executar agora
+          Executar sem e-mail
         </button>
       </div>
 
@@ -29,6 +29,10 @@ export default function RoboPage() {
         <p className="meta">{status?.script_motor ?? "—"}</p>
         <p className={status?.script_existe ? "status-ok" : "status-erro"}>
           {status?.script_existe ? "Script encontrado" : "Script não encontrado"}
+        </p>
+        <p className="admin-ajuda">
+          Por padrão, a execução manual do app roda com envio de e-mail desativado.
+          Quando liberado, o envio fica redirecionado para michel@finaud.com.br.
         </p>
       </article>
     </div>

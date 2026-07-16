@@ -36,6 +36,7 @@ def status_robo() -> dict:
 def executar_robo_atual(
     *,
     modo_teste: bool = False,
+    enviar_email: bool = False,
     data_teste: str | None = None,
     timeout_segundos: int = 900,
 ) -> ResultadoRobo:
@@ -46,6 +47,8 @@ def executar_robo_atual(
     execucao_id = iniciar_execucao(log_path=None)
     env["LEIAUTES_EXECUCAO_ID"] = str(execucao_id)
     env.setdefault("LEIAUTES_EMAIL_TEST_TO", "michel@finaud.com.br")
+    if not enviar_email:
+        env["LEIAUTES_DISABLE_EMAIL"] = "1"
     if modo_teste:
         env["LEIAUTES_MODO_TESTE"] = "1"
     if data_teste:

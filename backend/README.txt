@@ -48,3 +48,5 @@ GET /email-gestor/preview
 - Por seguranca, execucoes disparadas pela API definem
   `LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br`, redirecionando o envio para o
   e-mail de teste enquanto o app esta em desenvolvimento.
+- A execucao pela API tambem aceita `enviar_email=false`; nesse caso define
+  `LEIAUTES_DISABLE_EMAIL=1` e roda coleta/historico sem abrir SMTP.

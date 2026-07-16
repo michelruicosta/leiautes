@@ -30,6 +30,7 @@ def executar(payload: RoboExecutarRequest) -> RoboExecutarResponse:
     try:
         resultado = executar_robo_atual(
             modo_teste=payload.modo_teste,
+            enviar_email=payload.enviar_email,
             data_teste=payload.data_teste,
             timeout_segundos=payload.timeout_segundos,
         )
