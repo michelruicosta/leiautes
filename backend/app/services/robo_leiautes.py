@@ -43,12 +43,12 @@ def executar_robo_atual(
         raise FileNotFoundError(f"Script do motor nao encontrado: {SCRIPT_MOTOR}")
 
     env = os.environ.copy()
+    execucao_id = iniciar_execucao(log_path=None)
+    env["LEIAUTES_EXECUCAO_ID"] = str(execucao_id)
     if modo_teste:
         env["LEIAUTES_MODO_TESTE"] = "1"
     if data_teste:
         env["MONITOR_TEST_DATE"] = data_teste
-
-    execucao_id = iniciar_execucao(log_path=None)
     cmd = [sys.executable, str(SCRIPT_MOTOR)]
 
     try:

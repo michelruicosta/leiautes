@@ -74,8 +74,15 @@ def _write_status_tail(proj: str,
 # ====== CAMINHOS/TEMPOS ======
 SCRIPT_DIR = Path(__file__).resolve().parent
 BASE = SCRIPT_DIR.parent
+if str(BASE) not in sys.path:
+    sys.path.insert(0, str(BASE))
 CONFIG_PATH = BASE / "config" / "config_email.json"
 LOGO_PATH = BASE / "logotipo" / "FINAUD_TEC_LOG.jpg"
+
+try:
+    from persistencia.arquivos_db import registrar_arquivo_observado
+except Exception:
+    registrar_arquivo_observado = None
 
 CONNECT_TIMEOUT = 10
 READ_TIMEOUT = 10
@@ -167,10 +174,11 @@ def small_range_fingerprint(session, url, length=1024):
 # ====== ANEXOS ======
 ANEXO_REGEX = re.compile(r"\.(pdf|xlsx?|xsd|zip)$", re.IGNORECASE)
 
-def verificar_anexos(urls_anexos, use_partial_fp=True):
+def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_partial_fp=True):
     manifest = _load_manifest()
     alterados, sess = [], _session()
     first_run = len(manifest) == 0
+    categoria_por_url = categoria_por_url or {}
 
     for url in urls_anexos:
         cur = manifest.get(url, {})
@@ -206,14 +214,31 @@ def verificar_anexos(urls_anexos, use_partial_fp=True):
             if info.get("partial_fp") and info.get("partial_fp") != cur.get("partial_fp"):
                 changed = True
 
-        if changed or url not in manifest:
+        mudou_ou_novo = changed or url not in manifest
+        evidencia = ""
+        if mudou_ou_novo:
             if not (first_run and QUIET_BASELINE):
                 reasons = []
                 for k in ("etag","last_modified","content_length","final_url","partial_fp"):
                     if info.get(k) and info.get(k) != cur.get(k): reasons.append(f"{k} mudou")
                 if not reasons: reasons.append("novo arquivo observado")
                 logger.info(f"Alteração detectada em anexo: {url} | {'; '.join(reasons)}")
-                alterados.append({"url": url, "evidencia": ", ".join(reasons)})
+                evidencia = ", ".join(reasons)
+                alterados.append({"url": url, "evidencia": evidencia})
+
+        if registrar_arquivo_observado:
+            try:
+                registrar_arquivo_observado(
+                    url=url,
+                    nome_arquivo=_filename_from_url(url),
+                    info=info,
+                    categoria=categoria_por_url.get(url),
+                    execucao_id=execucao_id,
+                    mudou=mudou_ou_novo and not (first_run and QUIET_BASELINE),
+                    evidencia=evidencia,
+                )
+            except Exception as e:
+                logger.warning(f"Falha ao registrar arquivo no banco: {url} | {e}")
 
         manifest[url] = {
             "etag": info.get("etag"),
@@ -427,6 +452,8 @@ def load_email_config(path: Path):
 # ===== DEFINIÇÃO DA MAIN =====
 def main():
     logger.info("Iniciando monitoração...")
+    execucao_id_env = os.environ.get("LEIAUTES_EXECUCAO_ID", "").strip()
+    execucao_id = int(execucao_id_env) if execucao_id_env.isdigit() else None
 
     anexos_detectados = []
     categoria_por_url = {}
@@ -444,7 +471,11 @@ def main():
             logger.warning(f"Erro ao processar URL {url}: {e}")
             continue
 
-    alterados, manifest = verificar_anexos(anexos_detectados)
+    alterados, manifest = verificar_anexos(
+        anexos_detectados,
+        categoria_por_url=categoria_por_url,
+        execucao_id=execucao_id,
+    )
     anexos_nomes = [_filename_from_url(a["url"]) for a in alterados]
 
     emails_enviados = 0

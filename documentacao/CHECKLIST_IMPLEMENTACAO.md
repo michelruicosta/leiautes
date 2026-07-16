@@ -40,6 +40,9 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 ## 4. Migracao do robo
 
+- [x] Registrar arquivos monitorados no banco.
+- [x] Registrar versoes por mudanca de metadados.
+- [x] Associar alteracoes detectadas a execucao do robo.
 - [ ] Separar coleta de paginas Bacen.
 - [ ] Separar extracao de anexos.
 - [ ] Separar verificacao de metadados.
