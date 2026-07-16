@@ -2,11 +2,14 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Optional
 
 from persistencia.db import conectar, init_db
+
+RAIZ = Path(__file__).resolve().parent.parent
 
 
 def _agora() -> str:
@@ -16,6 +19,31 @@ def _agora() -> str:
 def _tipo_arquivo(nome_arquivo: str) -> str:
     ext = Path(nome_arquivo).suffix.lower().lstrip(".")
     return ext or "desconhecido"
+
+
+def _slug(texto: str) -> str:
+    slug = re.sub(r"[^A-Za-z0-9_.-]+", "_", texto.strip())
+    return slug.strip("._") or "arquivo"
+
+
+def salvar_conteudo_versao(
+    *,
+    conteudo: bytes,
+    nome_arquivo: str,
+    categoria: Optional[str] = None,
+    storage_dir: Optional[str] = None,
+) -> str:
+    agora = datetime.now()
+    tipo = _tipo_arquivo(nome_arquivo)
+    categoria_slug = _slug(categoria or "sem_categoria")
+    nome_slug = _slug(nome_arquivo)
+    base = Path(storage_dir) if storage_dir else RAIZ / "storage" / "arquivos"
+    destino_dir = base / agora.strftime("%Y") / agora.strftime("%m") / agora.strftime("%d") / categoria_slug / tipo
+    destino_dir.mkdir(parents=True, exist_ok=True)
+
+    destino = destino_dir / f"{agora.strftime('%H%M%S_%f')}_{nome_slug}"
+    destino.write_bytes(conteudo)
+    return str(destino.relative_to(RAIZ) if destino.is_relative_to(RAIZ) else destino)
 
 
 def _buscar_leiaute_id(categoria: Optional[str], url: str) -> Optional[int]:
@@ -55,6 +83,7 @@ def registrar_arquivo_observado(
     execucao_id: Optional[int] = None,
     mudou: bool = False,
     evidencia: str = "",
+    caminho_arquivo: Optional[str] = None,
 ) -> tuple[int, Optional[int], Optional[int]]:
     """Registra metadados atuais e cria versao/alteracao quando houver mudanca.
 
@@ -144,13 +173,15 @@ def registrar_arquivo_observado(
             cur = conn.execute(
                 """
                 INSERT INTO versoes_arquivos (
-                    arquivo_id, execucao_id, hash_conteudo, tamanho_bytes,
-                    metadados, criado_em
-                ) VALUES (?, ?, ?, ?, ?, ?)
+                    arquivo_id, execucao_id, caminho_arquivo, caminho_texto,
+                    hash_conteudo, tamanho_bytes, metadados, criado_em
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     arquivo_id,
                     execucao_id,
+                    caminho_arquivo,
+                    None,
                     hash_conteudo,
                     int(info["content_length"]) if str(info.get("content_length") or "").isdigit() else None,
                     json.dumps(info, ensure_ascii=False),

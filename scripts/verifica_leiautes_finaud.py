@@ -80,9 +80,13 @@ CONFIG_PATH = BASE / "config" / "config_email.json"
 LOGO_PATH = BASE / "logotipo" / "FINAUD_TEC_LOG.jpg"
 
 try:
-    from persistencia.arquivos_db import registrar_arquivo_observado
+    from persistencia.arquivos_db import (
+        registrar_arquivo_observado,
+        salvar_conteudo_versao,
+    )
 except Exception:
     registrar_arquivo_observado = None
+    salvar_conteudo_versao = None
 
 CONNECT_TIMEOUT = 10
 READ_TIMEOUT = 10
@@ -171,6 +175,30 @@ def small_range_fingerprint(session, url, length=1024):
     chunk = next(r.iter_content(length), b"")
     return hashlib.sha256(chunk).hexdigest()
 
+
+def baixar_conteudo_para_historico(session, url, max_single=MAX_SINGLE_ATTACH_SIZE):
+    try:
+        hi = head_info(session, url)
+        cl = hi.get("content_length")
+        if cl and cl.isdigit() and int(cl) > max_single:
+            return None, f"pula historico: Content-Length {cl} > limite"
+    except Exception:
+        pass
+
+    r = session.get(url, stream=True, allow_redirects=True, timeout=TIMEOUT)
+    if r.status_code != 200:
+        return None, f"status {r.status_code}"
+
+    data, total = bytearray(), 0
+    for chunk in r.iter_content(64 * 1024):
+        if not chunk:
+            break
+        data.extend(chunk)
+        total += len(chunk)
+        if total > max_single:
+            return None, f"pula historico: excedeu {max_single} bytes"
+    return bytes(data), None
+
 # ====== ANEXOS ======
 ANEXO_REGEX = re.compile(r"\.(pdf|xlsx?|xsd|zip)$", re.IGNORECASE)
 
@@ -226,6 +254,26 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
                 evidencia = ", ".join(reasons)
                 alterados.append({"url": url, "evidencia": evidencia})
 
+        caminho_arquivo = None
+        if (
+            salvar_conteudo_versao
+            and mudou_ou_novo
+            and not (first_run and QUIET_BASELINE)
+        ):
+            try:
+                conteudo, motivo_historico = baixar_conteudo_para_historico(sess, url)
+                if conteudo:
+                    caminho_arquivo = salvar_conteudo_versao(
+                        conteudo=conteudo,
+                        nome_arquivo=_filename_from_url(url),
+                        categoria=categoria_por_url.get(url),
+                    )
+                    logger.info(f"Versão salva para histórico: {caminho_arquivo}")
+                elif motivo_historico:
+                    logger.warning(f"Não foi possível salvar histórico de {url} | Motivo: {motivo_historico}")
+            except Exception as e:
+                logger.warning(f"Falha ao salvar versão no histórico: {url} | {e}")
+
         if registrar_arquivo_observado:
             try:
                 registrar_arquivo_observado(
@@ -236,6 +284,7 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
                     execucao_id=execucao_id,
                     mudou=mudou_ou_novo and not (first_run and QUIET_BASELINE),
                     evidencia=evidencia,
+                    caminho_arquivo=caminho_arquivo,
                 )
             except Exception as e:
                 logger.warning(f"Falha ao registrar arquivo no banco: {url} | {e}")

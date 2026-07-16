@@ -42,6 +42,7 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 
 - [x] Registrar arquivos monitorados no banco.
 - [x] Registrar versoes por mudanca de metadados.
+- [x] Salvar arquivo fisico da versao em `storage/arquivos`.
 - [x] Associar alteracoes detectadas a execucao do robo.
 - [ ] Separar coleta de paginas Bacen.
 - [ ] Separar extracao de anexos.
