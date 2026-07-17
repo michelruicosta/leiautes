@@ -87,12 +87,9 @@ def _card(item: dict) -> str:
 
 def gerar() -> Path:
     resumo = """
-    <p style="font-size:17px; line-height:1.55;">
-      Foram identificadas possíveis atualizações na data de <strong>13/07/2026</strong>.
-    </p>
     <p style="font-size:15px; line-height:1.55; color:#5b6b84;">
-      No modelo anterior, o e-mail listava apenas os 3 anexos. No modelo abaixo,
-      o gestor já recebe o resumo do que entrou, mudou e saiu em cada arquivo.
+      Os arquivos alterados continuam sendo enviados em anexo. Abaixo, o gestor
+      recebe também o resumo do que entrou, mudou e saiu em cada arquivo.
     </p>
     <p style="font-size:17px;"><strong style="color:#2e3192;">Arquivo(s) encontrado(s):</strong></p>
     """

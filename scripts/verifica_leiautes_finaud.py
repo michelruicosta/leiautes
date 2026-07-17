@@ -529,14 +529,14 @@ def _consolidar_textos(textos: list[str], limite: int = 8) -> tuple[list[str], i
     return paragrafos[:limite], ocultos
 
 
-def _html_card_simples(label: str, titulo: str, textos: list[str], removido: bool = False) -> str:
+def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -> str:
     paragrafos, extras = _consolidar_textos(textos)
     corpo = "".join(f"<p>{html.escape(p)}</p>" for p in paragrafos)
     if extras:
         corpo += f"<p class='more'>+ {extras} trecho(s) adicional(is) no arquivo.</p>"
     return f"""
       <div class="evidence-card">
-        <div class="evidence-head"><span>{label}</span><strong>{html.escape(titulo)}</strong></div>
+        <div class="evidence-head"><strong>{html.escape(titulo)}</strong></div>
         <div class="evidence-body">{corpo}</div>
       </div>
     """
@@ -552,7 +552,7 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str)
             cards.append(
                 f"""
                 <div class="evidence-card evidence-change">
-                  <div class="evidence-head"><span>Mudou</span><strong>{html.escape(item.get('local', 'Alteração'))}</strong></div>
+                  <div class="evidence-head"><strong>{html.escape(item.get('local', 'Alteração'))}</strong></div>
                   <table class="before-after" role="presentation" cellpadding="0" cellspacing="0">
                     <tr>
                       <td><small>Antes</small><p>{html.escape(str(item.get('antes', '')))}</p></td>
@@ -582,7 +582,7 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str)
                 item.get("antes" if tipo == "saiu" else "depois", item.get("depois", ""))
                 for item in dados
             ]
-            cards.append(_html_card_simples("Saiu" if tipo == "saiu" else "Entrou", titulo_card, textos, tipo == "saiu"))
+            cards.append(_html_card_simples(titulo_card, textos, tipo == "saiu"))
         if len(grupos) > 4:
             cards.append(f"<p class='more'>+ {len(grupos) - 4} bloco(s) adicional(is) no arquivo.</p>")
         conteudo = "".join(cards)
