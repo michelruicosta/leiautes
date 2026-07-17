@@ -47,7 +47,6 @@ export default function LoginPage({ onEntrar }: Props) {
             className="field-input"
             type="password"
             autoComplete="current-password"
-            defaultValue="senha-temporaria"
             required
           />
         </div>

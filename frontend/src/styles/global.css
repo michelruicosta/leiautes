@@ -473,6 +473,11 @@ textarea {
   align-items: start;
 }
 
+.robo-ajuda {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
 .robo-cards {
   margin-bottom: 1rem;
 }

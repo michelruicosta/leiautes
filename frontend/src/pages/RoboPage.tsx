@@ -126,7 +126,7 @@ export default function RoboPage() {
             {status?.script_existe ? "Script encontrado" : "Script não encontrado"}
           </p>
         </div>
-        <p className="admin-ajuda">
+        <p className="admin-ajuda robo-ajuda">
           Por padrão, a execução manual do app roda com envio de e-mail desativado. Quando
           liberado, o envio fica redirecionado para michel@finaud.com.br.
         </p>
