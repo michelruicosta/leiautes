@@ -135,6 +135,20 @@ export type PermissoesPerfilResponse = {
   permissoes: Record<string, string[]>;
 };
 
+export type LogAuditoria = {
+  id: number;
+  usuario: string;
+  pagina: string;
+  acao: string;
+  detalhe: string;
+  criado_em: string;
+};
+
+export type LogAuditoriaListaResponse = {
+  total: number;
+  registros: LogAuditoria[];
+};
+
 export type EmailGestorPreviewResponse = {
   assunto: string;
   destinatarios: string[];

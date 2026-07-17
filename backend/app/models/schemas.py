@@ -177,6 +177,20 @@ class PermissoesPerfilUpdateRequest(BaseModel):
     permissoes: dict[str, list[str]]
 
 
+class LogAuditoriaItem(BaseModel):
+    id: int
+    usuario: str
+    pagina: str
+    acao: str
+    detalhe: str = ""
+    criado_em: str
+
+
+class LogAuditoriaListaResponse(BaseModel):
+    total: int
+    registros: list[LogAuditoriaItem]
+
+
 class EmailGestorPreviewResponse(BaseModel):
     assunto: str
     destinatarios: list[str] = Field(default_factory=list)

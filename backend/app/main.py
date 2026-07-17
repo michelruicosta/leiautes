@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import API_VERSION
 from app.routers import (
     alteracoes,
+    auditoria,
     configuracoes,
     dashboard,
     email_gestor,
@@ -54,6 +55,7 @@ app.include_router(health.router)
 app.include_router(dashboard.router)
 app.include_router(leiautes.router)
 app.include_router(alteracoes.router)
+app.include_router(auditoria.router)
 app.include_router(execucoes.router)
 app.include_router(configuracoes.router)
 app.include_router(robo.router)

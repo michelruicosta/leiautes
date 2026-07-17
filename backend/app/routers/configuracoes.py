@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 
 from app.models.schemas import ConfiguracoesResponse, ConfiguracoesUpdateRequest
+from persistencia.auditoria_db import registrar_log
 from persistencia.config_db import listar_configuracoes, salvar_configuracoes
 
 router = APIRouter(prefix="/configuracoes", tags=["configuracoes"])
@@ -18,6 +19,10 @@ def obter_configuracoes() -> ConfiguracoesResponse:
 def atualizar_configuracoes(
     payload: ConfiguracoesUpdateRequest,
 ) -> ConfiguracoesResponse:
-    return ConfiguracoesResponse(
-        configuracoes=salvar_configuracoes(payload.configuracoes)
+    configuracoes = salvar_configuracoes(payload.configuracoes)
+    registrar_log(
+        pagina="Configurações",
+        acao="Edição",
+        detalhe=f"{len(payload.configuracoes)} parâmetro(s) atualizado(s).",
     )
+    return ConfiguracoesResponse(configuracoes=configuracoes)

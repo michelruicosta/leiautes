@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from datetime import datetime
 from typing import Optional
 
@@ -113,3 +114,16 @@ def atualizar_leiaute(leiaute_id: int, data: dict) -> Optional[dict]:
             ),
         )
     return obter_leiaute(leiaute_id)
+
+
+def excluir_leiaute(leiaute_id: int) -> bool:
+    init_db()
+    try:
+        with conectar() as conn:
+            cur = conn.execute(
+                "DELETE FROM leiautes_monitorados WHERE id = ?",
+                (leiaute_id,),
+            )
+            return cur.rowcount > 0
+    except sqlite3.IntegrityError:
+        return False

@@ -110,6 +110,13 @@ def atualizar_usuario(usuario_id: int, data: dict) -> Optional[dict]:
     return obter_usuario(usuario_id)
 
 
+def excluir_usuario(usuario_id: int) -> bool:
+    init_db()
+    with conectar() as conn:
+        cur = conn.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
+        return cur.rowcount > 0
+
+
 def listar_permissoes_perfis() -> dict[str, list[str]]:
     init_db()
     with conectar() as conn:

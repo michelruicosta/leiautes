@@ -1,6 +1,7 @@
 import { useState } from "react";
 import AppShell, { type RotaPainel } from "./components/AppShell";
 import AlteracoesPage from "./pages/AlteracoesPage";
+import AuditoriaPage from "./pages/AuditoriaPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmailGestorPage from "./pages/EmailGestorPage";
@@ -31,6 +32,8 @@ export default function App() {
       <EmailGestorPage />
     ) : rota === "configuracoes" ? (
       <ConfiguracoesPage />
+    ) : rota === "auditoria" ? (
+      <AuditoriaPage />
     ) : (
       <UsuariosPage />
     );

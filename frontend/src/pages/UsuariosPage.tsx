@@ -1,11 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   atualizarUsuario,
   criarUsuario,
+  excluirUsuario,
   listarUsuarios,
   obterPermissoesPerfis,
   salvarPermissoesPerfis,
 } from "../api/leiautes";
+import ModalConfirmacao, { type ConfirmacaoConfig } from "../components/ModalConfirmacao";
 import type { UsuarioPayload, UsuarioResumo } from "../api/types";
 
 type AbaUsuarios = "usuarios" | "perfis";
@@ -48,6 +50,7 @@ export default function UsuariosPage() {
   const [modalUsuario, setModalUsuario] = useState<UsuarioResumo | "novo" | null>(null);
   const [formUsuario, setFormUsuario] = useState<UsuarioPayload>(USUARIO_VAZIO);
   const [validacaoUsuario, setValidacaoUsuario] = useState<string | null>(null);
+  const [confirmacao, setConfirmacao] = useState<ConfirmacaoConfig | null>(null);
 
   const carregar = () => {
     setCarregando(true);
@@ -63,26 +66,6 @@ export default function UsuariosPage() {
   useEffect(() => {
     carregar();
   }, []);
-
-  const usuariosExibidos = useMemo(() => {
-    if (usuarios.length > 0) return usuarios;
-    return [
-      {
-        id: 1,
-        nome: "Bruna",
-        email: "bruna@finaud.com.br",
-        perfil_codigo: "administrador",
-        ativo: true,
-      },
-      {
-        id: 2,
-        nome: "Gestor Finaud",
-        email: "gestor@finaud.com.br",
-        perfil_codigo: "gestor",
-        ativo: true,
-      },
-    ];
-  }, [usuarios]);
 
   const alternar = (perfil: Perfil, rota: string) => {
     if (perfil === "administrador") return;
@@ -166,6 +149,53 @@ export default function UsuariosPage() {
     }
   };
 
+  const alternarUsuarioAtivo = (usuario: UsuarioResumo) => {
+    const inativar = usuario.ativo;
+    setConfirmacao({
+      titulo: inativar ? "Inativar usuário" : "Ativar usuário",
+      texto: inativar
+        ? `Inativar "${usuario.nome}" (${usuario.email})? O usuário deixará de acessar até ser reativado.`
+        : `Ativar "${usuario.nome}" (${usuario.email}) novamente?`,
+      rotuloOk: inativar ? "Inativar" : "Ativar",
+      perigo: inativar,
+      onCancel: () => setConfirmacao(null),
+      onConfirm: async () => {
+        await atualizarUsuario(usuario.id, {
+          nome: usuario.nome,
+          email: usuario.email,
+          perfil_codigo: usuario.perfil_codigo as Perfil,
+          cargo: usuario.cargo,
+          departamento: usuario.departamento,
+          ativo: !usuario.ativo,
+        });
+        setConfirmacao(null);
+        setMsg(inativar ? "Usuário inativado." : "Usuário ativado.");
+        carregar();
+      },
+    });
+  };
+
+  const excluir = (usuario: UsuarioResumo) => {
+    setConfirmacao({
+      titulo: "Excluir usuário",
+      texto: `Excluir permanentemente "${usuario.nome}" (${usuario.email})? Esta ação não pode ser desfeita.`,
+      rotuloOk: "Excluir",
+      exigirDigitacao: "excluir",
+      onCancel: () => setConfirmacao(null),
+      onConfirm: async () => {
+        try {
+          await excluirUsuario(usuario.id);
+          setConfirmacao(null);
+          setMsg("Usuário excluído.");
+          carregar();
+        } catch (e) {
+          setConfirmacao(null);
+          setErro(e instanceof Error ? e.message : "Não foi possível excluir o usuário.");
+        }
+      },
+    });
+  };
+
   return (
     <div className="admin-page">
       <div className="page-cabecalho">
@@ -227,31 +257,55 @@ export default function UsuariosPage() {
               </tr>
             </thead>
             <tbody>
-              {usuariosExibidos.map((usuario) => (
-                <tr key={usuario.id}>
-                  <td>
-                    <strong>{usuario.nome}</strong>
-                    <div className="meta">{usuario.email}</div>
-                  </td>
-                  <td>
-                    <span className={`badge-perfil badge-perfil-${usuario.perfil_codigo}`}>
-                      {rotuloPerfil(usuario.perfil_codigo)}
-                    </span>
-                  </td>
-                  <td className={usuario.ativo ? "status-ok" : "status-erro"}>
-                    {usuario.ativo ? "Ativo" : "Inativo"}
-                  </td>
-                  <td>
-                    <button
-                      type="button"
-                      className="btn-secondary"
-                      onClick={() => abrirEditarUsuario(usuario)}
-                    >
-                      Editar
-                    </button>
+              {usuarios.length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="meta">
+                    Nenhum usuário cadastrado. Use o botão Novo usuário para iniciar.
                   </td>
                 </tr>
-              ))}
+              ) : (
+                usuarios.map((usuario) => (
+                  <tr key={usuario.id}>
+                    <td>
+                      <strong>{usuario.nome}</strong>
+                      <div className="meta">{usuario.email}</div>
+                    </td>
+                    <td>
+                      <span className={`badge-perfil badge-perfil-${usuario.perfil_codigo}`}>
+                        {rotuloPerfil(usuario.perfil_codigo)}
+                      </span>
+                    </td>
+                    <td className={usuario.ativo ? "status-ok" : "status-erro"}>
+                      {usuario.ativo ? "Ativo" : "Inativo"}
+                    </td>
+                    <td>
+                      <div className="acoes-linha">
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => abrirEditarUsuario(usuario)}
+                        >
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-secondary"
+                          onClick={() => alternarUsuarioAtivo(usuario)}
+                        >
+                          {usuario.ativo ? "Inativar" : "Ativar"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-perigo"
+                          onClick={() => excluir(usuario)}
+                        >
+                          Excluir
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
@@ -413,6 +467,7 @@ export default function UsuariosPage() {
           </section>
         </div>
       )}
+      {confirmacao && <ModalConfirmacao aberto {...confirmacao} />}
     </div>
   );
 }

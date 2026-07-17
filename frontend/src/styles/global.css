@@ -391,6 +391,32 @@ textarea {
   color: #343a40;
 }
 
+.btn-secondary:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.btn-perigo {
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid #f0b8bf;
+  background: #fff5f5;
+  color: #b4233a;
+  font-weight: 700;
+}
+
+.btn-perigo:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.acoes-linha {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
 .config-dupla {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -774,6 +800,10 @@ textarea {
   width: min(820px, calc(100vw - 4rem));
 }
 
+.modal-confirmacao {
+  width: min(620px, calc(100vw - 4rem));
+}
+
 .modal-form-body {
   padding: 1.2rem 1.35rem;
   overflow: auto;
@@ -803,6 +833,71 @@ textarea {
   border-radius: 8px;
   font-size: 0.84rem;
   line-height: 1.55;
+}
+
+.filtros-log {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+}
+
+.log-acao {
+  display: inline-flex;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 0.22rem 0.6rem;
+  font-size: 0.78rem;
+}
+
+.log-acao-criacao,
+.log-acao-ativacao {
+  background: #dff3e6;
+  color: #168a43;
+}
+
+.log-acao-edicao,
+.log-acao-inativacao,
+.log-acao-execucao {
+  background: #fff0c2;
+  color: #8a5b00;
+}
+
+.log-acao-exclusao {
+  background: #fde2e1;
+  color: #b4233a;
+}
+
+.log-acao-outro {
+  background: #eef2ff;
+  color: var(--marca-cor);
+}
+
+.paginacao-log {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.85rem 1rem;
+  color: #5b6b84;
+}
+
+.paginacao-log button {
+  margin-left: 0.45rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid #c5cad3;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.paginacao-log button:disabled {
+  cursor: default;
+  opacity: 0.55;
 }
 
 .alteracoes-layout,
@@ -1280,6 +1375,7 @@ textarea {
   .alteracoes-layout,
   .relatorio-layout,
   .relatorio-filtros,
+  .filtros-log,
   .diff-grid,
   .dashboard-hero,
   .dashboard-executivo,

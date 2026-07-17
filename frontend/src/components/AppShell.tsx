@@ -7,7 +7,8 @@ export type RotaPainel =
   | "email"
   | "robo"
   | "configuracoes"
-  | "usuarios";
+  | "usuarios"
+  | "auditoria";
 
 type Props = {
   rota: RotaPainel;
@@ -41,6 +42,7 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
             {navItem("robo", "Robô")}
             {navItem("configuracoes", "Configurações")}
             {navItem("usuarios", "Usuários e perfis")}
+            {navItem("auditoria", "Trilha de auditoria")}
           </div>
         </nav>
       </aside>

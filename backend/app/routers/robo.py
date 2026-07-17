@@ -10,6 +10,7 @@ from app.models.schemas import (
     RoboStatusResponse,
 )
 from app.services.robo_leiautes import executar_robo_atual, status_robo
+from persistencia.auditoria_db import registrar_log
 from persistencia.execucoes_db import obter_ultima_execucao
 
 router = APIRouter(prefix="/robo", tags=["robo"])
@@ -36,4 +37,12 @@ def executar(payload: RoboExecutarRequest) -> RoboExecutarResponse:
         )
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    registrar_log(
+        pagina="Robô",
+        acao="Execução manual",
+        detalhe=(
+            f"Execução {resultado.execucao_id} finalizada com status {resultado.status} "
+            f"(e-mail {'ativado' if payload.enviar_email else 'desativado'})."
+        ),
+    )
     return RoboExecutarResponse(**resultado.__dict__)

@@ -105,3 +105,20 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
   }
   return resp.json() as Promise<T>;
 }
+
+export async function apiDelete(path: string): Promise<void> {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "DELETE",
+    credentials: "include",
+  });
+  if (!resp.ok) {
+    let message = `Erro ${resp.status}`;
+    try {
+      const data = await resp.json();
+      message = mensagemErroApi(data, message);
+    } catch {
+      // resposta sem JSON
+    }
+    throw new ApiError(resp.status, message);
+  }
+}

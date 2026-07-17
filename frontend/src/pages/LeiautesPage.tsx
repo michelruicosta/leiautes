@@ -2,8 +2,10 @@ import { type FormEvent, useEffect, useState } from "react";
 import {
   atualizarLeiaute,
   criarLeiaute,
+  excluirLeiaute,
   listarLeiautes,
 } from "../api/leiautes";
+import ModalConfirmacao, { type ConfirmacaoConfig } from "../components/ModalConfirmacao";
 import type { LeiautePayload, LeiauteResumo } from "../api/types";
 
 const VAZIO: LeiautePayload = {
@@ -34,6 +36,7 @@ export default function LeiautesPage() {
   const [form, setForm] = useState<LeiautePayload>(VAZIO);
   const [validacao, setValidacao] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
+  const [confirmacao, setConfirmacao] = useState<ConfirmacaoConfig | null>(null);
 
   const carregar = () => {
     listarLeiautes()
@@ -106,6 +109,53 @@ export default function LeiautesPage() {
     }
   };
 
+  const alternarAtivo = (item: LeiauteResumo) => {
+    const inativar = item.ativo;
+    setConfirmacao({
+      titulo: inativar ? "Inativar leiaute" : "Ativar leiaute",
+      texto: inativar
+        ? `Inativar o leiaute "${item.codigo}"? Ele deixará de ser monitorado até ser reativado.`
+        : `Ativar o leiaute "${item.codigo}" para voltar ao monitoramento?`,
+      rotuloOk: inativar ? "Inativar" : "Ativar",
+      perigo: inativar,
+      onCancel: () => setConfirmacao(null),
+      onConfirm: async () => {
+        await atualizarLeiaute(item.id, {
+          codigo: item.codigo,
+          nome: item.nome,
+          categoria: item.categoria,
+          url_bacen: item.url_bacen,
+          tipos_arquivo: item.tipos_arquivo,
+          ativo: !item.ativo,
+        });
+        setConfirmacao(null);
+        setMsg(inativar ? "Leiaute inativado." : "Leiaute ativado.");
+        carregar();
+      },
+    });
+  };
+
+  const excluir = (item: LeiauteResumo) => {
+    setConfirmacao({
+      titulo: "Excluir leiaute",
+      texto: `Excluir permanentemente o leiaute "${item.codigo}"? Esta ação não pode ser desfeita.`,
+      rotuloOk: "Excluir",
+      exigirDigitacao: "excluir",
+      onCancel: () => setConfirmacao(null),
+      onConfirm: async () => {
+        try {
+          await excluirLeiaute(item.id);
+          setConfirmacao(null);
+          setMsg("Leiaute excluído.");
+          carregar();
+        } catch (e) {
+          setConfirmacao(null);
+          setErro(e instanceof Error ? e.message : "Não foi possível excluir o leiaute.");
+        }
+      },
+    });
+  };
+
   return (
     <div className="admin-page">
       <div className="page-cabecalho">
@@ -154,13 +204,25 @@ export default function LeiautesPage() {
                   {item.ativo ? "Ativo" : "Inativo"}
                 </td>
                 <td>
-                  <button
-                    type="button"
-                    className="btn-secondary"
-                    onClick={() => abrirEdicao(item)}
-                  >
-                    Editar
-                  </button>
+                  <div className="acoes-linha">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => abrirEdicao(item)}
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => alternarAtivo(item)}
+                    >
+                      {item.ativo ? "Inativar" : "Ativar"}
+                    </button>
+                    <button type="button" className="btn-perigo" onClick={() => excluir(item)}>
+                      Excluir
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -255,6 +317,7 @@ export default function LeiautesPage() {
           </form>
         </div>
       )}
+      {confirmacao && <ModalConfirmacao aberto {...confirmacao} />}
     </div>
   );
 }
