@@ -434,12 +434,158 @@ def _carregar_detalhes_alteracoes(execucao_id):
     return detalhes
 
 
-def _html_lista_diferencas(titulo: str, itens: list[str], vazio: str) -> str:
-    if itens:
-        linhas = "".join(f"<li>{html.escape(str(item))}</li>" for item in itens)
-        conteudo = f"<ul>{linhas}</ul>"
-    else:
+def _parse_evidencia_item(texto: str) -> dict:
+    padroes = [
+        r'^(.*?): antes "([\s\S]*)"; depois "([\s\S]*)"$',
+        r"^(.*?): antes '([\s\S]*)'; depois '([\s\S]*)'$",
+        r"^(.*?): (linha anterior.*?); antes \((.*)\); depois \((.*)\)$",
+    ]
+    for padrao in padroes:
+        m = re.match(padrao, texto)
+        if not m:
+            continue
+        if len(m.groups()) == 4:
+            return {"local": f"{m.group(1)} - {m.group(2)}", "antes": m.group(3), "depois": m.group(4)}
+        return {"local": m.group(1), "antes": m.group(2), "depois": m.group(3)}
+
+    m = re.match(r'^(.*?): incluído "([\s\S]*)"$', texto)
+    if m:
+        return {"local": m.group(1), "depois": m.group(2)}
+    m = re.match(r'^(.*?): removido "([\s\S]*)"$', texto)
+    if m:
+        return {"local": m.group(1), "antes": m.group(2)}
+    m = re.match(r'^Arquivo interno incluído: ([^;]+); evidência: "([\s\S]*)"$', texto)
+    if m:
+        return {"local": f"Arquivo interno {m.group(1)}", "depois": m.group(2)}
+    return {"local": "Evidência", "depois": texto}
+
+
+def _grupo_local(local: str) -> str:
+    m = re.match(r"^(Página \d+)", local)
+    if m:
+        return m.group(1)
+    m = re.match(r"^(Arquivo interno [^-:]+)", local)
+    if m:
+        return m.group(1).strip()
+    if re.match(r"^linha (atual|anterior) \d+", local, flags=re.I):
+        return "Linhas do arquivo"
+    return local
+
+
+def _numeros_linha(itens: list[dict], removido: bool = False) -> str:
+    padrao = r"linha anterior (\d+)" if removido else r"linha atual (\d+)"
+    numeros = []
+    for item in itens:
+        m = re.search(padrao, item.get("local", ""), flags=re.I)
+        if m:
+            numeros.append(int(m.group(1)))
+    if not numeros:
+        return ""
+    numeros.sort()
+    if len(numeros) == 1:
+        return f"linha {numeros[0]}"
+    return f"linhas {numeros[0]} a {numeros[-1]}"
+
+
+def _inicia_paragrafo(linha: str) -> bool:
+    return bool(
+        re.match(r"^\d{2}/\d{2}/\d{4}", linha)
+        or re.match(r"^Item\s+\d", linha, flags=re.I)
+        or re.match(r"^[-•]", linha)
+        or re.match(r"^Instrução Normativa", linha, flags=re.I)
+        or re.match(r"^Resolução", linha, flags=re.I)
+    )
+
+
+def _consolidar_textos(textos: list[str], limite: int = 8) -> tuple[list[str], int]:
+    paragrafos = []
+    atual = ""
+    extras = 0
+
+    def flush():
+        nonlocal atual
+        if atual.strip():
+            paragrafos.append(atual.strip())
+        atual = ""
+
+    for bruto in textos:
+        linha = re.sub(r"\s+", " ", str(bruto)).strip()
+        if not linha:
+            continue
+        mais = re.match(r"^\.\.\. mais (\d+)", linha, flags=re.I)
+        if mais:
+            extras += int(mais.group(1))
+            continue
+        if _inicia_paragrafo(linha):
+            flush()
+            atual = linha
+        elif atual and (not re.search(r"[.!?:;)]$", atual) or re.match(r"^[a-záéíóúàâêôãõç]", linha)):
+            atual = f"{atual} {linha}"
+        else:
+            flush()
+            atual = linha
+    flush()
+    ocultos = max(0, len(paragrafos) - limite) + extras
+    return paragrafos[:limite], ocultos
+
+
+def _html_card_simples(label: str, titulo: str, textos: list[str], removido: bool = False) -> str:
+    paragrafos, extras = _consolidar_textos(textos)
+    corpo = "".join(f"<p>{html.escape(p)}</p>" for p in paragrafos)
+    if extras:
+        corpo += f"<p class='more'>+ {extras} trecho(s) adicional(is) no arquivo.</p>"
+    return f"""
+      <div class="evidence-card">
+        <div class="evidence-head"><span>{label}</span><strong>{html.escape(titulo)}</strong></div>
+        <div class="evidence-body">{corpo}</div>
+      </div>
+    """
+
+
+def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str) -> str:
+    if not itens:
         conteudo = f"<p class='muted'>{html.escape(vazio)}</p>"
+    elif tipo == "mudou":
+        cards = []
+        for texto in itens[:8]:
+            item = _parse_evidencia_item(str(texto))
+            cards.append(
+                f"""
+                <div class="evidence-card evidence-change">
+                  <div class="evidence-head"><span>Mudou</span><strong>{html.escape(item.get('local', 'Alteração'))}</strong></div>
+                  <table class="before-after" role="presentation" cellpadding="0" cellspacing="0">
+                    <tr>
+                      <td><small>Antes</small><p>{html.escape(str(item.get('antes', '')))}</p></td>
+                      <td><small>Depois</small><p>{html.escape(str(item.get('depois', '')))}</p></td>
+                    </tr>
+                  </table>
+                </div>
+                """
+            )
+        if len(itens) > 8:
+            cards.append(f"<p class='more'>+ {len(itens) - 8} alteração(ões) adicional(is) no arquivo.</p>")
+        conteudo = "".join(cards)
+    else:
+        grupos: list[tuple[str, list[dict]]] = []
+        for texto in itens:
+            item = _parse_evidencia_item(str(texto))
+            grupo = _grupo_local(item.get("local", "Evidência"))
+            if grupos and grupos[-1][0] == grupo:
+                grupos[-1][1].append(item)
+            else:
+                grupos.append((grupo, [item]))
+        cards = []
+        for grupo, dados in grupos[:4]:
+            local = _numeros_linha(dados, removido=tipo == "saiu")
+            titulo_card = f"{grupo} - {local}" if local else grupo
+            textos = [
+                item.get("antes" if tipo == "saiu" else "depois", item.get("depois", ""))
+                for item in dados
+            ]
+            cards.append(_html_card_simples("Saiu" if tipo == "saiu" else "Entrou", titulo_card, textos, tipo == "saiu"))
+        if len(grupos) > 4:
+            cards.append(f"<p class='more'>+ {len(grupos) - 4} bloco(s) adicional(is) no arquivo.</p>")
+        conteudo = "".join(cards)
     return f"""
       <div class="diff-block">
         <p class="diff-title">{html.escape(titulo)}</p>
@@ -472,9 +618,9 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
         <p>{link}</p>
         <p>{resumo}</p>
         <p class="muted">{impacto}</p>
-        {_html_lista_diferencas("Inclusoes", detalhe.get("itens_incluidos", []), "Nenhuma inclusao identificada.")}
-        {_html_lista_diferencas("Alteracoes", detalhe.get("itens_alterados", []), "Nenhuma alteracao de conteudo identificada.")}
-        {_html_lista_diferencas("Remocoes", detalhe.get("itens_removidos", []), "Nenhuma remocao identificada.")}
+        {_html_lista_diferencas("Entrou", "entrou", detalhe.get("itens_incluidos", []), "Nenhuma inclusao identificada.")}
+        {_html_lista_diferencas("Mudou", "mudou", detalhe.get("itens_alterados", []), "Nenhuma alteracao de conteudo identificada.")}
+        {_html_lista_diferencas("Saiu", "saiu", detalhe.get("itens_removidos", []), "Nenhuma remocao identificada.")}
       </div>
     """
 
@@ -490,8 +636,20 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
   .item p {{ margin: 0 0 8px; line-height: 1.55; font-size: 16px; }}
   .change-card {{ border:1px solid #dde1e6; border-radius:8px; padding:14px 16px; margin:14px 0; }}
   .change-title {{ font-size:18px; font-weight:bold; margin:0 0 8px; }}
-  .diff-block {{ background:#f8f9fb; border:1px solid #e2e6ec; border-radius:8px; padding:10px 12px; margin:10px 0; }}
+  .diff-block {{ background:#fff; border:1px solid #e2e6ec; border-radius:8px; padding:10px 12px; margin:10px 0; }}
   .diff-title {{ color:{BLUE_BRAND}; font-weight:bold; margin:0 0 6px; }}
+  .evidence-card {{ border:1px solid #d9e0ea; border-radius:8px; margin:8px 0; overflow:hidden; background:#fbfcfe; }}
+  .evidence-head {{ padding:9px 11px; border-bottom:1px solid #e7ebf0; }}
+  .evidence-head span {{ display:inline-block; border-radius:999px; padding:3px 8px; margin-right:8px; background:#e8f7ee; color:#237a3b; font-size:12px; font-weight:bold; }}
+  .evidence-change .evidence-head span {{ background:#fff4db; color:#8a5b00; }}
+  .evidence-body {{ padding:10px 12px; }}
+  .evidence-body p {{ margin:0 0 7px; line-height:1.45; }}
+  .before-after {{ width:100%; border-collapse:collapse; }}
+  .before-after td {{ width:50%; vertical-align:top; padding:10px 12px; border-top:1px solid #e7ebf0; }}
+  .before-after td + td {{ border-left:1px solid #e7ebf0; }}
+  .before-after small {{ color:#5b6b84; font-weight:bold; text-transform:uppercase; }}
+  .before-after p {{ margin:6px 0 0; line-height:1.45; }}
+  .more {{ display:inline-block; border-radius:999px; background:#eef2ff; color:{BLUE_BRAND}; padding:5px 10px; font-size:13px; font-weight:bold; }}
   .muted {{ color:#5b6b84; font-size:14px; }}
   a {{ color: #1a73e8; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
