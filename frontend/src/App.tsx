@@ -5,6 +5,7 @@ import AuditoriaPage from "./pages/AuditoriaPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmailGestorPage from "./pages/EmailGestorPage";
+import type { UsuarioAuth } from "./api/auth";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
 import PlaceholderPage from "./pages/PlaceholderPage";
@@ -13,10 +14,18 @@ import UsuariosPage from "./pages/UsuariosPage";
 
 export default function App() {
   const [autenticado, setAutenticado] = useState(false);
+  const [, setUsuario] = useState<UsuarioAuth | null>(null);
   const [rota, setRota] = useState<RotaPainel>("dashboard");
 
   if (!autenticado) {
-    return <LoginPage onEntrar={() => setAutenticado(true)} />;
+    return (
+      <LoginPage
+        onEntrar={(usuario) => {
+          setUsuario(usuario);
+          setAutenticado(true);
+        }}
+      />
+    );
   }
 
   const pagina =

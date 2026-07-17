@@ -11,7 +11,10 @@ from app.models.schemas import (
     UsuarioResumo,
     UsuarioUpdateRequest,
 )
+from app.services.auth_senha import validar_politica_senha
+from app.services.auth_sessao import hash_senha
 from persistencia.usuarios_db import (
+    atualizar_senha_usuario,
     atualizar_usuario,
     criar_usuario,
     excluir_usuario,
@@ -36,7 +39,16 @@ def listar() -> UsuarioListaResponse:
 
 @router.post("", response_model=UsuarioResumo)
 def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
-    usuario_id = criar_usuario(payload.model_dump())
+    data = payload.model_dump()
+    senha = (data.pop("senha_inicial") or "").strip()
+    if senha:
+        erro = validar_politica_senha(senha)
+        if erro:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=erro)
+        data["senha_hash"] = hash_senha(senha)
+    else:
+        data["senha_hash"] = ""
+    usuario_id = criar_usuario(data)
     item = obter_usuario(usuario_id)
     if not item:
         raise HTTPException(status_code=500, detail="Falha ao criar usuário")
@@ -50,10 +62,17 @@ def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
 
 @router.put("/{usuario_id}", response_model=UsuarioResumo)
 def atualizar(usuario_id: int, payload: UsuarioUpdateRequest) -> UsuarioResumo:
+    data = payload.model_dump(exclude_unset=True)
+    nova_senha = (data.pop("nova_senha", None) or "").strip()
     antes = obter_usuario(usuario_id)
-    item = atualizar_usuario(usuario_id, payload.model_dump(exclude_unset=True))
+    item = atualizar_usuario(usuario_id, data)
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    if nova_senha:
+        erro = validar_politica_senha(nova_senha)
+        if erro:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=erro)
+        atualizar_senha_usuario(usuario_id, hash_senha(nova_senha))
     acao = "Edição"
     if antes and antes["ativo"] and not item["ativo"]:
         acao = "Inativação"

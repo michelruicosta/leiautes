@@ -28,6 +28,21 @@ def _row_usuario(row) -> dict:
     return data
 
 
+def buscar_usuario_por_email(email: str) -> Optional[dict]:
+    init_db()
+    with conectar() as conn:
+        row = conn.execute(
+            """
+            SELECT id, email, nome, perfil_codigo, senha_hash, cargo,
+                   departamento, ativo, criado_em, atualizado_em
+            FROM usuarios
+            WHERE lower(email) = lower(?)
+            """,
+            (email,),
+        ).fetchone()
+    return _row_usuario(row) if row else None
+
+
 def listar_usuarios() -> tuple[list[dict], int]:
     init_db()
     with conectar() as conn:
@@ -65,14 +80,15 @@ def criar_usuario(data: dict) -> int:
         cur = conn.execute(
             """
             INSERT INTO usuarios (
-                email, nome, perfil_codigo, cargo, departamento,
+                email, nome, perfil_codigo, senha_hash, cargo, departamento,
                 ativo, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["email"],
                 data["nome"],
                 data.get("perfil_codigo", "operador"),
+                data.get("senha_hash", ""),
                 data.get("cargo"),
                 data.get("departamento"),
                 1 if data.get("ativo", True) else 0,
@@ -81,6 +97,20 @@ def criar_usuario(data: dict) -> int:
             ),
         )
         return int(cur.lastrowid)
+
+
+def atualizar_senha_usuario(usuario_id: int, senha_hash: str) -> bool:
+    init_db()
+    with conectar() as conn:
+        cur = conn.execute(
+            """
+            UPDATE usuarios
+            SET senha_hash = ?, atualizado_em = ?
+            WHERE id = ?
+            """,
+            (senha_hash, _agora(), usuario_id),
+        )
+        return cur.rowcount > 0
 
 
 def atualizar_usuario(usuario_id: int, data: dict) -> Optional[dict]:

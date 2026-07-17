@@ -152,6 +152,46 @@ textarea {
   text-align: center;
 }
 
+.campo-senha-wrap {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.campo-senha-wrap .field-input {
+  flex: 1;
+}
+
+.campo-senha-toggle {
+  width: 44px;
+  min-width: 44px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  color: #3333a8;
+  font-size: 1.15rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.campo-senha-toggle svg {
+  width: 20px;
+  height: 20px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.field-check {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  font-weight: 700;
+  color: #1f2937;
+}
+
 .painel-layout {
   display: flex;
   min-height: 100vh;

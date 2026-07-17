@@ -121,6 +121,8 @@ export type UsuarioPayload = {
   email: string;
   nome: string;
   perfil_codigo: "operador" | "gestor" | "administrador";
+  senha_inicial?: string;
+  nova_senha?: string;
   cargo?: string | null;
   departamento?: string | null;
   ativo: boolean;

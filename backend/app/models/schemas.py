@@ -152,6 +152,7 @@ class UsuarioCreateRequest(BaseModel):
     email: str = Field(min_length=3, max_length=200)
     nome: str = Field(min_length=2, max_length=120)
     perfil_codigo: str = Field(pattern=r"^(operador|gestor|administrador)$")
+    senha_inicial: Optional[str] = Field(default=None, max_length=120)
     cargo: Optional[str] = Field(default=None, max_length=80)
     departamento: Optional[str] = Field(default=None, max_length=80)
     ativo: bool = True
@@ -164,6 +165,7 @@ class UsuarioUpdateRequest(BaseModel):
         default=None,
         pattern=r"^(operador|gestor|administrador)$",
     )
+    nova_senha: Optional[str] = Field(default=None, max_length=120)
     cargo: Optional[str] = Field(default=None, max_length=80)
     departamento: Optional[str] = Field(default=None, max_length=80)
     ativo: Optional[bool] = None
@@ -198,3 +200,34 @@ class EmailGestorPreviewResponse(BaseModel):
     resumo: str
     alteracoes: list[AlteracaoResumo] = Field(default_factory=list)
     anexos: list[str] = Field(default_factory=list)
+
+
+class LoginRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    senha: str = Field(min_length=1, max_length=200)
+
+
+class UsuarioAuthResponse(BaseModel):
+    id: int
+    email: str
+    nome: str
+    perfil_codigo: str
+    cargo: Optional[str] = None
+    departamento: Optional[str] = None
+    rotas_permitidas: list[str] = Field(default_factory=list)
+
+
+class LoginResponse(BaseModel):
+    usuario: UsuarioAuthResponse
+    mensagem: str = "Login realizado."
+
+
+class RecuperarSenhaRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+
+
+class AlterarSenhaRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=200)
+    senha_atual: str = Field(default="", max_length=200)
+    nova_senha: str = Field(min_length=8, max_length=200)
+    confirmar_senha: str = Field(min_length=8, max_length=200)

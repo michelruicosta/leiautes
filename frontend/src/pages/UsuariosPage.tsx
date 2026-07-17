@@ -7,6 +7,7 @@ import {
   obterPermissoesPerfis,
   salvarPermissoesPerfis,
 } from "../api/leiautes";
+import CampoSenha from "../components/CampoSenha";
 import ModalConfirmacao, { type ConfirmacaoConfig } from "../components/ModalConfirmacao";
 import type { UsuarioPayload, UsuarioResumo } from "../api/types";
 
@@ -51,6 +52,8 @@ export default function UsuariosPage() {
   const [formUsuario, setFormUsuario] = useState<UsuarioPayload>(USUARIO_VAZIO);
   const [validacaoUsuario, setValidacaoUsuario] = useState<string | null>(null);
   const [confirmacao, setConfirmacao] = useState<ConfirmacaoConfig | null>(null);
+  const [definirSenhaApp, setDefinirSenhaApp] = useState(false);
+  const [senhaUsuario, setSenhaUsuario] = useState("");
 
   const carregar = () => {
     setCarregando(true);
@@ -95,6 +98,8 @@ export default function UsuariosPage() {
   const abrirNovoUsuario = () => {
     setModalUsuario("novo");
     setFormUsuario(USUARIO_VAZIO);
+    setDefinirSenhaApp(false);
+    setSenhaUsuario("");
     setValidacaoUsuario(null);
     setErro(null);
     setMsg(null);
@@ -110,6 +115,8 @@ export default function UsuariosPage() {
       departamento: usuario.departamento ?? "",
       ativo: usuario.ativo,
     });
+    setDefinirSenhaApp(false);
+    setSenhaUsuario("");
     setValidacaoUsuario(null);
     setErro(null);
     setMsg(null);
@@ -119,6 +126,9 @@ export default function UsuariosPage() {
     if (formUsuario.nome.trim().length < 2) return "Informe o nome do usuário.";
     if (!formUsuario.email.includes("@")) return "Informe um e-mail válido.";
     if (!PERFIS.includes(formUsuario.perfil_codigo)) return "Selecione um perfil válido.";
+    if (definirSenhaApp && senhaUsuario.trim().length === 0) {
+      return "Marcou senha neste app. Informe a senha ou desmarque a opção.";
+    }
     return null;
   };
 
@@ -134,10 +144,20 @@ export default function UsuariosPage() {
     setValidacaoUsuario(null);
     try {
       if (modalUsuario === "novo") {
-        await criarUsuario(formUsuario);
-        setMsg("Usuário criado.");
+        await criarUsuario({
+          ...formUsuario,
+          ...(definirSenhaApp ? { senha_inicial: senhaUsuario.trim() } : {}),
+        });
+        setMsg(
+          definirSenhaApp
+            ? "Usuário criado com senha local."
+            : "Usuário criado para acesso pelo portal Finaud.",
+        );
       } else if (modalUsuario) {
-        await atualizarUsuario(modalUsuario.id, formUsuario);
+        await atualizarUsuario(modalUsuario.id, {
+          ...formUsuario,
+          ...(definirSenhaApp ? { nova_senha: senhaUsuario.trim() } : {}),
+        });
         setMsg("Usuário atualizado.");
       }
       setModalUsuario(null);
@@ -221,7 +241,8 @@ export default function UsuariosPage() {
 
       <p className="admin-ajuda">
         A estrutura segue o padrão do normativos_ia: o perfil controla quais telas
-        aparecem no menu lateral.
+        aparecem no menu lateral. Sem senha local, o usuário fica liberado para entrar
+        pelo portal Finaud; com senha local, acessa este app diretamente.
       </p>
 
       <div className="admin-tabs config-abas" role="tablist">
@@ -436,6 +457,30 @@ export default function UsuariosPage() {
                   }
                 />
               </label>
+              <label className="field-check">
+                <input
+                  type="checkbox"
+                  checked={definirSenhaApp}
+                  onChange={(e) => {
+                    setDefinirSenhaApp(e.target.checked);
+                    if (!e.target.checked) setSenhaUsuario("");
+                  }}
+                />
+                Definir senha neste app
+              </label>
+              <p className="meta">
+                Normalmente deixe desmarcado para usar o portal Finaud. Marque apenas para
+                senha local ou reset temporário.
+              </p>
+              {definirSenhaApp && (
+                <CampoSenha
+                  id="usuario-senha"
+                  label={modalUsuario === "novo" ? "Senha inicial" : "Nova senha"}
+                  autoComplete="new-password"
+                  value={senhaUsuario}
+                  onChange={setSenhaUsuario}
+                />
+              )}
               <label className="admin-dia-chip">
                 <input
                   type="checkbox"
