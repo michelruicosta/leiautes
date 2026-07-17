@@ -497,7 +497,14 @@ def _inicia_paragrafo(linha: str) -> bool:
     )
 
 
-def _consolidar_textos(textos: list[str], limite: int = 8) -> tuple[list[str], int]:
+def _limpar_texto_evidencia(texto: str) -> str:
+    texto = re.sub(r"\s+", " ", str(texto)).strip()
+    texto = re.sub(r"([^\W\d_])[-‐‑–]\s+([^\W\d_])", r"\1\2", texto, flags=re.UNICODE)
+    texto = re.sub(r"\s+([,.;:])", r"\1", texto)
+    return texto
+
+
+def _consolidar_textos(textos: list[str]) -> tuple[list[str], int]:
     paragrafos = []
     atual = ""
     extras = 0
@@ -505,11 +512,11 @@ def _consolidar_textos(textos: list[str], limite: int = 8) -> tuple[list[str], i
     def flush():
         nonlocal atual
         if atual.strip():
-            paragrafos.append(atual.strip())
+            paragrafos.append(_limpar_texto_evidencia(atual))
         atual = ""
 
     for bruto in textos:
-        linha = re.sub(r"\s+", " ", str(bruto)).strip()
+        linha = _limpar_texto_evidencia(str(bruto))
         if not linha:
             continue
         mais = re.match(r"^\.\.\. mais (\d+)", linha, flags=re.I)
@@ -525,8 +532,7 @@ def _consolidar_textos(textos: list[str], limite: int = 8) -> tuple[list[str], i
             flush()
             atual = linha
     flush()
-    ocultos = max(0, len(paragrafos) - limite) + extras
-    return paragrafos[:limite], ocultos
+    return paragrafos, extras
 
 
 def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -> str:
@@ -631,19 +637,19 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
 <head>
 <meta charset="UTF-8">
 <style>
-  body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; }}
-  .wrap {{ width: 100%; margin: 0 auto; }}
+  body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; background:#fff; }}
+  .wrap {{ width: 100%; max-width: 980px; margin: 0 auto; }}
   .item p {{ margin: 0 0 8px; line-height: 1.55; font-size: 16px; }}
-  .change-card {{ border:1px solid #dde1e6; border-radius:8px; padding:14px 16px; margin:14px 0; }}
+  .change-card {{ border:1px solid #dde1e6; border-radius:8px; padding:16px 18px; margin:16px 0; background:#fff; }}
   .change-title {{ font-size:18px; font-weight:bold; margin:0 0 8px; }}
-  .diff-block {{ background:#fff; border:1px solid #e2e6ec; border-radius:8px; padding:10px 12px; margin:10px 0; }}
-  .diff-title {{ color:{BLUE_BRAND}; font-weight:bold; margin:0 0 6px; }}
+  .diff-block {{ background:#fff; border:1px solid #e2e6ec; border-radius:8px; padding:12px 14px; margin:12px 0; }}
+  .diff-title {{ color:{BLUE_BRAND}; font-weight:bold; font-size:17px; margin:0 0 8px; }}
   .evidence-card {{ border:1px solid #d9e0ea; border-radius:8px; margin:8px 0; overflow:hidden; background:#fbfcfe; }}
-  .evidence-head {{ padding:9px 11px; border-bottom:1px solid #e7ebf0; }}
+  .evidence-head {{ padding:9px 11px; border-bottom:1px solid #e7ebf0; background:#f8fafc; }}
   .evidence-head span {{ display:inline-block; border-radius:999px; padding:3px 8px; margin-right:8px; background:#e8f7ee; color:#237a3b; font-size:12px; font-weight:bold; }}
   .evidence-change .evidence-head span {{ background:#fff4db; color:#8a5b00; }}
-  .evidence-body {{ padding:10px 12px; }}
-  .evidence-body p {{ margin:0 0 7px; line-height:1.45; }}
+  .evidence-body {{ padding:12px 14px; font-size:14px; color:#202124; }}
+  .evidence-body p {{ margin:0 0 9px; line-height:1.55; }}
   .before-after {{ width:100%; border-collapse:collapse; }}
   .before-after td {{ width:50%; vertical-align:top; padding:10px 12px; border-top:1px solid #e7ebf0; }}
   .before-after td + td {{ border-left:1px solid #e7ebf0; }}

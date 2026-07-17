@@ -21,10 +21,10 @@ def _resolver(caminho: str | None) -> Path | None:
     return path
 
 
-def _limitar(itens: list[str], limite: int = 30) -> list[str]:
+def _limitar(itens: list[str], limite: int = 500) -> list[str]:
     if len(itens) <= limite:
         return itens
-    return [*itens[:limite], f"... mais {len(itens) - limite} item(ns)"]
+    return [*itens[:limite], f"... lista completa excede {limite} item(ns)"]
 
 
 def _ler_texto(path: Path) -> str:
@@ -55,11 +55,11 @@ def _linhas_com_numero(texto: str) -> list[tuple[int, str]]:
     return linhas
 
 
-def _formatar_trecho(valor: str, limite: int = 350) -> str:
+def _formatar_trecho(valor: str, limite: int = 5000) -> str:
     valor = valor.strip()
     if len(valor) <= limite:
         return valor
-    return f"{valor[:limite]}..."
+    return f"{valor[:limite]}... [texto completo excede {limite} caracteres]"
 
 
 def _comparar_linhas(
