@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DiffEvidenceList } from "../components/DiffEvidence";
-import { listarAlteracoes } from "../api/leiautes";
+import { listarAlteracoes, urlRelatorioAlteracoes } from "../api/leiautes";
 import type { AlteracaoResumo } from "../api/types";
 
 function formatarData(valor: string): string {
@@ -83,9 +83,14 @@ export default function AlteracoesPage() {
             Histórico das diferenças entre a versão anterior e a versão atual.
           </p>
         </div>
-        <button type="button" className="btn-novo">
-          Exportar relatório
-        </button>
+        <div className="acoes-relatorio">
+          <a className="btn-secundario" href={urlRelatorioAlteracoes("ultima")}>
+            Planilha do envio
+          </a>
+          <a className="btn-novo" href={urlRelatorioAlteracoes("historico")}>
+            Histórico Excel
+          </a>
+        </div>
       </div>
 
       {erro && <p className="erro">{erro}</p>}
@@ -96,6 +101,18 @@ export default function AlteracoesPage() {
           dados quando o motor de comparação for conectado.
         </p>
       )}
+
+      <section className="relatorio-excel-card">
+        <div>
+          <strong>Planilhas disponíveis</strong>
+          <p>
+            A planilha do envio consolida a última execução com mudança. O
+            histórico Excel é gerado na hora e reúne todas as alterações já
+            gravadas no app.
+          </p>
+        </div>
+        <span>Filtros, abas executivas, evidências e links Bacen</span>
+      </section>
 
       <section className="relatorio-filtros">
         <label>

@@ -13,6 +13,7 @@ from app.routers import (
     execucoes,
     health,
     leiautes,
+    relatorios,
     robo,
     usuarios,
 )
@@ -58,6 +59,7 @@ app.include_router(configuracoes.router)
 app.include_router(robo.router)
 app.include_router(usuarios.router)
 app.include_router(email_gestor.router)
+app.include_router(relatorios.router)
 
 
 @app.on_event("startup")

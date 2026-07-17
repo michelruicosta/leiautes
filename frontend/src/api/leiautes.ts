@@ -1,4 +1,4 @@
-import { apiGet, apiPut } from "./client";
+import { apiGet, apiPut, apiUrl } from "./client";
 import type {
   ConfiguracoesResponse,
   DashboardResponse,
@@ -20,6 +20,10 @@ export function listarLeiautes() {
 
 export function listarAlteracoes() {
   return apiGet<AlteracaoListaResponse>("/alteracoes");
+}
+
+export function urlRelatorioAlteracoes(escopo: "ultima" | "historico") {
+  return apiUrl(`/relatorios/alteracoes.xlsx?escopo=${escopo}`);
 }
 
 export function obterConfiguracoes() {

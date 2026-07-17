@@ -627,6 +627,43 @@ textarea {
   margin-bottom: 1rem;
 }
 
+.acoes-relatorio {
+  display: flex;
+  gap: 0.6rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.relatorio-excel-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  border: 1px solid #dbe2ec;
+  background: #fff;
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.relatorio-excel-card strong {
+  display: block;
+  color: #20243a;
+  margin-bottom: 0.25rem;
+}
+
+.relatorio-excel-card p {
+  margin: 0;
+  color: #58677f;
+  line-height: 1.45;
+}
+
+.relatorio-excel-card span {
+  color: var(--marca-cor);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .relatorio-filtros label {
   display: grid;
   gap: 0.35rem;
@@ -911,6 +948,15 @@ textarea {
 
   .dashboard-hero-numero {
     text-align: left;
+  }
+
+  .relatorio-excel-card {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .relatorio-excel-card span {
+    white-space: normal;
   }
 }
 

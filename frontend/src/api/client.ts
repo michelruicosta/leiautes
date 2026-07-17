@@ -10,6 +10,10 @@ export class ApiError extends Error {
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "/api";
 
+export function apiUrl(path: string): string {
+  return `${API_BASE}${path}`;
+}
+
 export async function apiGet<T>(path: string): Promise<T> {
   const resp = await fetch(`${API_BASE}${path}`, {
     credentials: "include",
