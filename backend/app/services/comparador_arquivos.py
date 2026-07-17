@@ -5,6 +5,7 @@ import difflib
 import hashlib
 import re
 import zipfile
+from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 from xml.etree import ElementTree
@@ -60,6 +61,17 @@ def _formatar_trecho(valor: str, limite: int = 5000) -> str:
     if len(valor) <= limite:
         return valor
     return f"{valor[:limite]}... [texto completo excede {limite} caracteres]"
+
+
+def _formatar_valor_planilha(valor: Any) -> str:
+    if valor is None:
+        return "em branco"
+    if isinstance(valor, datetime):
+        return valor.strftime("%d/%m/%Y %H:%M")
+    if isinstance(valor, date):
+        return valor.strftime("%d/%m/%Y")
+    texto = str(valor).strip()
+    return texto if texto else "em branco"
 
 
 def _comparar_linhas(
@@ -247,7 +259,7 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
                     contexto = f", coluna {cabecalho}" if cabecalho and row != 1 else ""
                     alterados.append(
                         f"Aba {aba}, célula {coluna}{row}{contexto}: "
-                        f"antes {v_ant!r}; depois {v_atual!r}"
+                        f"antes {_formatar_valor_planilha(v_ant)}; depois {_formatar_valor_planilha(v_atual)}"
                     )
                     if len(alterados) >= 200:
                         break
@@ -305,7 +317,7 @@ def _comparar_xls(anterior: Path, atual: Path) -> dict[str, Any]:
                     contexto = f", coluna {cabecalho}" if cabecalho else ""
                     alterados.append(
                         f"Aba {aba}, célula {coluna}{row + 1}{contexto}: "
-                        f"antes {v_ant!r}; depois {v_atual!r}"
+                        f"antes {_formatar_valor_planilha(v_ant)}; depois {_formatar_valor_planilha(v_atual)}"
                     )
                     if len(alterados) >= 200:
                         break

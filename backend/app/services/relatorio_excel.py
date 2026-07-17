@@ -46,6 +46,31 @@ def _fmt_data(valor: str | None) -> str:
             return valor
 
 
+def _texto_usuario(valor: str) -> str:
+    texto = str(valor or "").strip()
+    if texto in {"None", "none", "NULL", "null"}:
+        return "em branco"
+    if len(texto) >= 2 and texto[0] == texto[-1] and texto[0] in {"'", '"'}:
+        texto = texto[1:-1]
+
+    match_dt = re.fullmatch(
+        r"datetime\.datetime\((\d{4}),\s*(\d{1,2}),\s*(\d{1,2})(?:,\s*(\d{1,2}),\s*(\d{1,2}))?.*\)",
+        texto,
+    )
+    if match_dt:
+        ano, mes, dia, hora, minuto = match_dt.groups()
+        data = datetime(
+            int(ano),
+            int(mes),
+            int(dia),
+            int(hora or 0),
+            int(minuto or 0),
+        )
+        return data.strftime("%d/%m/%Y %H:%M") if hora else data.strftime("%d/%m/%Y")
+
+    return texto or "em branco"
+
+
 def _parse_evidencia(texto: str, tipo: str) -> dict[str, str]:
     texto = str(texto or "").strip()
     padroes = [
@@ -60,24 +85,28 @@ def _parse_evidencia(texto: str, tipo: str) -> dict[str, str]:
         if len(match.groups()) == 4:
             return {
                 "local": f"{match.group(1)} - {match.group(2)}",
-                "antes": match.group(3),
-                "depois": match.group(4),
+                "antes": _texto_usuario(match.group(3)),
+                "depois": _texto_usuario(match.group(4)),
             }
-        return {"local": match.group(1), "antes": match.group(2), "depois": match.group(3)}
+        return {
+            "local": match.group(1),
+            "antes": _texto_usuario(match.group(2)),
+            "depois": _texto_usuario(match.group(3)),
+        }
 
     incluido = re.match(r'^(.*?): incluído "([\s\S]*)"$', texto)
     if incluido:
-        return {"local": incluido.group(1), "antes": "", "depois": incluido.group(2)}
+        return {"local": incluido.group(1), "antes": "", "depois": _texto_usuario(incluido.group(2))}
     removido = re.match(r'^(.*?): removido "([\s\S]*)"$', texto)
     if removido:
-        return {"local": removido.group(1), "antes": removido.group(2), "depois": ""}
+        return {"local": removido.group(1), "antes": _texto_usuario(removido.group(2)), "depois": ""}
     interno = re.match(r'^Arquivo interno incluído: ([^;]+); evidência: "([\s\S]*)"$', texto)
     if interno:
-        return {"local": f"Arquivo interno {interno.group(1)}", "antes": "", "depois": interno.group(2)}
+        return {"local": f"Arquivo interno {interno.group(1)}", "antes": "", "depois": _texto_usuario(interno.group(2))}
 
     if tipo == "Saiu":
-        return {"local": "Evidência", "antes": texto, "depois": ""}
-    return {"local": "Evidência", "antes": "", "depois": texto}
+        return {"local": "Evidência", "antes": _texto_usuario(texto), "depois": ""}
+    return {"local": "Evidência", "antes": "", "depois": _texto_usuario(texto)}
 
 
 def _grupo_local(local: str) -> str:
