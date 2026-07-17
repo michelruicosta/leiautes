@@ -440,6 +440,29 @@ textarea {
   gap: 0.85rem;
 }
 
+.robo-status-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.55fr);
+  gap: 1rem;
+  align-items: start;
+}
+
+.robo-cards {
+  margin-bottom: 1rem;
+}
+
+.tabela-cabecalho {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.tabela-cabecalho h2 {
+  margin: 0 0 0.25rem;
+}
+
 .dashboard-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -607,6 +630,29 @@ textarea {
 
 .status-andamento {
   color: var(--marca-cor);
+}
+
+.modal-log {
+  width: min(1180px, calc(100vw - 4rem));
+}
+
+.modal-log-body {
+  padding: 1.2rem 1.35rem;
+  overflow: auto;
+}
+
+.log-output {
+  min-height: 22rem;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: #0f172a;
+  color: #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.84rem;
+  line-height: 1.55;
 }
 
 .alteracoes-layout,
@@ -1086,6 +1132,7 @@ textarea {
   .relatorio-filtros,
   .diff-grid,
   .dashboard-hero,
+  .robo-status-card,
   .cards-resumo-dashboard,
   .evidence-before-after {
     grid-template-columns: 1fr;
@@ -1124,6 +1171,10 @@ textarea {
   }
 
   .modal-detalhe-head {
+    flex-direction: column;
+  }
+
+  .tabela-cabecalho {
     flex-direction: column;
   }
 

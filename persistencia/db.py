@@ -311,6 +311,18 @@ def iniciar_execucao(log_path: Optional[str] = None) -> int:
         return int(cur.lastrowid)
 
 
+def definir_log_execucao(execucao_id: int, log_path: Optional[str]) -> None:
+    with _connect() as conn:
+        conn.execute(
+            """
+            UPDATE execucoes
+            SET log_path = ?
+            WHERE id = ?
+            """,
+            (log_path, execucao_id),
+        )
+
+
 def finalizar_execucao(
     execucao_id: int,
     *,

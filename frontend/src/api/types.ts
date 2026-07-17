@@ -11,6 +11,18 @@ export type ExecucaoResumo = {
   log_path?: string | null;
 };
 
+export type ExecucaoListaResponse = {
+  total: number;
+  execucoes: ExecucaoResumo[];
+};
+
+export type ExecucaoLogResponse = {
+  execucao: ExecucaoResumo;
+  log_texto: string;
+  log_path?: string | null;
+  disponivel: boolean;
+};
+
 export type AlteracaoResumo = {
   id: number;
   execucao_id: number;
@@ -67,6 +79,14 @@ export type RoboStatusResponse = {
   script_motor: string;
   script_existe: boolean;
   ultima_execucao?: ExecucaoResumo | null;
+};
+
+export type RoboExecutarResponse = {
+  execucao_id: number;
+  status: string;
+  returncode: number;
+  stdout_tail: string;
+  stderr_tail: string;
 };
 
 export type UsuarioResumo = {

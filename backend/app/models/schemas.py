@@ -63,6 +63,13 @@ class ExecucaoListaResponse(BaseModel):
     execucoes: list[ExecucaoResumo]
 
 
+class ExecucaoLogResponse(BaseModel):
+    execucao: ExecucaoResumo
+    log_texto: str = ""
+    log_path: Optional[str] = None
+    disponivel: bool = False
+
+
 class AlteracaoResumo(BaseModel):
     id: int
     execucao_id: int

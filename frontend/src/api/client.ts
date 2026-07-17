@@ -76,3 +76,23 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   }
   return resp.json() as Promise<T>;
 }
+
+export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  const resp = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!resp.ok) {
+    let message = `Erro ${resp.status}`;
+    try {
+      const data = await resp.json();
+      message = data.detail || message;
+    } catch {
+      // resposta sem JSON
+    }
+    throw new ApiError(resp.status, message);
+  }
+  return resp.json() as Promise<T>;
+}

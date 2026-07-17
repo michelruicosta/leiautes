@@ -19,6 +19,19 @@ def obter_ultima_execucao() -> Optional[dict]:
     return dict(row) if row else None
 
 
+def obter_execucao(execucao_id: int) -> Optional[dict]:
+    init_db()
+    with conectar() as conn:
+        row = conn.execute(
+            """
+            SELECT * FROM execucoes
+            WHERE id = ?
+            """,
+            (execucao_id,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
 def listar_execucoes(*, limit: int = 50, offset: int = 0) -> tuple[list[dict], int]:
     init_db()
     limit = max(1, min(limit, 200))

@@ -1,11 +1,14 @@
-import { apiDownload, apiGet, apiPut, apiUrl } from "./client";
+import { apiDownload, apiGet, apiPost, apiPut, apiUrl } from "./client";
 import type {
   ConfiguracoesResponse,
   DashboardResponse,
   EmailGestorPreviewResponse,
+  ExecucaoListaResponse,
+  ExecucaoLogResponse,
   AlteracaoListaResponse,
   LeiauteListaResponse,
   PermissoesPerfilResponse,
+  RoboExecutarResponse,
   RoboStatusResponse,
   UsuarioListaResponse,
 } from "./types";
@@ -44,6 +47,21 @@ export function salvarConfiguracoes(configuracoes: Record<string, unknown>) {
 
 export function obterStatusRobo() {
   return apiGet<RoboStatusResponse>("/robo/status");
+}
+
+export function executarRoboSemEmail() {
+  return apiPost<RoboExecutarResponse>("/robo/executar", {
+    modo_teste: false,
+    enviar_email: false,
+  });
+}
+
+export function listarExecucoes(limit = 50, offset = 0) {
+  return apiGet<ExecucaoListaResponse>(`/execucoes?limit=${limit}&offset=${offset}`);
+}
+
+export function obterLogExecucao(execucaoId: number) {
+  return apiGet<ExecucaoLogResponse>(`/execucoes/${execucaoId}/log`);
 }
 
 export function obterPreviewEmailGestor() {
