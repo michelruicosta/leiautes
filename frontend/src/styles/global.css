@@ -812,15 +812,15 @@ textarea {
   inset: 0;
   z-index: 50;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
-  padding: 1.5rem;
+  padding: 2rem;
   background: rgba(15, 23, 42, 0.48);
 }
 
 .modal-detalhe {
-  width: min(1180px, 96vw);
-  max-height: 90vh;
+  width: min(1320px, calc(100vw - 4rem));
+  max-height: calc(100vh - 4rem);
   display: flex;
   flex-direction: column;
   background: #fff;
@@ -901,7 +901,7 @@ textarea {
 }
 
 .modal-diff-grid {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .admin-acoes {
@@ -988,7 +988,7 @@ textarea {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   gap: 0.55rem;
-  align-items: center;
+  align-items: flex-start;
   padding: 0.65rem 0.75rem;
   border-bottom: 1px solid #e7ebf0;
 }
@@ -1002,6 +1002,8 @@ textarea {
 
 .evidence-card header strong {
   overflow-wrap: anywhere;
+  line-height: 1.35;
+  text-align: left;
 }
 
 .evidence-incluido header span {
