@@ -1,4 +1,4 @@
-import { apiGet, apiPut, apiUrl } from "./client";
+import { apiDownload, apiGet, apiPut, apiUrl } from "./client";
 import type {
   ConfiguracoesResponse,
   DashboardResponse,
@@ -24,6 +24,14 @@ export function listarAlteracoes() {
 
 export function urlRelatorioAlteracoes(escopo: "ultima" | "historico") {
   return apiUrl(`/relatorios/alteracoes.xlsx?escopo=${escopo}`);
+}
+
+export function baixarRelatorioAlteracoes(escopo: "ultima" | "historico") {
+  const fallback =
+    escopo === "ultima"
+      ? "relatorio_alteracoes_leiautes_envio.xlsx"
+      : "relatorio_alteracoes_leiautes_historico.xlsx";
+  return apiDownload(`/relatorios/alteracoes.xlsx?escopo=${escopo}`, fallback);
 }
 
 export function obterConfiguracoes() {

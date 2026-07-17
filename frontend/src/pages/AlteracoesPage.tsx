@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { DiffEvidenceList } from "../components/DiffEvidence";
-import { listarAlteracoes, urlRelatorioAlteracoes } from "../api/leiautes";
+import { baixarRelatorioAlteracoes, listarAlteracoes } from "../api/leiautes";
 import type { AlteracaoResumo } from "../api/types";
 
 function formatarData(valor: string): string {
@@ -27,6 +27,7 @@ export default function AlteracoesPage() {
   const [filtroLeiaute, setFiltroLeiaute] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
   const [filtroStatus, setFiltroStatus] = useState("");
+  const [baixando, setBaixando] = useState<"ultima" | "historico" | null>(null);
 
   useEffect(() => {
     setCarregando(true);
@@ -73,6 +74,17 @@ export default function AlteracoesPage() {
     );
   });
   const itensRelatorio = vazia ? [resumoVazio] : filtradas;
+  const baixarPlanilha = async (escopo: "ultima" | "historico") => {
+    setErro(null);
+    setBaixando(escopo);
+    try {
+      await baixarRelatorioAlteracoes(escopo);
+    } catch {
+      setErro("Não foi possível baixar a planilha.");
+    } finally {
+      setBaixando(null);
+    }
+  };
 
   return (
     <div className="admin-page">
@@ -84,12 +96,22 @@ export default function AlteracoesPage() {
           </p>
         </div>
         <div className="acoes-relatorio">
-          <a className="btn-secundario" href={urlRelatorioAlteracoes("ultima")}>
-            Planilha do envio
-          </a>
-          <a className="btn-novo" href={urlRelatorioAlteracoes("historico")}>
-            Histórico Excel
-          </a>
+          <button
+            className="btn-secundario"
+            disabled={baixando !== null}
+            type="button"
+            onClick={() => baixarPlanilha("ultima")}
+          >
+            {baixando === "ultima" ? "Gerando..." : "Planilha do envio"}
+          </button>
+          <button
+            className="btn-novo"
+            disabled={baixando !== null}
+            type="button"
+            onClick={() => baixarPlanilha("historico")}
+          >
+            {baixando === "historico" ? "Gerando..." : "Histórico Excel"}
+          </button>
         </div>
       </div>
 
