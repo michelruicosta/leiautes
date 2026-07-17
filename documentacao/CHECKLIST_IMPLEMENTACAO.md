@@ -55,10 +55,12 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 ## 5. Comparacao de versoes
 
 - [ ] Comparar arquivos PDF por texto extraido.
-- [ ] Comparar XSD/XML.
+- [x] Comparar XSD/XML.
 - [ ] Comparar XLS/XLSX.
-- [ ] Gerar resumo estruturado das diferencas.
-- [ ] Gravar diferencas no banco.
+- [x] Comparar texto simples por linhas.
+- [x] Comparar ZIP por arquivos internos.
+- [x] Gerar resumo estruturado das diferencas.
+- [x] Gravar diferencas no banco.
 - [ ] Commit: comparacao de arquivos.
 
 ## 6. Base do frontend

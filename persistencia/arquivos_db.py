@@ -9,6 +9,11 @@ from typing import Any, Optional
 
 from persistencia.db import conectar, init_db
 
+try:
+    from backend.app.services.comparador_arquivos import comparar_arquivos
+except Exception:
+    comparar_arquivos = None
+
 RAIZ = Path(__file__).resolve().parent.parent
 
 
@@ -170,6 +175,18 @@ def registrar_arquivo_observado(
         versao_id: Optional[int] = None
         alteracao_id: Optional[int] = None
         if mudou:
+            caminho_anterior = None
+            if versao_anterior_id is not None:
+                row_ant = conn.execute(
+                    """
+                    SELECT caminho_arquivo
+                    FROM versoes_arquivos
+                    WHERE id = ?
+                    """,
+                    (versao_anterior_id,),
+                ).fetchone()
+                caminho_anterior = row_ant["caminho_arquivo"] if row_ant else None
+
             cur = conn.execute(
                 """
                 INSERT INTO versoes_arquivos (
@@ -199,10 +216,37 @@ def registrar_arquivo_observado(
             )
 
             if execucao_id is not None:
+                comparacao = None
+                if comparar_arquivos and caminho_anterior and caminho_arquivo:
+                    comparacao = comparar_arquivos(
+                        caminho_anterior=caminho_anterior,
+                        caminho_atual=caminho_arquivo,
+                        tipo_arquivo=tipo,
+                    )
                 resumo = (
-                    f"Alteracao detectada por metadados: {evidencia}"
-                    if evidencia
-                    else "Alteracao detectada por metadados do arquivo."
+                    comparacao.get("resumo_executivo")
+                    if comparacao
+                    else (
+                        f"Alteracao detectada por metadados: {evidencia}"
+                        if evidencia
+                        else "Alteracao detectada por metadados do arquivo."
+                    )
+                )
+                impacto = (
+                    comparacao.get("impacto_sugerido")
+                    if comparacao
+                    else "Revisar o arquivo alterado e avaliar impacto operacional."
+                )
+                incluidos = (
+                    comparacao.get("itens_incluidos", []) if comparacao else []
+                )
+                removidos = (
+                    comparacao.get("itens_removidos", []) if comparacao else []
+                )
+                alterados = (
+                    comparacao.get("itens_alterados", [])
+                    if comparacao
+                    else ([evidencia] if evidencia else [])
                 )
                 cur_alt = conn.execute(
                     """
@@ -218,10 +262,10 @@ def registrar_arquivo_observado(
                         versao_anterior_id,
                         versao_id,
                         resumo,
-                        "Revisar o arquivo alterado e avaliar impacto operacional.",
-                        json.dumps([], ensure_ascii=False),
-                        json.dumps([], ensure_ascii=False),
-                        json.dumps([evidencia] if evidencia else [], ensure_ascii=False),
+                        impacto,
+                        json.dumps(incluidos, ensure_ascii=False),
+                        json.dumps(removidos, ensure_ascii=False),
+                        json.dumps(alterados, ensure_ascii=False),
                         agora,
                     ),
                 )
