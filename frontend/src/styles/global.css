@@ -598,7 +598,7 @@ textarea {
 
 .diff-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 0.85rem;
 }
 
@@ -612,6 +612,13 @@ textarea {
 .diff-grid ul {
   margin: 0;
   padding-left: 1.1rem;
+}
+
+.diff-grid li,
+.email-diff-grid li {
+  margin-bottom: 0.35rem;
+  overflow-wrap: anywhere;
+  line-height: 1.45;
 }
 
 .admin-acoes {
@@ -639,6 +646,52 @@ textarea {
   padding: 1.15rem;
   display: grid;
   gap: 1rem;
+}
+
+.email-alteracao {
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  padding: 1rem 1.1rem;
+  display: grid;
+  gap: 0.7rem;
+}
+
+.email-alteracao header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.email-alteracao h2 {
+  margin: 0;
+}
+
+.email-alteracao p {
+  margin: 0;
+}
+
+.email-diff-grid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.email-diff-bloco {
+  background: #f8f9fb;
+  border: 1px solid #e2e6ec;
+  border-radius: 8px;
+  padding: 0.8rem 0.9rem;
+}
+
+.email-diff-bloco h3 {
+  margin: 0 0 0.4rem;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.email-diff-bloco ul {
+  margin: 0;
+  padding-left: 1.1rem;
 }
 
 @media (max-width: 760px) {

@@ -19,7 +19,7 @@ from email.mime.base import MIMEBase
 from email.utils import make_msgid
 from email import encoders
 
-import ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes, traceback
+import html, ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes, traceback
 from urllib.parse import urlparse, unquote
 
 # >>> ajuste este caminho por projeto
@@ -92,9 +92,12 @@ try:
         registrar_arquivo_observado,
         salvar_conteudo_versao,
     )
+    from persistencia.db import conectar, init_db
 except Exception:
     registrar_arquivo_observado = None
     salvar_conteudo_versao = None
+    conectar = None
+    init_db = None
 
 CONNECT_TIMEOUT = 10
 READ_TIMEOUT = 10
@@ -347,7 +350,7 @@ def extrair_datas_categorias_e_anexos(url):
         except: pass
 
         try:
-            items = page.evaluate("""() => {
+            items = page.evaluate(r"""() => {
               const res = [];
               const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
               for (const a of Array.from(document.querySelectorAll('a[href]'))) {
@@ -380,6 +383,101 @@ def extrair_datas_categorias_e_anexos(url):
 # ====== EMAIL HTML ======
 BLUE_BRAND = "#2e3192"
 
+
+def _parse_json_lista(valor):
+    if not valor:
+        return []
+    try:
+        parsed = json.loads(valor)
+        return parsed if isinstance(parsed, list) else []
+    except Exception:
+        return []
+
+
+def _carregar_detalhes_alteracoes(execucao_id):
+    if not execucao_id or not conectar or not init_db:
+        return {}
+    try:
+        init_db()
+        with conectar() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    ar.url,
+                    ar.nome_arquivo,
+                    ar.tipo_arquivo,
+                    COALESCE(l.codigo, '') AS leiaute_codigo,
+                    a.resumo_executivo,
+                    a.impacto_sugerido,
+                    a.itens_incluidos,
+                    a.itens_removidos,
+                    a.itens_alterados
+                FROM alteracoes_detectadas a
+                JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
+                LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
+                WHERE a.execucao_id = ?
+                ORDER BY a.id DESC
+                """,
+                (execucao_id,),
+            ).fetchall()
+    except Exception as exc:
+        logger.warning(f"Nao foi possivel carregar detalhes das alteracoes: {exc}")
+        return {}
+
+    detalhes = {}
+    for row in rows:
+        data = dict(row)
+        data["itens_incluidos"] = _parse_json_lista(data.get("itens_incluidos"))
+        data["itens_removidos"] = _parse_json_lista(data.get("itens_removidos"))
+        data["itens_alterados"] = _parse_json_lista(data.get("itens_alterados"))
+        detalhes[data["url"]] = data
+    return detalhes
+
+
+def _html_lista_diferencas(titulo: str, itens: list[str], vazio: str) -> str:
+    if itens:
+        linhas = "".join(f"<li>{html.escape(str(item))}</li>" for item in itens)
+        conteudo = f"<ul>{linhas}</ul>"
+    else:
+        conteudo = f"<p class='muted'>{html.escape(vazio)}</p>"
+    return f"""
+      <div class="diff-block">
+        <p class="diff-title">{html.escape(titulo)}</p>
+        {conteudo}
+      </div>
+    """
+
+
+def _html_detalhe_alteracao(item, detalhe) -> str:
+    url = item["url"]
+    nome = _filename_from_url(url)
+    evidencia = html.escape(item.get("evidencia") or "")
+    link = (
+        f'<a href="{html.escape(url)}" target="_blank" '
+        f'style="color:{BLUE_BRAND}; text-decoration:none;">{html.escape(nome)}</a>'
+    )
+    if not detalhe:
+        evidencia_html = f"<p class='muted'>{evidencia}</p>" if evidencia else ""
+        return f"<li>{link}{evidencia_html}</li>"
+
+    titulo = html.escape(
+        f"{detalhe.get('leiaute_codigo') or 'Leiaute'} - {detalhe.get('nome_arquivo') or nome}"
+    )
+    tipo = html.escape(str(detalhe.get("tipo_arquivo") or ""))
+    resumo = html.escape(str(detalhe.get("resumo_executivo") or "Alteracao detectada."))
+    impacto = html.escape(str(detalhe.get("impacto_sugerido") or "Revisar o arquivo alterado."))
+    return f"""
+      <div class="change-card">
+        <p class="change-title">{titulo} <span class="muted">({tipo})</span></p>
+        <p>{link}</p>
+        <p>{resumo}</p>
+        <p class="muted">{impacto}</p>
+        {_html_lista_diferencas("Inclusoes", detalhe.get("itens_incluidos", []), "Nenhuma inclusao identificada.")}
+        {_html_lista_diferencas("Alteracoes", detalhe.get("itens_alterados", []), "Nenhuma alteracao de conteudo identificada.")}
+        {_html_lista_diferencas("Remocoes", detalhe.get("itens_removidos", []), "Nenhuma remocao identificada.")}
+      </div>
+    """
+
 def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
     return f"""
 <!DOCTYPE html>
@@ -390,6 +488,11 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
   body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; }}
   .wrap {{ width: 100%; margin: 0 auto; }}
   .item p {{ margin: 0 0 8px; line-height: 1.55; font-size: 16px; }}
+  .change-card {{ border:1px solid #dde1e6; border-radius:8px; padding:14px 16px; margin:14px 0; }}
+  .change-title {{ font-size:18px; font-weight:bold; margin:0 0 8px; }}
+  .diff-block {{ background:#f8f9fb; border:1px solid #e2e6ec; border-radius:8px; padding:10px 12px; margin:10px 0; }}
+  .diff-title {{ color:{BLUE_BRAND}; font-weight:bold; margin:0 0 6px; }}
+  .muted {{ color:#5b6b84; font-size:14px; }}
   a {{ color: #1a73e8; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
   .rodape {{ font-size: 12px; color: #555; margin-top: 40px; text-align: center; }}
@@ -562,20 +665,19 @@ def main():
             logo_cid = make_msgid(domain="finaud.com.br")[1:-1]
 
             if alterados:
+                detalhes_por_url = _carregar_detalhes_alteracoes(execucao_id)
                 blocos_por_categoria = {}
                 for item in alterados:
                     url = item["url"]
-                    nome = _filename_from_url(url)
                     categoria = categoria_por_url.get(url, "Sem categoria")
-                    evidencia = item.get("evidencia", "")
-                    link = f'<a href="{url}" target="_blank" style="color:{BLUE_BRAND}; text-decoration:none;">{nome}</a>'
-                    linha = f"<li>{link}</li>"
-                    blocos_por_categoria.setdefault(categoria, []).append(linha)
+                    detalhe = detalhes_por_url.get(url)
+                    bloco = _html_detalhe_alteracao(item, detalhe)
+                    blocos_por_categoria.setdefault(categoria, []).append(bloco)
 
                 partes = []
-                partes.append(f"<p style='font-size:17px;'><strong style='color:{BLUE_BRAND};'>Arquivo(s) encontrado(s):</strong></p>")
+                partes.append(f"<p style='font-size:17px;'><strong style='color:{BLUE_BRAND};'>Arquivo(s) alterado(s):</strong></p>")
                 for cat, blocos in blocos_por_categoria.items():
-                    partes.append(f"<p><strong>{cat}</strong></p><ul>{''.join(blocos)}</ul>")
+                    partes.append(f"<p><strong>{html.escape(cat)}</strong></p>{''.join(blocos)}")
                 corpo = "".join(partes)
                 html = gerar_html_email(corpo, hoje, logo_cid)
             else:

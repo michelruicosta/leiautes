@@ -1,6 +1,63 @@
 import { useEffect, useState } from "react";
 import { obterPreviewEmailGestor } from "../api/leiautes";
-import type { EmailGestorPreviewResponse } from "../api/types";
+import type { AlteracaoResumo, EmailGestorPreviewResponse } from "../api/types";
+
+function ListaDiferencas({
+  titulo,
+  itens,
+  vazio,
+}: {
+  titulo: string;
+  itens: string[];
+  vazio: string;
+}) {
+  return (
+    <section className="email-diff-bloco">
+      <h3>{titulo}</h3>
+      {itens.length ? (
+        <ul>
+          {itens.map((item, index) => (
+            <li key={`${titulo}-${index}`}>{item}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="meta">{vazio}</p>
+      )}
+    </section>
+  );
+}
+
+function AlteracaoEmailCard({ alteracao }: { alteracao: AlteracaoResumo }) {
+  return (
+    <article className="email-alteracao">
+      <header>
+        <h2>
+          {alteracao.leiaute_codigo} · {alteracao.arquivo_nome}
+        </h2>
+        <span className="meta">{alteracao.arquivo_tipo}</span>
+      </header>
+      <p>{alteracao.resumo_executivo}</p>
+      <p className="meta">{alteracao.impacto_sugerido}</p>
+      <div className="email-diff-grid">
+        <ListaDiferencas
+          titulo="Inclusões"
+          itens={alteracao.itens_incluidos}
+          vazio="Nenhuma inclusão identificada."
+        />
+        <ListaDiferencas
+          titulo="Alterações"
+          itens={alteracao.itens_alterados}
+          vazio="Nenhuma alteração de conteúdo identificada."
+        />
+        <ListaDiferencas
+          titulo="Remoções"
+          itens={alteracao.itens_removidos}
+          vazio="Nenhuma remoção identificada."
+        />
+      </div>
+    </article>
+  );
+}
 
 export default function EmailGestorPage() {
   const [preview, setPreview] = useState<EmailGestorPreviewResponse | null>(null);
@@ -57,13 +114,7 @@ export default function EmailGestorPage() {
             </p>
           ) : (
             preview?.alteracoes.map((alt) => (
-              <article key={alt.id} className="card">
-                <h2>
-                  {alt.leiaute_codigo} · {alt.arquivo_nome}
-                </h2>
-                <p>{alt.resumo_executivo}</p>
-                <p className="meta">{alt.impacto_sugerido}</p>
-              </article>
+              <AlteracaoEmailCard key={alt.id} alteracao={alt} />
             ))
           )}
           <p className="meta">

@@ -113,6 +113,9 @@ export default function AlteracoesPage() {
                 {detalhe.itens_incluidos.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
+                {detalhe.itens_incluidos.length === 0 && (
+                  <li className="meta">Nenhuma inclusão identificada.</li>
+                )}
               </ul>
             </div>
             <div>
@@ -121,6 +124,9 @@ export default function AlteracoesPage() {
                 {detalhe.itens_alterados.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
+                {detalhe.itens_alterados.length === 0 && (
+                  <li className="meta">Nenhuma alteração de conteúdo identificada.</li>
+                )}
               </ul>
             </div>
             <div>
@@ -129,6 +135,9 @@ export default function AlteracoesPage() {
                 {detalhe.itens_removidos.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
+                {detalhe.itens_removidos.length === 0 && (
+                  <li className="meta">Nenhuma remoção identificada.</li>
+                )}
               </ul>
             </div>
           </div>
