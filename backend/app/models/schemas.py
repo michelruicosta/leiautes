@@ -97,6 +97,10 @@ class DashboardResponse(BaseModel):
     qtd_leiautes: int = 0
     qtd_arquivos: int = 0
     qtd_alteracoes: int = 0
+    qtd_entrou: int = 0
+    qtd_mudou: int = 0
+    qtd_saiu: int = 0
+    arquivos_destaque: list[dict] = Field(default_factory=list)
     alteracoes_recentes: list[AlteracaoResumo] = Field(default_factory=list)
 
 

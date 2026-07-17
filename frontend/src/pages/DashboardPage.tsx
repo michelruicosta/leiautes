@@ -1,15 +1,30 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { obterDashboard } from "../api/leiautes";
 import type { DashboardResponse } from "../api/types";
 
 function formatarData(valor?: string | null): string {
-  if (!valor) return "—";
+  if (!valor) return "-";
   const data = new Date(valor);
   if (Number.isNaN(data.getTime())) return valor;
   return new Intl.DateTimeFormat("pt-BR", {
     dateStyle: "short",
     timeStyle: "short",
   }).format(data);
+}
+
+function rotuloStatus(status?: string | null): string {
+  const mapa: Record<string, string> = {
+    sucesso: "Sucesso",
+    erro: "Erro",
+    em_andamento: "Em andamento",
+  };
+  return status ? mapa[status] ?? status : "Sem registro";
+}
+
+function classeStatus(status?: string | null): string {
+  if (status === "sucesso") return "status-ok";
+  if (status === "erro") return "status-erro";
+  return "status-andamento";
 }
 
 export default function DashboardPage() {
@@ -19,6 +34,15 @@ export default function DashboardPage() {
   useEffect(() => {
     obterDashboard().then(setDados).catch(() => setErro("API indisponível."));
   }, []);
+
+  const totalRodada = useMemo(
+    () => (dados?.qtd_entrou ?? 0) + (dados?.qtd_mudou ?? 0) + (dados?.qtd_saiu ?? 0),
+    [dados],
+  );
+  const maiorDestaque = Math.max(
+    1,
+    ...(dados?.arquivos_destaque ?? []).map((item) => item.total_evidencias),
+  );
 
   return (
     <div className="admin-page">
@@ -34,38 +58,100 @@ export default function DashboardPage() {
 
       {erro && <p className="erro">{erro}</p>}
 
-      <div className="dashboard-hero">
+      <section className="dashboard-executivo">
         <div>
-          <span className="meta">Última execução</span>
+          <span className="dashboard-eyebrow">Última execução</span>
           <h2>{formatarData(dados?.ultima_execucao?.iniciado_em)}</h2>
-          <p className="meta">{dados?.ultima_execucao?.status ?? "Sem registro"}</p>
+          <div className="dashboard-meta-row">
+            <strong className={classeStatus(dados?.ultima_execucao?.status)}>
+              {rotuloStatus(dados?.ultima_execucao?.status)}
+            </strong>
+            <span>{dados?.ultima_execucao?.qtd_arquivos ?? 0} arquivos processados</span>
+            <span>{dados?.qtd_leiautes ?? 0} leiaute(s) ativo(s)</span>
+          </div>
         </div>
-        <div className="dashboard-hero-numero">
-          <span>{dados?.qtd_alteracoes ?? 0}</span>
-          <p>alterações detectadas</p>
+        <div className="dashboard-total">
+          <span>{totalRodada}</span>
+          <p>evidências na última execução</p>
         </div>
-      </div>
+      </section>
 
-      <div className="cards-resumo cards-resumo-dashboard">
-        <article className="card resumo-card">
-          <span className="resumo-icone">LE</span>
-          <h2>Leiautes verificados</h2>
-          <p className="numero-grande">{dados?.qtd_leiautes ?? 0}</p>
-          <p className="meta">cadastros ativos</p>
+      <section className="dashboard-change-grid">
+        <article className="dashboard-change-card dashboard-change-entrou">
+          <span>Entrou</span>
+          <strong>{dados?.qtd_entrou ?? 0}</strong>
+          <p>novos trechos, campos ou arquivos identificados</p>
         </article>
-        <article className="card resumo-card">
-          <span className="resumo-icone">AR</span>
-          <h2>Arquivos monitorados</h2>
-          <p className="numero-grande">{dados?.qtd_arquivos ?? 0}</p>
-          <p className="meta">com histórico salvo</p>
+        <article className="dashboard-change-card dashboard-change-mudou">
+          <span>Mudou</span>
+          <strong>{dados?.qtd_mudou ?? 0}</strong>
+          <p>itens com antes e depois para revisão</p>
         </article>
-        <article className="card resumo-card">
-          <span className="resumo-icone">EX</span>
-          <h2>Execução</h2>
-          <p className="numero-grande">{dados?.ultima_execucao?.qtd_arquivos ?? 0}</p>
-          <p className="meta">arquivos na última rodada</p>
+        <article className="dashboard-change-card dashboard-change-saiu">
+          <span>Saiu</span>
+          <strong>{dados?.qtd_saiu ?? 0}</strong>
+          <p>conteúdos removidos em relação à versão anterior</p>
         </article>
-      </div>
+      </section>
+
+      <section className="dashboard-ranking">
+        <div className="tabela-cabecalho">
+          <div>
+            <h2>Arquivos mais relevantes</h2>
+            <p className="meta">
+              Priorização por volume de evidências encontradas na última execução.
+            </p>
+          </div>
+          <p className="meta">{dados?.qtd_arquivos ?? 0} arquivos monitorados</p>
+        </div>
+
+        <div className="tabela-wrap">
+          <table className="tabela dashboard-table">
+            <thead>
+              <tr>
+                <th>Leiaute</th>
+                <th>Arquivo mais relevante</th>
+                <th>Tipo</th>
+                <th>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(dados?.arquivos_destaque ?? []).length === 0 ? (
+                <tr>
+                  <td colSpan={4} className="meta">
+                    Nenhuma alteração encontrada na última execução.
+                  </td>
+                </tr>
+              ) : (
+                dados?.arquivos_destaque.map((item) => (
+                  <tr key={`${item.leiaute_codigo}-${item.arquivo_nome}`}>
+                    <td>
+                      <strong>{item.leiaute_codigo}</strong>
+                    </td>
+                    <td>{item.arquivo_nome}</td>
+                    <td>
+                      <span className="tag">{item.arquivo_tipo}</span>
+                    </td>
+                    <td>
+                      <strong>{item.total_evidencias} evidências</strong>
+                      <div className="dashboard-bar">
+                        <span
+                          style={{
+                            width: `${Math.max(
+                              8,
+                              Math.round((item.total_evidencias / maiorDestaque) * 100),
+                            )}%`,
+                          }}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   );
 }

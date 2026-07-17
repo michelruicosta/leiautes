@@ -50,6 +50,15 @@ export type DashboardResponse = {
   qtd_leiautes: number;
   qtd_arquivos: number;
   qtd_alteracoes: number;
+  qtd_entrou: number;
+  qtd_mudou: number;
+  qtd_saiu: number;
+  arquivos_destaque: {
+    leiaute_codigo: string;
+    arquivo_nome: string;
+    arquivo_tipo: string;
+    total_evidencias: number;
+  }[];
   alteracoes_recentes: AlteracaoResumo[];
 };
 

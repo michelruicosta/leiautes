@@ -42,5 +42,9 @@ def obter_dashboard() -> DashboardResponse:
         qtd_leiautes=data["qtd_leiautes"],
         qtd_arquivos=data["qtd_arquivos"],
         qtd_alteracoes=data["qtd_alteracoes"],
+        qtd_entrou=data["qtd_entrou"],
+        qtd_mudou=data["qtd_mudou"],
+        qtd_saiu=data["qtd_saiu"],
+        arquivos_destaque=data["arquivos_destaque"],
         alteracoes_recentes=recentes,
     )
