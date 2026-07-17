@@ -174,11 +174,7 @@ export default function AlteracoesPage() {
         </label>
       </section>
 
-      <div
-        className={`relatorio-layout relatorio-layout-lista ${
-          detalhe ? "" : "relatorio-layout-sem-detalhe"
-        }`}
-      >
+      <div className="relatorio-layout relatorio-layout-lista relatorio-layout-sem-detalhe">
         <section className="relatorio-lista">
           <div className="relatorio-lista-head">
             <strong>{itensRelatorio.length} registro(s)</strong>
@@ -223,47 +219,77 @@ export default function AlteracoesPage() {
           </div>
         </section>
 
-        {detalhe && (
-        <article className="card detalhe-alteracao">
-          <div className="page-cabecalho">
-            <div>
-              <h2>{detalhe.leiaute_codigo}</h2>
-              <p className="meta">
-                {detalhe.arquivo_nome} · {detalhe.arquivo_tipo} · {formatarData(detalhe.criado_em)}
-              </p>
-            </div>
-            <span className={statusClasse(detalhe.status)}>{detalhe.status}</span>
-          </div>
-
-          <section className="detalhe-secao">
-            <h3>Resumo executivo</h3>
-            <p>{detalhe.resumo_executivo}</p>
-          </section>
-          <section className="detalhe-secao">
-            <h3>Impacto sugerido</h3>
-            <p>{detalhe.impacto_sugerido || "—"}</p>
-          </section>
-
-          <div className="diff-grid">
-            <DiffEvidenceList
-              titulo="Entrou"
-              tipo="incluido"
-              itens={detalhe.itens_incluidos}
-            />
-            <DiffEvidenceList
-              titulo="Mudou"
-              tipo="alterado"
-              itens={detalhe.itens_alterados}
-            />
-            <DiffEvidenceList
-              titulo="Saiu"
-              tipo="removido"
-              itens={detalhe.itens_removidos}
-            />
-          </div>
-        </article>
-        )}
       </div>
+
+      {detalhe && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onClick={() => setSelecionada(null)}
+        >
+          <article
+            className="modal-detalhe"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="modal-alteracao-titulo"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="modal-detalhe-head">
+              <div>
+                <h2 id="modal-alteracao-titulo">{detalhe.leiaute_codigo}</h2>
+                <p className="meta">
+                  {detalhe.arquivo_nome} · {detalhe.arquivo_tipo} · {formatarData(detalhe.criado_em)}
+                </p>
+              </div>
+              <div className="modal-detalhe-acoes">
+                <span className={statusClasse(detalhe.status)}>{detalhe.status}</span>
+                <button
+                  type="button"
+                  className="modal-fechar"
+                  aria-label="Fechar detalhes"
+                  onClick={() => setSelecionada(null)}
+                >
+                  ×
+                </button>
+              </div>
+            </header>
+
+            <div className="modal-detalhe-body">
+              <section className="modal-resumo-grid">
+                <div>
+                  <h3>Resumo executivo</h3>
+                  <p>{detalhe.resumo_executivo}</p>
+                </div>
+                <div>
+                  <h3>Impacto sugerido</h3>
+                  <p>{detalhe.impacto_sugerido || "—"}</p>
+                </div>
+              </section>
+
+              <section className="modal-evidencias">
+                <h3>Evidências</h3>
+                <div className="diff-grid modal-diff-grid">
+                  <DiffEvidenceList
+                    titulo="Entrou"
+                    tipo="incluido"
+                    itens={detalhe.itens_incluidos}
+                  />
+                  <DiffEvidenceList
+                    titulo="Mudou"
+                    tipo="alterado"
+                    itens={detalhe.itens_alterados}
+                  />
+                  <DiffEvidenceList
+                    titulo="Saiu"
+                    tipo="removido"
+                    itens={detalhe.itens_removidos}
+                  />
+                </div>
+              </section>
+            </div>
+          </article>
+        </div>
+      )}
     </div>
   );
 }
