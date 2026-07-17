@@ -34,7 +34,7 @@ export default function AlteracoesPage() {
     listarAlteracoes()
       .then((resp) => {
         setAlteracoes(resp.alteracoes);
-        setSelecionada(resp.alteracoes[0] ?? null);
+        setSelecionada(null);
       })
       .catch(() => setErro("API indisponível."))
       .finally(() => setCarregando(false));
@@ -60,7 +60,7 @@ export default function AlteracoesPage() {
     }),
     [],
   );
-  const detalhe = selecionada ?? resumoVazio;
+  const detalhe = selecionada;
   const leiautes = Array.from(new Set(alteracoes.map((item) => item.leiaute_codigo).filter(Boolean)));
   const tipos = Array.from(new Set(alteracoes.map((item) => item.arquivo_tipo).filter(Boolean)));
   const status = Array.from(new Set(alteracoes.map((item) => item.status).filter(Boolean)));
@@ -174,14 +174,18 @@ export default function AlteracoesPage() {
         </label>
       </section>
 
-      <div className="relatorio-layout">
+      <div
+        className={`relatorio-layout relatorio-layout-lista ${
+          detalhe ? "" : "relatorio-layout-sem-detalhe"
+        }`}
+      >
         <section className="relatorio-lista">
           <div className="relatorio-lista-head">
             <strong>{itensRelatorio.length} registro(s)</strong>
-            <span className="meta">Clique em uma linha para ver a evidência</span>
+            <span className="meta">Use o botão Detalhes para abrir a evidência</span>
           </div>
           <div className="tabela-wrap">
-            <table className="tabela">
+            <table className="tabela tabela-registros">
               <thead>
                 <tr>
                   <th>Data</th>
@@ -189,20 +193,29 @@ export default function AlteracoesPage() {
                   <th>Arquivo</th>
                   <th>Tipo</th>
                   <th>Resumo</th>
+                  <th>Ação</th>
                 </tr>
               </thead>
               <tbody>
                 {itensRelatorio.map((item) => (
                   <tr
                     key={item.id}
-                    className={detalhe.id === item.id ? "linha-ativa" : ""}
-                    onClick={() => setSelecionada(item)}
+                    className={detalhe?.id === item.id ? "linha-ativa" : ""}
                   >
                     <td>{formatarData(item.criado_em)}</td>
                     <td><strong>{item.leiaute_codigo || "Sem leiaute"}</strong></td>
                     <td>{item.arquivo_nome}</td>
                     <td><span className="tag">{item.arquivo_tipo}</span></td>
                     <td>{item.resumo_executivo}</td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-detalhes"
+                        onClick={() => setSelecionada(item)}
+                      >
+                        Detalhes
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -210,6 +223,7 @@ export default function AlteracoesPage() {
           </div>
         </section>
 
+        {detalhe && (
         <article className="card detalhe-alteracao">
           <div className="page-cabecalho">
             <div>
@@ -248,6 +262,7 @@ export default function AlteracoesPage() {
             />
           </div>
         </article>
+        )}
       </div>
     </div>
   );

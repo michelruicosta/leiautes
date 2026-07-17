@@ -291,8 +291,9 @@ textarea {
 }
 
 .admin-page {
-  max-width: 960px;
-  margin: 0 auto;
+  width: 100%;
+  max-width: none;
+  margin: 0;
 }
 
 .page-cabecalho {
@@ -611,9 +612,17 @@ textarea {
 .alteracoes-layout,
 .relatorio-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1.2fr) minmax(360px, 0.8fr);
+  grid-template-columns: minmax(0, 1fr) minmax(380px, 0.42fr);
   gap: 1rem;
   align-items: start;
+}
+
+.relatorio-layout-lista {
+  grid-template-columns: minmax(0, 1fr) minmax(390px, 0.36fr);
+}
+
+.relatorio-layout-sem-detalhe {
+  grid-template-columns: 1fr;
 }
 
 .relatorio-filtros {
@@ -695,12 +704,54 @@ textarea {
 }
 
 .tabela tbody tr {
-  cursor: pointer;
+  cursor: default;
 }
 
 .tabela tbody tr:hover,
 .tabela tbody tr.linha-ativa {
   background: #f8faff;
+}
+
+.tabela-registros th,
+.tabela-registros td {
+  border-right: 1px solid #eef0f2;
+}
+
+.tabela-registros th:last-child,
+.tabela-registros td:last-child {
+  border-right: 0;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tabela-registros th:nth-child(1) {
+  width: 130px;
+}
+
+.tabela-registros th:nth-child(2) {
+  width: 130px;
+}
+
+.tabela-registros th:nth-child(4) {
+  width: 90px;
+}
+
+.tabela-registros th:nth-child(6) {
+  width: 110px;
+}
+
+.btn-detalhes {
+  border: 1px solid #c8c8e8;
+  border-radius: 6px;
+  background: #fff;
+  color: var(--marca-cor);
+  cursor: pointer;
+  font-weight: 700;
+  padding: 0.35rem 0.7rem;
+}
+
+.btn-detalhes:hover {
+  background: #f0f2ff;
 }
 
 .alteracoes-lista {
@@ -729,6 +780,13 @@ textarea {
 
 .detalhe-alteracao h2 {
   margin: 0;
+}
+
+.detalhe-alteracao {
+  max-height: calc(100vh - 150px);
+  overflow: auto;
+  position: sticky;
+  top: 1rem;
 }
 
 .detalhe-secao {
