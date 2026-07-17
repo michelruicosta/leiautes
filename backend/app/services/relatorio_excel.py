@@ -5,6 +5,7 @@ import json
 import re
 from collections import Counter
 from datetime import datetime
+from email.utils import parsedate_to_datetime
 from io import BytesIO
 from typing import Any
 
@@ -12,7 +13,6 @@ from openpyxl import Workbook
 from openpyxl.cell.cell import Cell
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
-from openpyxl.worksheet.table import Table, TableStyleInfo
 
 from persistencia.db import conectar, init_db
 
@@ -40,7 +40,10 @@ def _fmt_data(valor: str | None) -> str:
     try:
         return datetime.fromisoformat(valor).strftime("%d/%m/%Y %H:%M")
     except ValueError:
-        return valor
+        try:
+            return parsedate_to_datetime(valor).strftime("%d/%m/%Y %H:%M")
+        except (TypeError, ValueError):
+            return valor
 
 
 def _parse_evidencia(texto: str, tipo: str) -> dict[str, str]:
@@ -114,6 +117,7 @@ def _buscar_alteracoes(escopo: str) -> tuple[list[dict[str, Any]], str]:
                 COALESCE(l.nome, '') AS leiaute_nome,
                 ar.nome_arquivo,
                 ar.tipo_arquivo,
+                ar.last_modified,
                 ar.url,
                 ar.final_url,
                 e.iniciado_em,
@@ -163,19 +167,10 @@ def _titulo(ws, texto: str, subtitulo: str) -> None:
     ws.merge_cells("A2:H2")
 
 
-def _tabela(ws, nome: str, primeira_linha: int, ultima_coluna: int) -> None:
+def _autofiltro(ws, primeira_linha: int, ultima_coluna: int) -> None:
     if ws.max_row <= primeira_linha:
         return
     ref = f"A{primeira_linha}:{get_column_letter(ultima_coluna)}{ws.max_row}"
-    table = Table(displayName=nome, ref=ref)
-    table.tableStyleInfo = TableStyleInfo(
-        name="TableStyleMedium2",
-        showFirstColumn=False,
-        showLastColumn=False,
-        showRowStripes=True,
-        showColumnStripes=False,
-    )
-    ws.add_table(table)
     ws.freeze_panes = f"A{primeira_linha + 1}"
     ws.auto_filter.ref = ref
 
@@ -186,6 +181,10 @@ def _ajustar(ws, larguras: dict[str, int]) -> None:
     for row in ws.iter_rows():
         for cell in row:
             cell.alignment = Alignment(vertical="top", wrap_text=True)
+    for row_idx in range(1, ws.max_row + 1):
+        ws.row_dimensions[row_idx].height = 24
+    for row_idx in range(2, ws.max_row + 1):
+        ws.row_dimensions[row_idx].height = 38
     ws.sheet_view.showGridLines = False
 
 
@@ -215,6 +214,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
     linhas_mudancas: list[list[Any]] = []
     cont_tipo = Counter()
     cont_arquivo = Counter()
+    data_arquivo: dict[tuple[str, str, str], str] = {}
     for alt in alteracoes:
         for tipo, itens in [
             ("Entrou", alt["itens_incluidos"]),
@@ -227,6 +227,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                 linhas_mudancas.append(
                     [
                         alt["execucao_id"],
+                        _fmt_data(alt.get("last_modified")),
                         _fmt_data(alt["criado_em"]),
                         alt["leiaute_codigo"],
                         alt["nome_arquivo"],
@@ -240,14 +241,16 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                         alt["final_url"] or alt["url"],
                     ]
                 )
-        cont_arquivo[(alt["leiaute_codigo"], alt["nome_arquivo"], alt["tipo_arquivo"])] += (
+        chave_arquivo = (alt["leiaute_codigo"], alt["nome_arquivo"], alt["tipo_arquivo"])
+        cont_arquivo[chave_arquivo] += (
             len(alt["itens_incluidos"]) + len(alt["itens_alterados"]) + len(alt["itens_removidos"])
         )
+        data_arquivo[chave_arquivo] = _fmt_data(alt.get("last_modified"))
 
     _titulo(
         ws_resumo,
         titulo,
-        f"Gerado em {datetime.now().strftime('%d/%m/%Y %H:%M')} | Fonte: banco do app Leiautes",
+        f"Exportado em {datetime.now().strftime('%d/%m/%Y %H:%M')} | Data Bacen exibida nas abas do relatório",
     )
     for label_cell, value_cell, label, value, fill in [
         ("A4", "B4", "Arquivos", len(alteracoes), GRAY),
@@ -261,18 +264,19 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
         ws_resumo[label_cell].alignment = Alignment(horizontal="center", vertical="center")
         _metric_cell(ws_resumo[value_cell], fill)
 
-    _append(ws_resumo, ["Leiaute", "Arquivo", "Tipo", "Total de evidências"], fill=BLUE, bold=True)
+    _append(ws_resumo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Total de evidências"], fill=BLUE, bold=True)
     resumo_header_row = ws_resumo.max_row
     for cell in ws_resumo[resumo_header_row]:
         cell.font = Font(name="Arial", bold=True, color="FFFFFF")
     for (leiaute, arquivo, tipo), total in cont_arquivo.most_common(12):
-        _append(ws_resumo, [leiaute, arquivo, tipo, total])
-    _tabela(ws_resumo, "TabelaResumoArquivos", resumo_header_row, 4)
-    _ajustar(ws_resumo, {"A": 18, "B": 58, "C": 12, "D": 18, "E": 12, "F": 12, "G": 12, "H": 12})
+        _append(ws_resumo, [data_arquivo.get((leiaute, arquivo, tipo), ""), leiaute, arquivo, tipo, total])
+    _autofiltro(ws_resumo, resumo_header_row, 5)
+    _ajustar(ws_resumo, {"A": 18, "B": 18, "C": 58, "D": 12, "E": 18, "F": 12, "G": 12, "H": 12})
 
     cab = [
         "Execução",
-        "Data",
+        "Data Bacen",
+        "Data execução",
         "Leiaute",
         "Arquivo",
         "Tipo arquivo",
@@ -288,22 +292,23 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
     for cell in ws_mudancas[1]:
         cell.font = Font(name="Arial", bold=True, color="FFFFFF")
     for linha in linhas_mudancas:
-        fill = GREEN if linha[5] == "Entrou" else YELLOW if linha[5] == "Mudou" else RED
+        fill = GREEN if linha[6] == "Entrou" else YELLOW if linha[6] == "Mudou" else RED
         _append(ws_mudancas, linha, fill=fill)
-        link_cell = ws_mudancas.cell(row=ws_mudancas.max_row, column=12)
+        link_cell = ws_mudancas.cell(row=ws_mudancas.max_row, column=13)
         if link_cell.value:
             link_cell.hyperlink = str(link_cell.value)
             link_cell.style = "Hyperlink"
-    _tabela(ws_mudancas, "TabelaMudancas", 1, len(cab))
-    _ajustar(ws_mudancas, {"A": 10, "B": 18, "C": 14, "D": 46, "E": 12, "F": 14, "G": 34, "H": 48, "I": 48, "J": 38, "K": 14, "L": 32})
+    _autofiltro(ws_mudancas, 1, len(cab))
+    _ajustar(ws_mudancas, {"A": 10, "B": 18, "C": 18, "D": 14, "E": 46, "F": 12, "G": 14, "H": 34, "I": 48, "J": 48, "K": 38, "L": 14, "M": 32})
 
-    _append(ws_arquivo, ["Leiaute", "Arquivo", "Tipo", "Entrou", "Mudou", "Saiu", "Resumo", "Impacto"], fill=BLUE, bold=True)
+    _append(ws_arquivo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Entrou", "Mudou", "Saiu", "Resumo", "Impacto"], fill=BLUE, bold=True)
     for cell in ws_arquivo[1]:
         cell.font = Font(name="Arial", bold=True, color="FFFFFF")
     for alt in alteracoes:
         _append(
             ws_arquivo,
             [
+                _fmt_data(alt.get("last_modified")),
                 alt["leiaute_codigo"],
                 alt["nome_arquivo"],
                 alt["tipo_arquivo"],
@@ -314,12 +319,12 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                 alt["impacto_sugerido"],
             ],
         )
-    _tabela(ws_arquivo, "TabelaPorArquivo", 1, 8)
-    _ajustar(ws_arquivo, {"A": 14, "B": 52, "C": 12, "D": 10, "E": 10, "F": 10, "G": 42, "H": 42})
+    _autofiltro(ws_arquivo, 1, 9)
+    _ajustar(ws_arquivo, {"A": 18, "B": 14, "C": 52, "D": 12, "E": 10, "F": 10, "G": 10, "H": 42, "I": 42})
 
     _append(
         ws_anexos,
-        ["Execução", "Leiaute", "Arquivo", "Tipo", "Versão anterior", "Versão atual", "Tamanho anterior", "Tamanho atual", "Link Bacen"],
+        ["Execução", "Data Bacen", "Leiaute", "Arquivo", "Tipo", "Versão anterior", "Versão atual", "Tamanho anterior", "Tamanho atual", "Link Bacen"],
         fill=BLUE,
         bold=True,
     )
@@ -330,6 +335,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
             ws_anexos,
             [
                 alt["execucao_id"],
+                _fmt_data(alt.get("last_modified")),
                 alt["leiaute_codigo"],
                 alt["nome_arquivo"],
                 alt["tipo_arquivo"],
@@ -340,18 +346,19 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                 alt["final_url"] or alt["url"],
             ],
         )
-        link_cell = ws_anexos.cell(row=ws_anexos.max_row, column=9)
+        link_cell = ws_anexos.cell(row=ws_anexos.max_row, column=10)
         if link_cell.value:
             link_cell.hyperlink = str(link_cell.value)
             link_cell.style = "Hyperlink"
-    _tabela(ws_anexos, "TabelaAnexos", 1, 9)
-    _ajustar(ws_anexos, {"A": 10, "B": 14, "C": 48, "D": 10, "E": 48, "F": 48, "G": 16, "H": 16, "I": 42})
+    _autofiltro(ws_anexos, 1, 10)
+    _ajustar(ws_anexos, {"A": 10, "B": 18, "C": 14, "D": 48, "E": 10, "F": 48, "G": 48, "H": 16, "I": 16, "J": 42})
 
     for idx, linha in enumerate(
         [
             ["Campo", "Valor"],
             ["Escopo", "Última execução com alteração" if escopo == "ultima" else "Histórico completo"],
-            ["Geração", datetime.now().strftime("%d/%m/%Y %H:%M")],
+            ["Exportação", datetime.now().strftime("%d/%m/%Y %H:%M")],
+            ["Data Bacen", "Campo baseado no Last-Modified/metadado do arquivo monitorado quando disponível."],
             ["Fonte", "Banco SQLite do aplicativo Leiautes"],
             ["Tipos de evidência", "Entrou, Mudou, Saiu"],
             ["Observação", "A planilha histórica é gerada sob demanda e reflete os dados gravados até o momento."],
@@ -362,7 +369,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
         if idx == 1:
             for cell in ws_criterios[idx]:
                 cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    _tabela(ws_criterios, "TabelaCriterios", 1, 2)
+    _autofiltro(ws_criterios, 1, 2)
     _ajustar(ws_criterios, {"A": 24, "B": 90})
 
     buffer = BytesIO()
