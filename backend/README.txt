@@ -50,3 +50,6 @@ GET /email-gestor/preview
   e-mail de teste enquanto o app esta em desenvolvimento.
 - A execucao pela API tambem aceita `enviar_email=false`; nesse caso define
   `LEIAUTES_DISABLE_EMAIL=1` e roda coleta/historico sem abrir SMTP.
+- Execucoes pela API desativam o `_status_tail.txt` legado com
+  `LEIAUTES_DISABLE_STATUS_TAIL=1`, pois o app passa a consultar o status pelo
+  banco.

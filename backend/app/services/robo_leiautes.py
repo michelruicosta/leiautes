@@ -9,6 +9,7 @@ from pathlib import Path
 
 from app.config import RAIZ_PROJETO, SCRIPT_MOTOR
 from persistencia.db import finalizar_execucao, iniciar_execucao
+from persistencia.execucoes_db import contar_resultados_execucao
 
 
 @dataclass
@@ -47,6 +48,7 @@ def executar_robo_atual(
     execucao_id = iniciar_execucao(log_path=None)
     env["LEIAUTES_EXECUCAO_ID"] = str(execucao_id)
     env.setdefault("LEIAUTES_EMAIL_TEST_TO", "michel@finaud.com.br")
+    env.setdefault("LEIAUTES_DISABLE_STATUS_TAIL", "1")
     if not enviar_email:
         env["LEIAUTES_DISABLE_EMAIL"] = "1"
     if modo_teste:
@@ -66,9 +68,13 @@ def executar_robo_atual(
             check=False,
         )
         status = "sucesso" if proc.returncode == 0 else "erro"
+        contadores = contar_resultados_execucao(execucao_id)
         finalizar_execucao(
             execucao_id,
             status=status,
+            qtd_leiautes=contadores["qtd_leiautes"],
+            qtd_arquivos=contadores["qtd_arquivos"],
+            qtd_alteracoes=contadores["qtd_alteracoes"],
             erro=None if proc.returncode == 0 else _tail(proc.stderr or proc.stdout),
         )
         return ResultadoRobo(

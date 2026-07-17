@@ -80,3 +80,30 @@ def resumo_dashboard() -> dict:
         "qtd_alteracoes": int(qtd_alteracoes),
         "alteracoes_recentes": [dict(row) for row in recentes],
     }
+
+
+def contar_resultados_execucao(execucao_id: int) -> dict[str, int]:
+    init_db()
+    with conectar() as conn:
+        qtd_arquivos = conn.execute(
+            "SELECT COUNT(*) AS c FROM versoes_arquivos WHERE execucao_id = ?",
+            (execucao_id,),
+        ).fetchone()["c"]
+        qtd_alteracoes = conn.execute(
+            "SELECT COUNT(*) AS c FROM alteracoes_detectadas WHERE execucao_id = ?",
+            (execucao_id,),
+        ).fetchone()["c"]
+        qtd_leiautes = conn.execute(
+            """
+            SELECT COUNT(DISTINCT ar.leiaute_id) AS c
+            FROM versoes_arquivos v
+            JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id
+            WHERE v.execucao_id = ? AND ar.leiaute_id IS NOT NULL
+            """,
+            (execucao_id,),
+        ).fetchone()["c"]
+    return {
+        "qtd_leiautes": int(qtd_leiautes),
+        "qtd_arquivos": int(qtd_arquivos),
+        "qtd_alteracoes": int(qtd_alteracoes),
+    }

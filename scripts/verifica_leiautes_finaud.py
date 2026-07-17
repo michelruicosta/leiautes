@@ -32,6 +32,14 @@ def _write_status_tail(proj: str,
                        resumo: dict,
                        ultimos: list[str] | None = None,
                        extra_info: str | None = None) -> None:
+    if os.environ.get("LEIAUTES_DISABLE_STATUS_TAIL", "").strip().lower() in (
+        "1",
+        "true",
+        "yes",
+    ):
+        logger.info("Status tail legado desativado por LEIAUTES_DISABLE_STATUS_TAIL=1.")
+        return
+
     status_code = 0
     if "AVISO" in header_status:
         status_code = 1
