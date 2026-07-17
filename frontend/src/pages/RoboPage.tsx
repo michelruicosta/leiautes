@@ -118,19 +118,10 @@ export default function RoboPage() {
       {erro && <p className="erro">{erro}</p>}
       {mensagem && <p className="login-sucesso">{mensagem}</p>}
 
-      <section className="card robo-status-card">
-        <div>
-          <h2>Status do motor</h2>
-          <p className="meta">{status?.script_motor ?? "-"}</p>
-          <p className={status?.script_existe ? "status-ok" : "status-erro"}>
-            {status?.script_existe ? "Script encontrado" : "Script não encontrado"}
-          </p>
-        </div>
-        <p className="admin-ajuda robo-ajuda">
-          Por padrão, a execução manual do app roda com envio de e-mail desativado. Quando
-          liberado, o envio fica redirecionado para michel@finaud.com.br.
-        </p>
-      </section>
+      <p className="admin-ajuda">
+        Por padrão, a execução manual do app roda com envio de e-mail desativado. Quando
+        liberado, o envio fica redirecionado para michel@finaud.com.br.
+      </p>
 
       <section className="card">
         <div className="tabela-cabecalho">

@@ -506,18 +506,6 @@ textarea {
   gap: 0.85rem;
 }
 
-.robo-status-card {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.55fr);
-  gap: 1rem;
-  align-items: start;
-}
-
-.robo-ajuda {
-  grid-column: 1 / -1;
-  margin: 0;
-}
-
 .robo-cards {
   margin-bottom: 1rem;
 }
@@ -1425,7 +1413,6 @@ textarea {
   .dashboard-hero,
   .dashboard-executivo,
   .dashboard-change-grid,
-  .robo-status-card,
   .cards-resumo-dashboard,
   .evidence-before-after {
     grid-template-columns: 1fr;
