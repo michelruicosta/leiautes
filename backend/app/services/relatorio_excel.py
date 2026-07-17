@@ -7,6 +7,7 @@ from collections import Counter
 from datetime import datetime
 from email.utils import parsedate_to_datetime
 from io import BytesIO
+from pathlib import Path
 from typing import Any
 
 from openpyxl import Workbook
@@ -220,6 +221,99 @@ def _linhas_evidencia_agrupadas(itens: list[str], tipo: str) -> list[dict[str, s
     return agrupados
 
 
+def _linhas_pdf(caminho: str | None, cache: dict[str, list[list[tuple[int, str]]]]) -> list[list[tuple[int, str]]]:
+    if not caminho:
+        return []
+    if caminho in cache:
+        return cache[caminho]
+
+    path = Path(caminho)
+    if not path.exists():
+        cache[caminho] = []
+        return []
+
+    try:
+        from pypdf import PdfReader  # type: ignore
+
+        reader = PdfReader(str(path))
+        paginas: list[list[tuple[int, str]]] = []
+        for page in reader.pages:
+            linhas = []
+            for numero, linha in enumerate((page.extract_text() or "").splitlines(), start=1):
+                normalizada = re.sub(r"\s+", " ", linha).strip()
+                if normalizada:
+                    linhas.append((numero, normalizada))
+            paginas.append(linhas)
+        cache[caminho] = paginas
+        return paginas
+    except Exception:
+        cache[caminho] = []
+        return []
+
+
+def _contexto_pdf(
+    caminho: str | None,
+    local: str,
+    cache: dict[str, list[list[tuple[int, str]]]],
+    *,
+    raio: int = 5,
+) -> tuple[str, str] | None:
+    match_pagina = re.search(r"Página (\d+)", local)
+    match_linha = re.search(r"linha(?: atual| anterior)? (\d+)", local, flags=re.I)
+    if not match_pagina or not match_linha:
+        return None
+
+    pagina_idx = int(match_pagina.group(1)) - 1
+    linha_ref = int(match_linha.group(1))
+    paginas = _linhas_pdf(caminho, cache)
+    if pagina_idx < 0 or pagina_idx >= len(paginas):
+        return None
+
+    linhas = [
+        (numero, texto)
+        for numero, texto in paginas[pagina_idx]
+        if linha_ref - raio <= numero <= linha_ref + raio
+    ]
+    if not linhas:
+        return None
+
+    inicio = linhas[0][0]
+    fim = linhas[-1][0]
+    titulo = f"Página {pagina_idx + 1} - linha {linha_ref} (contexto linhas {inicio} a {fim})"
+    texto = "\n".join(texto for _, texto in linhas)
+    return titulo, texto
+
+
+def _enriquecer_contexto_pdf(
+    parsed: dict[str, str],
+    tipo: str,
+    alt: dict[str, Any],
+    cache_pdf: dict[str, list[list[tuple[int, str]]]],
+) -> dict[str, str]:
+    if str(alt.get("tipo_arquivo") or "").lower() != "pdf":
+        return parsed
+    if not re.search(r"Página \d+ - linha \d+$", parsed["local"]):
+        return parsed
+
+    enriched = dict(parsed)
+    if tipo == "Entrou":
+        contexto = _contexto_pdf(alt.get("versao_atual"), parsed["local"], cache_pdf)
+        if contexto:
+            enriched["local"], enriched["depois"] = contexto
+    elif tipo == "Saiu":
+        contexto = _contexto_pdf(alt.get("versao_anterior"), parsed["local"], cache_pdf)
+        if contexto:
+            enriched["local"], enriched["antes"] = contexto
+    elif tipo == "Mudou":
+        contexto_ant = _contexto_pdf(alt.get("versao_anterior"), parsed["local"], cache_pdf)
+        contexto_novo = _contexto_pdf(alt.get("versao_atual"), parsed["local"], cache_pdf)
+        if contexto_novo:
+            enriched["local"], enriched["depois"] = contexto_novo
+        if contexto_ant:
+            enriched["antes"] = contexto_ant[1]
+    return enriched
+
+
 def _buscar_alteracoes(escopo: str) -> tuple[list[dict[str, Any]], str]:
     init_db()
     where = ""
@@ -365,6 +459,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
     cont_tipo = Counter()
     cont_arquivo = Counter()
     data_arquivo: dict[tuple[str, str, str], str] = {}
+    cache_pdf: dict[str, list[list[tuple[int, str]]]] = {}
     for alt in alteracoes:
         for tipo, itens in [
             ("Entrou", alt["itens_incluidos"]),
@@ -374,6 +469,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
             itens_validos = _itens_reais(itens)
             cont_tipo[tipo] += len(itens_validos)
             for parsed in _linhas_evidencia_agrupadas(itens_validos, tipo):
+                parsed = _enriquecer_contexto_pdf(parsed, tipo, alt, cache_pdf)
                 linhas_mudancas.append(
                     [
                         alt["execucao_id"],
