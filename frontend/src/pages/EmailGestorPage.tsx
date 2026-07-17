@@ -1,31 +1,7 @@
 import { useEffect, useState } from "react";
+import { DiffEvidenceList } from "../components/DiffEvidence";
 import { obterPreviewEmailGestor } from "../api/leiautes";
 import type { AlteracaoResumo, EmailGestorPreviewResponse } from "../api/types";
-
-function ListaDiferencas({
-  titulo,
-  itens,
-  vazio,
-}: {
-  titulo: string;
-  itens: string[];
-  vazio: string;
-}) {
-  return (
-    <section className="email-diff-bloco">
-      <h3>{titulo}</h3>
-      {itens.length ? (
-        <ul>
-          {itens.map((item, index) => (
-            <li key={`${titulo}-${index}`}>{item}</li>
-          ))}
-        </ul>
-      ) : (
-        <p className="meta">{vazio}</p>
-      )}
-    </section>
-  );
-}
 
 function AlteracaoEmailCard({ alteracao }: { alteracao: AlteracaoResumo }) {
   return (
@@ -39,20 +15,20 @@ function AlteracaoEmailCard({ alteracao }: { alteracao: AlteracaoResumo }) {
       <p>{alteracao.resumo_executivo}</p>
       <p className="meta">{alteracao.impacto_sugerido}</p>
       <div className="email-diff-grid">
-        <ListaDiferencas
-          titulo="Inclusões"
+        <DiffEvidenceList
+          titulo="Entrou"
+          tipo="incluido"
           itens={alteracao.itens_incluidos}
-          vazio="Nenhuma inclusão identificada."
         />
-        <ListaDiferencas
-          titulo="Alterações"
+        <DiffEvidenceList
+          titulo="Mudou"
+          tipo="alterado"
           itens={alteracao.itens_alterados}
-          vazio="Nenhuma alteração de conteúdo identificada."
         />
-        <ListaDiferencas
-          titulo="Remoções"
+        <DiffEvidenceList
+          titulo="Saiu"
+          tipo="removido"
           itens={alteracao.itens_removidos}
-          vazio="Nenhuma remoção identificada."
         />
       </div>
     </article>

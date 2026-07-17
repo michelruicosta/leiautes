@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { DiffEvidenceList } from "../components/DiffEvidence";
 import { listarAlteracoes } from "../api/leiautes";
 import type { AlteracaoResumo } from "../api/types";
 
@@ -191,39 +192,21 @@ export default function AlteracoesPage() {
           </section>
 
           <div className="diff-grid">
-            <div>
-              <h3>Inclusões com evidência</h3>
-              <ul>
-                {detalhe.itens_incluidos.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-                {detalhe.itens_incluidos.length === 0 && (
-                  <li className="meta">Nenhuma inclusão identificada.</li>
-                )}
-              </ul>
-            </div>
-            <div>
-              <h3>Alterações com evidência</h3>
-              <ul>
-                {detalhe.itens_alterados.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-                {detalhe.itens_alterados.length === 0 && (
-                  <li className="meta">Nenhuma alteração de conteúdo identificada.</li>
-                )}
-              </ul>
-            </div>
-            <div>
-              <h3>Remoções com evidência</h3>
-              <ul>
-                {detalhe.itens_removidos.map((item) => (
-                  <li key={item}>{item}</li>
-                ))}
-                {detalhe.itens_removidos.length === 0 && (
-                  <li className="meta">Nenhuma remoção identificada.</li>
-                )}
-              </ul>
-            </div>
+            <DiffEvidenceList
+              titulo="Entrou"
+              tipo="incluido"
+              itens={detalhe.itens_incluidos}
+            />
+            <DiffEvidenceList
+              titulo="Mudou"
+              tipo="alterado"
+              itens={detalhe.itens_alterados}
+            />
+            <DiffEvidenceList
+              titulo="Saiu"
+              tipo="removido"
+              itens={detalhe.itens_removidos}
+            />
           </div>
         </article>
       </div>

@@ -263,6 +263,64 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
     }
 
 
+def _coluna_excel(col_zero_based: int) -> str:
+    col = col_zero_based + 1
+    letras = ""
+    while col:
+        col, resto = divmod(col - 1, 26)
+        letras = chr(65 + resto) + letras
+    return letras
+
+
+def _comparar_xls(anterior: Path, atual: Path) -> dict[str, Any]:
+    try:
+        import xlrd  # type: ignore
+    except Exception:
+        return _fallback_dependencia("XLS", "xlrd")
+
+    wb_ant = xlrd.open_workbook(str(anterior))
+    wb_atual = xlrd.open_workbook(str(atual))
+    abas_ant = set(wb_ant.sheet_names())
+    abas_atual = set(wb_atual.sheet_names())
+    incluidos = [f"Aba incluída: {aba}" for aba in sorted(abas_atual - abas_ant)]
+    removidos = [f"Aba removida: {aba}" for aba in sorted(abas_ant - abas_atual)]
+    alterados: list[str] = []
+
+    for aba in sorted(abas_ant & abas_atual):
+        sh_ant = wb_ant.sheet_by_name(aba)
+        sh_atual = wb_atual.sheet_by_name(aba)
+        max_row = max(sh_ant.nrows, sh_atual.nrows)
+        max_col = max(sh_ant.ncols, sh_atual.ncols)
+        for row in range(max_row):
+            for col in range(max_col):
+                v_ant = sh_ant.cell_value(row, col) if row < sh_ant.nrows and col < sh_ant.ncols else None
+                v_atual = sh_atual.cell_value(row, col) if row < sh_atual.nrows and col < sh_atual.ncols else None
+                if v_ant != v_atual:
+                    coluna = _coluna_excel(col)
+                    cabecalho = (
+                        sh_atual.cell_value(0, col)
+                        if row != 0 and sh_atual.nrows and col < sh_atual.ncols
+                        else ""
+                    )
+                    contexto = f", coluna {cabecalho}" if cabecalho else ""
+                    alterados.append(
+                        f"Aba {aba}, célula {coluna}{row + 1}{contexto}: "
+                        f"antes {v_ant!r}; depois {v_atual!r}"
+                    )
+                    if len(alterados) >= 200:
+                        break
+            if len(alterados) >= 200:
+                break
+
+    return {
+        "resumo_executivo": _resumo(incluidos, removidos, alterados),
+        "impacto_sugerido": "Revisar abas e células alteradas antes de atualizar rotinas internas.",
+        "itens_incluidos": _limitar(incluidos),
+        "itens_removidos": _limitar(removidos),
+        "itens_alterados": _limitar(alterados),
+    }
+
+
 def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
     try:
         from pypdf import PdfReader  # type: ignore
@@ -418,6 +476,8 @@ def comparar_arquivos(
             return _comparar_texto(anterior, atual)
         if tipo in {"xlsx", "xlsm"}:
             return _comparar_xlsx(anterior, atual)
+        if tipo == "xls":
+            return _comparar_xls(anterior, atual)
         if tipo == "pdf":
             return _comparar_pdf(anterior, atual)
         if tipo == "zip":

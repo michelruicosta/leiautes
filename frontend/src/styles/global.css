@@ -719,18 +719,6 @@ textarea {
   box-shadow: inset 3px 0 0 #e6e9ef;
 }
 
-.diff-grid ul {
-  margin: 0;
-  padding-left: 1.1rem;
-}
-
-.diff-grid li,
-.email-diff-grid li {
-  margin-bottom: 0.35rem;
-  overflow-wrap: anywhere;
-  line-height: 1.45;
-}
-
 .admin-acoes {
   display: flex;
   flex-wrap: wrap;
@@ -786,22 +774,111 @@ textarea {
   gap: 0.75rem;
 }
 
-.email-diff-bloco {
-  background: #f8f9fb;
+.evidence-section {
+  background: #fff;
   border: 1px solid #e2e6ec;
   border-radius: 8px;
-  padding: 0.8rem 0.9rem;
+  padding: 0.85rem;
 }
 
-.email-diff-bloco h3 {
+.evidence-section h3 {
   margin: 0 0 0.4rem;
   color: #64748b;
   font-size: 0.9rem;
 }
 
-.email-diff-bloco ul {
+.evidence-list {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.evidence-card {
+  border: 1px solid #d9e0ea;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fbfcfe;
+}
+
+.evidence-card header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.55rem;
+  align-items: center;
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid #e7ebf0;
+}
+
+.evidence-card header span {
+  border-radius: 999px;
+  padding: 0.18rem 0.55rem;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.evidence-card header strong {
+  overflow-wrap: anywhere;
+}
+
+.evidence-incluido header span {
+  background: #e8f7ee;
+  color: #237a3b;
+}
+
+.evidence-alterado header span {
+  background: #fff4db;
+  color: #8a5b00;
+}
+
+.evidence-removido header span {
+  background: #feecef;
+  color: #b4233a;
+}
+
+.evidence-before-after {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.evidence-single {
+  padding: 0.75rem;
+}
+
+.evidence-single p {
+  margin: 0 0 0.45rem;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.evidence-single p:last-child {
+  margin-bottom: 0;
+}
+
+.evidence-before-after > div {
+  padding: 0.75rem;
+}
+
+.evidence-before-after > div + div {
+  border-left: 1px solid #e7ebf0;
+}
+
+.evidence-before-after small {
+  display: inline-block;
+  margin-bottom: 0.35rem;
+  color: #64748b;
+  font-weight: 800;
+  text-transform: uppercase;
+  font-size: 0.72rem;
+}
+
+.evidence-before-after p,
+.evidence-raw {
   margin: 0;
-  padding-left: 1.1rem;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.evidence-raw {
+  padding: 0.75rem;
 }
 
 @media (max-width: 760px) {
@@ -810,8 +887,14 @@ textarea {
   .relatorio-filtros,
   .diff-grid,
   .dashboard-hero,
-  .cards-resumo-dashboard {
+  .cards-resumo-dashboard,
+  .evidence-before-after {
     grid-template-columns: 1fr;
+  }
+
+  .evidence-before-after > div + div {
+    border-left: 0;
+    border-top: 1px solid #e7ebf0;
   }
 
   .dashboard-hero-numero {
