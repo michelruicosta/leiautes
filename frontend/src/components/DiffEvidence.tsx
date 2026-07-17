@@ -145,6 +145,60 @@ function numerosLinha(itens: EvidenciaParseada[], tipo: DiffTipo): string {
   return `linhas ${numeros[0]} a ${numeros[numeros.length - 1]}`;
 }
 
+function deveIniciarParagrafo(linha: string): boolean {
+  return (
+    /^\d{2}\/\d{2}\/\d{4}/.test(linha) ||
+    /^Item\s+\d/i.test(linha) ||
+    /^[-•]/.test(linha) ||
+    /^Instrução Normativa/i.test(linha) ||
+    /^Resolução/i.test(linha)
+  );
+}
+
+function pareceContinuacao(linha: string, atual: string): boolean {
+  if (!atual) return false;
+  if (!/[.!?:;)]$/.test(atual)) return true;
+  return /^[a-záéíóúàâêôãõç]/.test(linha);
+}
+
+function consolidarTextos(textos: string[]): { paragrafos: string[]; extras: number } {
+  const paragrafos: string[] = [];
+  let atual = "";
+  let extras = 0;
+
+  const flush = () => {
+    if (atual.trim()) paragrafos.push(atual.trim());
+    atual = "";
+  };
+
+  for (const bruto of textos) {
+    const linha = bruto.replace(/\s+/g, " ").trim();
+    if (!linha) continue;
+    const mais = linha.match(/^\.\.\. mais (\d+)/i);
+    if (mais) {
+      extras += Number(mais[1]);
+      continue;
+    }
+    if (deveIniciarParagrafo(linha)) {
+      flush();
+      atual = linha;
+    } else if (pareceContinuacao(linha, atual)) {
+      atual = `${atual} ${linha}`.trim();
+    } else {
+      flush();
+      atual = linha;
+    }
+  }
+  flush();
+
+  const limite = 8;
+  const ocultos = Math.max(0, paragrafos.length - limite) + extras;
+  return {
+    paragrafos: paragrafos.slice(0, limite),
+    extras: ocultos,
+  };
+}
+
 function AgrupadoCard({
   grupo,
   itens,
@@ -160,6 +214,7 @@ function AgrupadoCard({
       ? item.depois || item.detalhe || item.textoOriginal
       : item.antes || item.detalhe || item.textoOriginal,
   );
+  const consolidado = consolidarTextos(textos);
 
   return (
     <article className={`evidence-card evidence-${tipo}`}>
@@ -168,9 +223,14 @@ function AgrupadoCard({
         <strong>{local ? `${grupo} · ${local}` : grupo}</strong>
       </header>
       <div className="evidence-single">
-        {textos.map((texto, index) => (
+        {consolidado.paragrafos.map((texto, index) => (
           <p key={`${grupo}-${index}`}>{texto}</p>
         ))}
+        {consolidado.extras > 0 && (
+          <p className="evidence-more">
+            + {consolidado.extras} trecho(s) adicional(is) no arquivo.
+          </p>
+        )}
       </div>
     </article>
   );

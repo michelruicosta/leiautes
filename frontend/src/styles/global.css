@@ -853,6 +853,18 @@ textarea {
   margin-bottom: 0;
 }
 
+.evidence-more {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 0.35rem !important;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: var(--marca-cor);
+  padding: 0.28rem 0.65rem;
+  font-size: 0.82rem;
+  font-weight: 700;
+}
+
 .evidence-before-after > div {
   padding: 0.75rem;
 }
