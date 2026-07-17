@@ -387,9 +387,7 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
         ws_resumo[label_cell].alignment = Alignment(horizontal="center", vertical="center")
         _metric_cell(ws_resumo[value_cell], fill)
     ws_resumo.row_dimensions[3].height = 14
-    ws_resumo.row_dimensions[5].height = 14
 
-    ws_resumo.append([])
     _append(ws_resumo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Total de evidências"], fill=BLUE, bold=True)
     resumo_header_row = ws_resumo.max_row
     for cell in ws_resumo[resumo_header_row]:
