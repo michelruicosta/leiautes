@@ -73,6 +73,15 @@ export type LeiauteResumo = {
   ultima_leitura_em?: string | null;
 };
 
+export type LeiautePayload = {
+  codigo: string;
+  nome: string;
+  categoria: string;
+  url_bacen: string;
+  tipos_arquivo: string[];
+  ativo: boolean;
+};
+
 export type LeiauteListaResponse = {
   total: number;
   leiautes: LeiauteResumo[];
@@ -103,6 +112,15 @@ export type UsuarioResumo = {
   email: string;
   nome: string;
   perfil_codigo: string;
+  cargo?: string | null;
+  departamento?: string | null;
+  ativo: boolean;
+};
+
+export type UsuarioPayload = {
+  email: string;
+  nome: string;
+  perfil_codigo: "operador" | "gestor" | "administrador";
   cargo?: string | null;
   departamento?: string | null;
   ativo: boolean;

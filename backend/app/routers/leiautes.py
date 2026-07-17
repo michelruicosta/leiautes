@@ -32,7 +32,7 @@ def listar(ativos: bool | None = Query(default=None)) -> LeiauteListaResponse:
 def obter(leiaute_id: int) -> LeiauteResumo:
     item = obter_leiaute(leiaute_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Leiaute nao encontrado")
+        raise HTTPException(status_code=404, detail="Leiaute não encontrado")
     return LeiauteResumo(**item)
 
 
@@ -49,5 +49,5 @@ def criar(payload: LeiauteCreateRequest) -> LeiauteResumo:
 def atualizar(leiaute_id: int, payload: LeiauteUpdateRequest) -> LeiauteResumo:
     item = atualizar_leiaute(leiaute_id, payload.model_dump(exclude_unset=True))
     if not item:
-        raise HTTPException(status_code=404, detail="Leiaute nao encontrado")
+        raise HTTPException(status_code=404, detail="Leiaute não encontrado")
     return LeiauteResumo(**item)

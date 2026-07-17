@@ -14,6 +14,15 @@ export function apiUrl(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+function mensagemErroApi(data: unknown, fallback: string): string {
+  if (data && typeof data === "object" && "detail" in data) {
+    const detail = (data as { detail?: unknown }).detail;
+    if (typeof detail === "string") return detail;
+    if (Array.isArray(detail)) return "Verifique os campos obrigatórios e tente novamente.";
+  }
+  return fallback;
+}
+
 function filenameFromDisposition(disposition: string | null, fallback: string): string {
   const match = disposition?.match(/filename="?([^";]+)"?/i);
   return match?.[1] ?? fallback;
@@ -48,7 +57,7 @@ export async function apiGet<T>(path: string): Promise<T> {
     let message = `Erro ${resp.status}`;
     try {
       const data = await resp.json();
-      message = data.detail || message;
+      message = mensagemErroApi(data, message);
     } catch {
       // resposta sem JSON
     }
@@ -68,7 +77,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
     let message = `Erro ${resp.status}`;
     try {
       const data = await resp.json();
-      message = data.detail || message;
+      message = mensagemErroApi(data, message);
     } catch {
       // resposta sem JSON
     }
@@ -88,7 +97,7 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     let message = `Erro ${resp.status}`;
     try {
       const data = await resp.json();
-      message = data.detail || message;
+      message = mensagemErroApi(data, message);
     } catch {
       // resposta sem JSON
     }

@@ -38,14 +38,24 @@ function AlteracaoEmailCard({ alteracao }: { alteracao: AlteracaoResumo }) {
 export default function EmailGestorPage() {
   const [preview, setPreview] = useState<EmailGestorPreviewResponse | null>(null);
   const [erro, setErro] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
 
-  useEffect(() => {
+  const carregar = (mostrarMensagem = true) => {
     setCarregando(true);
+    setErro(null);
+    setMsg(null);
     obterPreviewEmailGestor()
-      .then(setPreview)
+      .then((resp) => {
+        setPreview(resp);
+        if (mostrarMensagem) setMsg("Prévia atualizada.");
+      })
       .catch(() => setErro("API indisponível."))
       .finally(() => setCarregando(false));
+  };
+
+  useEffect(() => {
+    carregar(false);
   }, []);
 
   return (
@@ -58,16 +68,27 @@ export default function EmailGestorPage() {
           </p>
         </div>
         <div className="admin-acoes">
-          <button type="button" className="btn-secondary">
-            Atualizar prévia
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={carregando}
+            onClick={() => carregar(true)}
+          >
+            {carregando ? "Atualizando..." : "Atualizar prévia"}
           </button>
-          <button type="button" className="btn-novo">
-            Enviar
+          <button
+            type="button"
+            className="btn-novo"
+            disabled
+            title="O envio real será liberado após validação das configurações SMTP."
+          >
+            Envio real pendente
           </button>
         </div>
       </div>
 
       {erro && <p className="erro">{erro}</p>}
+      {msg && !carregando && <p className="login-sucesso">{msg}</p>}
       {carregando && <p className="meta">Carregando...</p>}
 
       <div className="email-preview">

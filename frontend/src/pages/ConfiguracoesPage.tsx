@@ -101,10 +101,40 @@ export default function ConfiguracoesPage() {
     setForm((atual) => ({ ...atual, [chave]: valor }));
   };
 
+  const validar = (): string | null => {
+    const cor = String(form["empresa.cor_marca"] ?? "");
+    if (!/^#[0-9a-fA-F]{6}$/.test(cor)) return "Informe uma cor hexadecimal válida.";
+    if (numeroValor(form["email.smtp_porta"], 0) <= 0) return "Informe uma porta SMTP válida.";
+    if (numeroValor(form["monitor.connect_timeout"], 0) <= 0) {
+      return "Informe um timeout de conexão maior que zero.";
+    }
+    if (numeroValor(form["monitor.read_timeout"], 0) <= 0) {
+      return "Informe um timeout de leitura maior que zero.";
+    }
+    if (numeroValor(form["anexos.max_attachments"], 0) <= 0) {
+      return "Informe a quantidade máxima de anexos.";
+    }
+    if (numeroValor(form["anexos.max_single_mb"], 0) <= 0) {
+      return "Informe o tamanho máximo por arquivo.";
+    }
+    if (numeroValor(form["anexos.max_total_mb"], 0) <= 0) {
+      return "Informe o tamanho máximo total do e-mail.";
+    }
+    if (listaTexto(textoLista(form["anexos.extensoes"])).length === 0) {
+      return "Informe ao menos uma extensão monitorada.";
+    }
+    return null;
+  };
+
   const salvar = async (e: FormEvent) => {
     e.preventDefault();
     setErro(null);
     setMsg(null);
+    const problema = validar();
+    if (problema) {
+      setErro(problema);
+      return;
+    }
     setSalvando(true);
     try {
       const resp = await salvarConfiguracoes(form);
@@ -162,8 +192,8 @@ export default function ConfiguracoesPage() {
                   FT
                 </div>
                 <div className="config-logo-acoes">
-                  <button type="button" className="btn-secondary">
-                    Enviar logo
+                  <button type="button" className="btn-secondary" disabled>
+                    Envio de logo pendente
                   </button>
                   <p className="meta">A etapa de upload da logo entra com autenticação.</p>
                 </div>

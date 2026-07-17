@@ -20,7 +20,7 @@ export default function App() {
 
   const pagina =
     rota === "dashboard" ? (
-      <DashboardPage />
+      <DashboardPage onExecutarRobo={() => setRota("robo")} />
     ) : rota === "leiautes" ? (
       <LeiautesPage />
     ) : rota === "robo" ? (

@@ -1,8 +1,12 @@
+import { useState } from "react";
+
 type Props = {
   onEntrar: () => void;
 };
 
 export default function LoginPage({ onEntrar }: Props) {
+  const [mensagem, setMensagem] = useState<string | null>(null);
+
   return (
     <div className="login-shell login-shell-marca">
       <form
@@ -52,8 +56,18 @@ export default function LoginPage({ onEntrar }: Props) {
           Entrar
         </button>
 
+        {mensagem && <p className="login-sucesso">{mensagem}</p>}
+
         <p className="login-rodape">
-          <button type="button" className="btn-link">
+          <button
+            type="button"
+            className="btn-link"
+            onClick={() =>
+              setMensagem(
+                "Recuperação de senha será liberada quando a autenticação central for conectada.",
+              )
+            }
+          >
             Esqueceu a senha?
           </button>
         </p>

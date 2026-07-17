@@ -2,6 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { obterDashboard } from "../api/leiautes";
 import type { DashboardResponse } from "../api/types";
 
+type Props = {
+  onExecutarRobo?: () => void;
+};
+
 function formatarData(valor?: string | null): string {
   if (!valor) return "-";
   const data = new Date(valor);
@@ -27,7 +31,7 @@ function classeStatus(status?: string | null): string {
   return "status-andamento";
 }
 
-export default function DashboardPage() {
+export default function DashboardPage({ onExecutarRobo }: Props) {
   const [dados, setDados] = useState<DashboardResponse | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -51,7 +55,7 @@ export default function DashboardPage() {
           <h1 className="page-title">Dashboard</h1>
           <p className="page-sub">Visão executiva do monitoramento de leiautes Bacen.</p>
         </div>
-        <button type="button" className="btn-novo">
+        <button type="button" className="btn-novo" onClick={onExecutarRobo}>
           Executar robô
         </button>
       </div>

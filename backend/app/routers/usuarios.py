@@ -37,7 +37,7 @@ def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
     usuario_id = criar_usuario(payload.model_dump())
     item = obter_usuario(usuario_id)
     if not item:
-        raise HTTPException(status_code=500, detail="Falha ao criar usuario")
+        raise HTTPException(status_code=500, detail="Falha ao criar usuário")
     return UsuarioResumo(**item)
 
 
@@ -45,7 +45,7 @@ def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
 def atualizar(usuario_id: int, payload: UsuarioUpdateRequest) -> UsuarioResumo:
     item = atualizar_usuario(usuario_id, payload.model_dump(exclude_unset=True))
     if not item:
-        raise HTTPException(status_code=404, detail="Usuario nao encontrado")
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
     return UsuarioResumo(**item)
 
 

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ApiError } from "../api/client";
 import {
   executarRoboSemEmail,
@@ -45,11 +45,6 @@ export default function RoboPage() {
   const [carregando, setCarregando] = useState(false);
   const [executando, setExecutando] = useState(false);
   const [carregandoLog, setCarregandoLog] = useState(false);
-
-  const ultima = useMemo(
-    () => status?.ultima_execucao ?? execucoes[0] ?? null,
-    [execucoes, status],
-  );
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -135,35 +130,6 @@ export default function RoboPage() {
           Por padrão, a execução manual do app roda com envio de e-mail desativado. Quando
           liberado, o envio fica redirecionado para michel@finaud.com.br.
         </p>
-      </section>
-
-      <section className="cards-resumo robo-cards">
-        <article className="card resumo-card">
-          <span className="resumo-icone">ID</span>
-          <h3>Última execução</h3>
-          <p className="numero-grande">{ultima ? `#${ultima.id}` : "-"}</p>
-          <p className="meta">{formatarData(ultima?.iniciado_em)}</p>
-        </article>
-        <article className="card resumo-card">
-          <span className="resumo-icone">ST</span>
-          <h3>Status</h3>
-          <p className={`numero-grande ${ultima ? classeStatus(ultima.status) : ""}`}>
-            {ultima ? rotuloStatus(ultima.status) : "-"}
-          </p>
-          <p className="meta">Fim: {formatarData(ultima?.finalizado_em)}</p>
-        </article>
-        <article className="card resumo-card">
-          <span className="resumo-icone">ARQ</span>
-          <h3>Arquivos</h3>
-          <p className="numero-grande">{ultima?.qtd_arquivos ?? 0}</p>
-          <p className="meta">{ultima?.qtd_leiautes ?? 0} leiaute(s)</p>
-        </article>
-        <article className="card resumo-card">
-          <span className="resumo-icone">ALT</span>
-          <h3>Alterações</h3>
-          <p className="numero-grande">{ultima?.qtd_alteracoes ?? 0}</p>
-          <p className="meta">{ultima?.emails_enviados ?? 0} e-mail(s) enviado(s)</p>
-        </article>
       </section>
 
       <section className="card">

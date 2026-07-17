@@ -6,10 +6,12 @@ import type {
   ExecucaoListaResponse,
   ExecucaoLogResponse,
   AlteracaoListaResponse,
+  LeiautePayload,
   LeiauteListaResponse,
   PermissoesPerfilResponse,
   RoboExecutarResponse,
   RoboStatusResponse,
+  UsuarioPayload,
   UsuarioListaResponse,
 } from "./types";
 
@@ -19,6 +21,14 @@ export function obterDashboard() {
 
 export function listarLeiautes() {
   return apiGet<LeiauteListaResponse>("/leiautes");
+}
+
+export function criarLeiaute(payload: LeiautePayload) {
+  return apiPost<LeiauteListaResponse["leiautes"][number]>("/leiautes", payload);
+}
+
+export function atualizarLeiaute(id: number, payload: LeiautePayload) {
+  return apiPut<LeiauteListaResponse["leiautes"][number]>(`/leiautes/${id}`, payload);
 }
 
 export function listarAlteracoes() {
@@ -70,6 +80,14 @@ export function obterPreviewEmailGestor() {
 
 export function listarUsuarios() {
   return apiGet<UsuarioListaResponse>("/usuarios");
+}
+
+export function criarUsuario(payload: UsuarioPayload) {
+  return apiPost<UsuarioListaResponse["usuarios"][number]>("/usuarios", payload);
+}
+
+export function atualizarUsuario(id: number, payload: UsuarioPayload) {
+  return apiPut<UsuarioListaResponse["usuarios"][number]>(`/usuarios/${id}`, payload);
 }
 
 export function obterPermissoesPerfis() {

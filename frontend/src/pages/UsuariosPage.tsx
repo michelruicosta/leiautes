@@ -1,15 +1,25 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  atualizarUsuario,
+  criarUsuario,
   listarUsuarios,
   obterPermissoesPerfis,
   salvarPermissoesPerfis,
 } from "../api/leiautes";
-import type { UsuarioResumo } from "../api/types";
+import type { UsuarioPayload, UsuarioResumo } from "../api/types";
 
 type AbaUsuarios = "usuarios" | "perfis";
 type Perfil = "operador" | "gestor" | "administrador";
 
 const PERFIS: Perfil[] = ["operador", "gestor", "administrador"];
+const USUARIO_VAZIO: UsuarioPayload = {
+  nome: "",
+  email: "",
+  perfil_codigo: "operador",
+  cargo: "",
+  departamento: "",
+  ativo: true,
+};
 
 const ROTAS = [
   ["dashboard", "Dashboard", "Visão geral do monitoramento."],
@@ -35,8 +45,11 @@ export default function UsuariosPage() {
   const [msg, setMsg] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [modalUsuario, setModalUsuario] = useState<UsuarioResumo | "novo" | null>(null);
+  const [formUsuario, setFormUsuario] = useState<UsuarioPayload>(USUARIO_VAZIO);
+  const [validacaoUsuario, setValidacaoUsuario] = useState<string | null>(null);
 
-  useEffect(() => {
+  const carregar = () => {
     setCarregando(true);
     Promise.all([listarUsuarios(), obterPermissoesPerfis()])
       .then(([u, p]) => {
@@ -45,6 +58,10 @@ export default function UsuariosPage() {
       })
       .catch(() => setErro("API indisponível."))
       .finally(() => setCarregando(false));
+  };
+
+  useEffect(() => {
+    carregar();
   }, []);
 
   const usuariosExibidos = useMemo(() => {
@@ -92,6 +109,63 @@ export default function UsuariosPage() {
     }
   };
 
+  const abrirNovoUsuario = () => {
+    setModalUsuario("novo");
+    setFormUsuario(USUARIO_VAZIO);
+    setValidacaoUsuario(null);
+    setErro(null);
+    setMsg(null);
+  };
+
+  const abrirEditarUsuario = (usuario: UsuarioResumo) => {
+    setModalUsuario(usuario);
+    setFormUsuario({
+      nome: usuario.nome,
+      email: usuario.email,
+      perfil_codigo: usuario.perfil_codigo as Perfil,
+      cargo: usuario.cargo ?? "",
+      departamento: usuario.departamento ?? "",
+      ativo: usuario.ativo,
+    });
+    setValidacaoUsuario(null);
+    setErro(null);
+    setMsg(null);
+  };
+
+  const validarUsuario = (): string | null => {
+    if (formUsuario.nome.trim().length < 2) return "Informe o nome do usuário.";
+    if (!formUsuario.email.includes("@")) return "Informe um e-mail válido.";
+    if (!PERFIS.includes(formUsuario.perfil_codigo)) return "Selecione um perfil válido.";
+    return null;
+  };
+
+  const salvarUsuario = async () => {
+    const problema = validarUsuario();
+    if (problema) {
+      setValidacaoUsuario(problema);
+      return;
+    }
+    setSalvando(true);
+    setErro(null);
+    setMsg(null);
+    setValidacaoUsuario(null);
+    try {
+      if (modalUsuario === "novo") {
+        await criarUsuario(formUsuario);
+        setMsg("Usuário criado.");
+      } else if (modalUsuario) {
+        await atualizarUsuario(modalUsuario.id, formUsuario);
+        setMsg("Usuário atualizado.");
+      }
+      setModalUsuario(null);
+      carregar();
+    } catch {
+      setErro("Não foi possível salvar o usuário. Verifique se o e-mail já existe.");
+    } finally {
+      setSalvando(false);
+    }
+  };
+
   return (
     <div className="admin-page">
       <div className="page-cabecalho">
@@ -100,7 +174,7 @@ export default function UsuariosPage() {
           <p className="page-sub">Quem acessa o sistema e o que cada perfil pode ver.</p>
         </div>
         {aba === "usuarios" ? (
-          <button type="button" className="btn-novo">
+          <button type="button" className="btn-novo" onClick={abrirNovoUsuario}>
             + Novo usuário
           </button>
         ) : (
@@ -168,7 +242,11 @@ export default function UsuariosPage() {
                     {usuario.ativo ? "Ativo" : "Inativo"}
                   </td>
                   <td>
-                    <button type="button" className="btn-secondary">
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => abrirEditarUsuario(usuario)}
+                    >
                       Editar
                     </button>
                   </td>
@@ -216,6 +294,123 @@ export default function UsuariosPage() {
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+
+      {modalUsuario && (
+        <div className="modal-backdrop" onClick={() => setModalUsuario(null)}>
+          <section
+            className="modal-detalhe modal-form"
+            role="dialog"
+            aria-modal="true"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <header className="modal-detalhe-head">
+              <div>
+                <h2>{modalUsuario === "novo" ? "Novo usuário" : "Editar usuário"}</h2>
+                <p className="meta">Defina os dados de acesso e o perfil do usuário.</p>
+              </div>
+              <button
+                type="button"
+                className="modal-fechar"
+                aria-label="Fechar"
+                onClick={() => setModalUsuario(null)}
+              >
+                ×
+              </button>
+            </header>
+            <div className="modal-form-body">
+              {validacaoUsuario && <p className="erro">{validacaoUsuario}</p>}
+              <label className="field">
+                <span className="field-label">Nome</span>
+                <input
+                  className="field-input"
+                  value={formUsuario.nome}
+                  onChange={(e) =>
+                    setFormUsuario({ ...formUsuario, nome: e.target.value })
+                  }
+                />
+              </label>
+              <label className="field">
+                <span className="field-label">E-mail</span>
+                <input
+                  className="field-input"
+                  value={formUsuario.email}
+                  onChange={(e) =>
+                    setFormUsuario({ ...formUsuario, email: e.target.value })
+                  }
+                />
+              </label>
+              <div className="config-dupla">
+                <label className="field">
+                  <span className="field-label">Perfil</span>
+                  <select
+                    className="field-input"
+                    value={formUsuario.perfil_codigo}
+                    onChange={(e) =>
+                      setFormUsuario({
+                        ...formUsuario,
+                        perfil_codigo: e.target.value as Perfil,
+                      })
+                    }
+                  >
+                    {PERFIS.map((perfil) => (
+                      <option key={perfil} value={perfil}>
+                        {rotuloPerfil(perfil)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="field">
+                  <span className="field-label">Cargo</span>
+                  <input
+                    className="field-input"
+                    value={formUsuario.cargo ?? ""}
+                    onChange={(e) =>
+                      setFormUsuario({ ...formUsuario, cargo: e.target.value })
+                    }
+                  />
+                </label>
+              </div>
+              <label className="field">
+                <span className="field-label">Departamento</span>
+                <input
+                  className="field-input"
+                  value={formUsuario.departamento ?? ""}
+                  onChange={(e) =>
+                    setFormUsuario({ ...formUsuario, departamento: e.target.value })
+                  }
+                />
+              </label>
+              <label className="admin-dia-chip">
+                <input
+                  type="checkbox"
+                  checked={formUsuario.ativo}
+                  onChange={(e) =>
+                    setFormUsuario({ ...formUsuario, ativo: e.target.checked })
+                  }
+                />
+                Usuário ativo
+              </label>
+              <div className="modal-form-acoes">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => setModalUsuario(null)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  className="btn-novo"
+                  disabled={salvando}
+                  onClick={() => void salvarUsuario()}
+                >
+                  {salvando ? "Salvando..." : "Salvar usuário"}
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
     </div>

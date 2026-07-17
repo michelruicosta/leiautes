@@ -38,7 +38,7 @@ def _ler_log_execucao(log_path: str | None, fallback: str | None) -> tuple[str, 
 def ultima_execucao() -> ExecucaoResumo:
     row = obter_ultima_execucao()
     if not row:
-        raise HTTPException(status_code=404, detail="Nenhuma execucao registrada")
+        raise HTTPException(status_code=404, detail="Nenhuma execução registrada")
     return ExecucaoResumo(**row)
 
 
@@ -58,7 +58,7 @@ def listar(
 def obter_log(execucao_id: int) -> ExecucaoLogResponse:
     row = obter_execucao(execucao_id)
     if not row:
-        raise HTTPException(status_code=404, detail="Execucao nao encontrada")
+        raise HTTPException(status_code=404, detail="Execução não encontrada")
     texto, disponivel = _ler_log_execucao(row.get("log_path"), row.get("erro"))
     return ExecucaoLogResponse(
         execucao=ExecucaoResumo(**row),

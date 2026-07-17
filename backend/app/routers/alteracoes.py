@@ -34,5 +34,5 @@ def listar(
 def obter(alteracao_id: int) -> AlteracaoResumo:
     item = obter_alteracao(alteracao_id)
     if not item:
-        raise HTTPException(status_code=404, detail="Alteracao nao encontrada")
+        raise HTTPException(status_code=404, detail="Alteração não encontrada")
     return AlteracaoResumo(**item)
