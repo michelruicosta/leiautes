@@ -97,12 +97,12 @@ export default function AlteracoesPage() {
         </div>
         <div className="acoes-relatorio">
           <button
-            className="btn-secundario"
+            className="btn-novo"
             disabled={baixando !== null}
             type="button"
             onClick={() => baixarPlanilha("ultima")}
           >
-            {baixando === "ultima" ? "Gerando..." : "Planilha do envio"}
+            {baixando === "ultima" ? "Gerando..." : "Baixar relatório do envio"}
           </button>
           <button
             className="btn-novo"
@@ -110,7 +110,7 @@ export default function AlteracoesPage() {
             type="button"
             onClick={() => baixarPlanilha("historico")}
           >
-            {baixando === "historico" ? "Gerando..." : "Histórico Excel"}
+            {baixando === "historico" ? "Gerando..." : "Baixar histórico completo"}
           </button>
         </div>
       </div>
