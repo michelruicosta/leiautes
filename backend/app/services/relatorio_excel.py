@@ -80,11 +80,122 @@ def _parse_evidencia(texto: str, tipo: str) -> dict[str, str]:
     return {"local": "Evidência", "antes": "", "depois": texto}
 
 
+def _grupo_local(local: str) -> str:
+    pagina = re.match(r"^(Página \d+)", local)
+    if pagina:
+        return pagina.group(1)
+    arquivo = re.match(r"^(Arquivo interno [^-:]+)", local)
+    if arquivo:
+        return arquivo.group(1).strip()
+    if re.match(r"^linha (atual|anterior) \d+", local, flags=re.I):
+        return "Linhas do arquivo"
+    return local
+
+
+def _numero_linha(local: str, tipo: str) -> int | None:
+    padrao = r"linha anterior (\d+)" if tipo == "Saiu" else r"linha atual (\d+)"
+    match = re.search(padrao, local, flags=re.I)
+    return int(match.group(1)) if match else None
+
+
+def _numero_linha_por_padrao(local: str, padrao: str) -> int | None:
+    match = re.search(padrao, local, flags=re.I)
+    return int(match.group(1)) if match else None
+
+
+def _titulo_local_grupo(grupo: str, numeros: list[int]) -> str:
+    if not numeros:
+        return grupo
+    numeros = sorted(numeros)
+    if len(numeros) == 1:
+        return f"{grupo} - linha {numeros[0]}"
+    return f"{grupo} - linhas {numeros[0]} a {numeros[-1]}"
+
+
+def _titulo_local_mudou(grupo: str, dados: list[dict[str, str]]) -> str:
+    anteriores = [
+        numero
+        for item in dados
+        if (numero := _numero_linha_por_padrao(item["local"], r"linha anterior (\d+)")) is not None
+    ]
+    atuais = [
+        numero
+        for item in dados
+        if (numero := _numero_linha_por_padrao(item["local"], r"linha atual (\d+)")) is not None
+    ]
+    if not anteriores and not atuais:
+        return grupo
+    if len(anteriores) <= 1 and len(atuais) <= 1:
+        return dados[0]["local"]
+    trecho_anterior = (
+        f"linhas anteriores {min(anteriores)} a {max(anteriores)}"
+        if len(anteriores) > 1
+        else f"linha anterior {anteriores[0]}"
+    )
+    trecho_atual = (
+        f"linhas atuais {min(atuais)} a {max(atuais)}"
+        if len(atuais) > 1
+        else f"linha atual {atuais[0]}"
+    )
+    return f"{grupo} - {trecho_anterior} -> {trecho_atual}"
+
+
+def _itens_reais(itens: list[str]) -> list[str]:
+    return [item for item in itens if not str(item).strip().startswith("...")]
+
+
+def _linhas_evidencia_agrupadas(itens: list[str], tipo: str) -> list[dict[str, str]]:
+    grupos: list[tuple[str, list[dict[str, str]]]] = []
+    for texto in itens:
+        parsed = _parse_evidencia(texto, tipo)
+        grupo = _grupo_local(parsed["local"])
+        if grupos and grupos[-1][0] == grupo:
+            grupos[-1][1].append(parsed)
+        else:
+            grupos.append((grupo, [parsed]))
+
+    agrupados: list[dict[str, str]] = []
+    for grupo, dados in grupos:
+        if tipo == "Mudou":
+            agrupados.append(
+                {
+                    "local": _titulo_local_mudou(grupo, dados),
+                    "antes": "\n".join(
+                        item.get("antes", "").strip()
+                        for item in dados
+                        if item.get("antes", "").strip()
+                    ),
+                    "depois": "\n".join(
+                        item.get("depois", "").strip()
+                        for item in dados
+                        if item.get("depois", "").strip()
+                    ),
+                }
+            )
+            continue
+
+        numeros = [
+            numero
+            for item in dados
+            if (numero := _numero_linha(item["local"], tipo)) is not None
+        ]
+        campo_texto = "antes" if tipo == "Saiu" else "depois"
+        textos = [item.get(campo_texto, "").strip() for item in dados if item.get(campo_texto, "").strip()]
+        agrupados.append(
+            {
+                "local": _titulo_local_grupo(grupo, numeros),
+                "antes": "\n".join(textos) if tipo == "Saiu" else "",
+                "depois": "\n".join(textos) if tipo != "Saiu" else "",
+            }
+        )
+    return agrupados
+
+
 def _buscar_alteracoes(escopo: str) -> tuple[list[dict[str, Any]], str]:
     init_db()
     where = ""
     params: list[Any] = []
-    titulo = "Histórico completo de alterações"
+    titulo = "Histórico de alterações de leiautes Bacen"
 
     with conectar() as conn:
         if escopo == "ultima":
@@ -99,7 +210,7 @@ def _buscar_alteracoes(escopo: str) -> tuple[list[dict[str, Any]], str]:
             if row:
                 where = "WHERE a.execucao_id = ?"
                 params.append(row["execucao_id"])
-                titulo = f"Alterações da execução {row['execucao_id']}"
+                titulo = "Relatório de alterações de leiautes Bacen"
 
         rows = conn.execute(
             f"""
@@ -167,6 +278,11 @@ def _titulo(ws, texto: str, subtitulo: str) -> None:
     ws.merge_cells("A2:H2")
 
 
+def _aplicar_cor_linha(ws, fill: str) -> None:
+    for cell in ws[ws.max_row]:
+        cell.fill = PatternFill("solid", fgColor=fill)
+
+
 def _autofiltro(ws, primeira_linha: int, ultima_coluna: int) -> None:
     if ws.max_row <= primeira_linha:
         return
@@ -186,6 +302,11 @@ def _ajustar(ws, larguras: dict[str, int]) -> None:
     for row_idx in range(2, ws.max_row + 1):
         ws.row_dimensions[row_idx].height = 38
     ws.sheet_view.showGridLines = False
+
+
+def _altura_dados(ws, altura: int) -> None:
+    for row_idx in range(2, ws.max_row + 1):
+        ws.row_dimensions[row_idx].height = altura
 
 
 def _metric_cell(cell: Cell, fill: str) -> None:
@@ -221,9 +342,9 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
             ("Mudou", alt["itens_alterados"]),
             ("Saiu", alt["itens_removidos"]),
         ]:
-            cont_tipo[tipo] += len(itens)
-            for texto in itens:
-                parsed = _parse_evidencia(texto, tipo)
+            itens_validos = _itens_reais(itens)
+            cont_tipo[tipo] += len(itens_validos)
+            for parsed in _linhas_evidencia_agrupadas(itens_validos, tipo):
                 linhas_mudancas.append(
                     [
                         alt["execucao_id"],
@@ -243,7 +364,9 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                 )
         chave_arquivo = (alt["leiaute_codigo"], alt["nome_arquivo"], alt["tipo_arquivo"])
         cont_arquivo[chave_arquivo] += (
-            len(alt["itens_incluidos"]) + len(alt["itens_alterados"]) + len(alt["itens_removidos"])
+            len(_itens_reais(alt["itens_incluidos"]))
+            + len(_itens_reais(alt["itens_alterados"]))
+            + len(_itens_reais(alt["itens_removidos"]))
         )
         data_arquivo[chave_arquivo] = _fmt_data(alt.get("last_modified"))
 
@@ -263,7 +386,10 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
         ws_resumo[label_cell].font = Font(name="Arial", bold=True, color=BLUE)
         ws_resumo[label_cell].alignment = Alignment(horizontal="center", vertical="center")
         _metric_cell(ws_resumo[value_cell], fill)
+    ws_resumo.row_dimensions[3].height = 14
+    ws_resumo.row_dimensions[5].height = 14
 
+    ws_resumo.append([])
     _append(ws_resumo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Total de evidências"], fill=BLUE, bold=True)
     resumo_header_row = ws_resumo.max_row
     for cell in ws_resumo[resumo_header_row]:
@@ -293,13 +419,15 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
         cell.font = Font(name="Arial", bold=True, color="FFFFFF")
     for linha in linhas_mudancas:
         fill = GREEN if linha[6] == "Entrou" else YELLOW if linha[6] == "Mudou" else RED
-        _append(ws_mudancas, linha, fill=fill)
+        _append(ws_mudancas, linha)
+        _aplicar_cor_linha(ws_mudancas, fill)
         link_cell = ws_mudancas.cell(row=ws_mudancas.max_row, column=13)
         if link_cell.value:
             link_cell.hyperlink = str(link_cell.value)
             link_cell.style = "Hyperlink"
     _autofiltro(ws_mudancas, 1, len(cab))
-    _ajustar(ws_mudancas, {"A": 10, "B": 18, "C": 18, "D": 14, "E": 46, "F": 12, "G": 14, "H": 34, "I": 48, "J": 48, "K": 38, "L": 14, "M": 32})
+    _ajustar(ws_mudancas, {"A": 10, "B": 18, "C": 18, "D": 14, "E": 54, "F": 12, "G": 14, "H": 44, "I": 72, "J": 72, "K": 40, "L": 14, "M": 32})
+    _altura_dados(ws_mudancas, 96)
 
     _append(ws_arquivo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Entrou", "Mudou", "Saiu", "Resumo", "Impacto"], fill=BLUE, bold=True)
     for cell in ws_arquivo[1]:
@@ -312,15 +440,16 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
                 alt["leiaute_codigo"],
                 alt["nome_arquivo"],
                 alt["tipo_arquivo"],
-                len(alt["itens_incluidos"]),
-                len(alt["itens_alterados"]),
-                len(alt["itens_removidos"]),
+                len(_itens_reais(alt["itens_incluidos"])),
+                len(_itens_reais(alt["itens_alterados"])),
+                len(_itens_reais(alt["itens_removidos"])),
                 alt["resumo_executivo"],
                 alt["impacto_sugerido"],
             ],
         )
     _autofiltro(ws_arquivo, 1, 9)
     _ajustar(ws_arquivo, {"A": 18, "B": 14, "C": 52, "D": 12, "E": 10, "F": 10, "G": 10, "H": 42, "I": 42})
+    _altura_dados(ws_arquivo, 52)
 
     _append(
         ws_anexos,
@@ -375,5 +504,5 @@ def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, s
     buffer = BytesIO()
     wb.save(buffer)
     sufixo = "envio" if escopo == "ultima" else "historico"
-    nome = f"relatorio_alteracoes_leiautes_{sufixo}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    nome = f"relatorio_alteracoes_leiautes_{sufixo}_{datetime.now().strftime('%d%m%Y_%H%M')}.xlsx"
     return buffer.getvalue(), nome
