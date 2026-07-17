@@ -244,9 +244,9 @@ def comparar_arquivos(
 
     tipo = tipo_arquivo.lower().lstrip(".")
     try:
-        if tipo in {"xsd", "xml"}:
+        if tipo == "xsd":
             return _comparar_xsd(anterior, atual)
-        if tipo in {"txt", "csv", "json", "html", "htm"}:
+        if tipo in {"xml", "txt", "csv", "json", "html", "htm"}:
             return _comparar_texto(anterior, atual)
         if tipo in {"xlsx", "xlsm"}:
             return _comparar_xlsx(anterior, atual)

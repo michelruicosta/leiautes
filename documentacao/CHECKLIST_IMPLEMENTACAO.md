@@ -61,6 +61,7 @@ Este checklist sera usado para trabalhar em commits pequenos e rastreaveis.
 - [x] Comparar ZIP por arquivos internos.
 - [x] Gerar resumo estruturado das diferencas.
 - [x] Gravar diferencas no banco.
+- [x] Criar simulacao local com XSD, XML, PDF, XLSX, ZIP e TXT.
 - [ ] Commit: comparacao de arquivos.
 
 ## 6. Base do frontend
