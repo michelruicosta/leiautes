@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import difflib
+import hashlib
 import re
 import zipfile
 from pathlib import Path
@@ -45,20 +46,81 @@ def _normalizar_linhas(texto: str) -> list[str]:
     return linhas
 
 
-def _comparar_texto(anterior: Path, atual: Path) -> dict[str, Any]:
-    linhas_ant = _normalizar_linhas(_ler_texto(anterior))
-    linhas_atual = _normalizar_linhas(_ler_texto(atual))
-    diff = list(difflib.ndiff(linhas_ant, linhas_atual))
-    incluidos = [d[2:] for d in diff if d.startswith("+ ")]
-    removidos = [d[2:] for d in diff if d.startswith("- ")]
+def _linhas_com_numero(texto: str) -> list[tuple[int, str]]:
+    linhas = []
+    for numero, linha in enumerate(texto.splitlines(), start=1):
+        normalizada = re.sub(r"\s+", " ", linha).strip()
+        if normalizada:
+            linhas.append((numero, normalizada))
+    return linhas
+
+
+def _formatar_trecho(valor: str, limite: int = 350) -> str:
+    valor = valor.strip()
+    if len(valor) <= limite:
+        return valor
+    return f"{valor[:limite]}..."
+
+
+def _comparar_linhas(
+    linhas_ant_num: list[tuple[int, str]],
+    linhas_atual_num: list[tuple[int, str]],
+    *,
+    contexto: str = "",
+) -> dict[str, list[str]]:
+    linhas_ant = [linha for _, linha in linhas_ant_num]
+    linhas_atual = [linha for _, linha in linhas_atual_num]
+    prefixo = f"{contexto} - " if contexto else ""
+    incluidos: list[str] = []
+    removidos: list[str] = []
     alterados = []
 
     matcher = difflib.SequenceMatcher(None, linhas_ant, linhas_atual)
     for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag == "insert":
+            for numero, valor in linhas_atual_num[j1:j2]:
+                incluidos.append(
+                    f"{prefixo}linha atual {numero}: incluído \"{_formatar_trecho(valor)}\""
+                )
+        elif tag == "delete":
+            for numero, valor in linhas_ant_num[i1:i2]:
+                removidos.append(
+                    f"{prefixo}linha anterior {numero}: removido \"{_formatar_trecho(valor)}\""
+                )
         if tag == "replace":
-            antes = " | ".join(linhas_ant[i1:i2])[:500]
-            depois = " | ".join(linhas_atual[j1:j2])[:500]
-            alterados.append(f"Antes: {antes} -> Depois: {depois}")
+            qtd = max(i2 - i1, j2 - j1)
+            for idx in range(qtd):
+                ant = linhas_ant_num[i1 + idx] if i1 + idx < i2 else None
+                novo = linhas_atual_num[j1 + idx] if j1 + idx < j2 else None
+                if ant and novo:
+                    alterados.append(
+                        f"{prefixo}linha anterior {ant[0]} -> linha atual {novo[0]}: "
+                        f"antes \"{_formatar_trecho(ant[1])}\"; depois \"{_formatar_trecho(novo[1])}\""
+                    )
+                elif novo:
+                    incluidos.append(
+                        f"{prefixo}linha atual {novo[0]}: incluído \"{_formatar_trecho(novo[1])}\""
+                    )
+                elif ant:
+                    removidos.append(
+                        f"{prefixo}linha anterior {ant[0]}: removido \"{_formatar_trecho(ant[1])}\""
+                    )
+
+    return {
+        "incluidos": incluidos,
+        "removidos": removidos,
+        "alterados": alterados,
+    }
+
+
+def _comparar_texto(anterior: Path, atual: Path) -> dict[str, Any]:
+    diff = _comparar_linhas(
+        _linhas_com_numero(_ler_texto(anterior)),
+        _linhas_com_numero(_ler_texto(atual)),
+    )
+    incluidos = diff["incluidos"]
+    removidos = diff["removidos"]
+    alterados = diff["alterados"]
 
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),
@@ -80,9 +142,19 @@ def _xml_attr(elem: ElementTree.Element, nome: str) -> str:
     return ""
 
 
-def _coletar_xsd(path: Path) -> dict[str, str]:
-    root = ElementTree.fromstring(_ler_texto(path))
-    itens: dict[str, str] = {}
+def _mapa_linhas_xsd(texto: str) -> dict[str, int]:
+    linhas: dict[str, int] = {}
+    for numero, linha in enumerate(texto.splitlines(), start=1):
+        for nome in re.findall(r'\b(?:name|ref)="([^"]+)"', linha):
+            linhas.setdefault(nome, numero)
+    return linhas
+
+
+def _coletar_xsd(path: Path) -> dict[str, dict[str, Any]]:
+    texto = _ler_texto(path)
+    root = ElementTree.fromstring(texto)
+    linhas_por_nome = _mapa_linhas_xsd(texto)
+    itens: dict[str, dict[str, Any]] = {}
 
     def walk(elem: ElementTree.Element, prefixo: str) -> None:
         tag = _xml_tag(elem.tag)
@@ -97,9 +169,14 @@ def _coletar_xsd(path: Path) -> dict[str, str]:
                 "maxOccurs": _xml_attr(elem, "maxOccurs"),
                 "use": _xml_attr(elem, "use"),
             }
-            itens[atual] = ", ".join(
+            assinatura_texto = ", ".join(
                 f"{k}={v}" for k, v in assinatura.items() if v
             ) or tag
+            itens[atual] = {
+                "assinatura": assinatura_texto,
+                "linha": linhas_por_nome.get(nome),
+                "nome": nome,
+            }
         for child in list(elem):
             walk(child, atual)
 
@@ -112,13 +189,24 @@ def _comparar_xsd(anterior: Path, atual: Path) -> dict[str, Any]:
     novo = _coletar_xsd(atual)
     ch_ant = set(ant)
     ch_novo = set(novo)
-    incluidos = [f"{chave}: {novo[chave]}" for chave in sorted(ch_novo - ch_ant)]
-    removidos = [f"{chave}: {ant[chave]}" for chave in sorted(ch_ant - ch_novo)]
-    alterados = [
-        f"{chave}: {ant[chave]} -> {novo[chave]}"
-        for chave in sorted(ch_ant & ch_novo)
-        if ant[chave] != novo[chave]
+    incluidos = [
+        f"Linha atual {novo[chave].get('linha') or '?'}: campo/schema incluído {chave} "
+        f"({novo[chave]['assinatura']})"
+        for chave in sorted(ch_novo - ch_ant)
     ]
+    removidos = [
+        f"Linha anterior {ant[chave].get('linha') or '?'}: campo/schema removido {chave} "
+        f"({ant[chave]['assinatura']})"
+        for chave in sorted(ch_ant - ch_novo)
+    ]
+    alterados = []
+    for chave in sorted(ch_ant & ch_novo):
+        if ant[chave]["assinatura"] != novo[chave]["assinatura"]:
+            alterados.append(
+                f"{chave}: linha anterior {ant[chave].get('linha') or '?'} -> "
+                f"linha atual {novo[chave].get('linha') or '?'}; antes "
+                f"({ant[chave]['assinatura']}); depois ({novo[chave]['assinatura']})"
+            )
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),
         "impacto_sugerido": "Revisar campos, tipos e obrigatoriedade alterados no schema.",
@@ -138,6 +226,8 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
     wb_atual = openpyxl.load_workbook(atual, data_only=True, read_only=True)
     abas_ant = set(wb_ant.sheetnames)
     abas_atual = set(wb_atual.sheetnames)
+    from openpyxl.utils import get_column_letter
+
     incluidos = [f"Aba incluída: {aba}" for aba in sorted(abas_atual - abas_ant)]
     removidos = [f"Aba removida: {aba}" for aba in sorted(abas_ant - abas_atual)]
     alterados: list[str] = []
@@ -152,8 +242,12 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
                 v_ant = ws_ant.cell(row=row, column=col).value
                 v_atual = ws_atual.cell(row=row, column=col).value
                 if v_ant != v_atual:
+                    coluna = get_column_letter(col)
+                    cabecalho = ws_atual.cell(row=1, column=col).value
+                    contexto = f", coluna {cabecalho}" if cabecalho and row != 1 else ""
                     alterados.append(
-                        f"{aba}!{row},{col}: {v_ant!r} -> {v_atual!r}"
+                        f"Aba {aba}, célula {coluna}{row}{contexto}: "
+                        f"antes {v_ant!r}; depois {v_atual!r}"
                     )
                     if len(alterados) >= 200:
                         break
@@ -175,31 +269,76 @@ def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
     except Exception:
         return _fallback_dependencia("PDF", "pypdf")
 
-    def extrair(path: Path) -> str:
+    def extrair_paginas(path: Path) -> list[list[tuple[int, str]]]:
         reader = PdfReader(str(path))
-        partes = []
+        paginas = []
         for page in reader.pages:
-            partes.append(page.extract_text() or "")
-        return "\n".join(partes)
+            paginas.append(_linhas_com_numero(page.extract_text() or ""))
+        return paginas
 
-    ant_txt = anterior.with_suffix(anterior.suffix + ".txt")
-    atual_txt = atual.with_suffix(atual.suffix + ".txt")
-    ant_txt.write_text(extrair(anterior), encoding="utf-8")
-    atual_txt.write_text(extrair(atual), encoding="utf-8")
-    return _comparar_texto(ant_txt, atual_txt)
+    paginas_ant = extrair_paginas(anterior)
+    paginas_atual = extrair_paginas(atual)
+    incluidos: list[str] = []
+    removidos: list[str] = []
+    alterados: list[str] = []
+    total_paginas = max(len(paginas_ant), len(paginas_atual))
+    for idx in range(total_paginas):
+        ant = paginas_ant[idx] if idx < len(paginas_ant) else []
+        novo = paginas_atual[idx] if idx < len(paginas_atual) else []
+        diff = _comparar_linhas(ant, novo, contexto=f"Página {idx + 1}")
+        incluidos.extend(diff["incluidos"])
+        removidos.extend(diff["removidos"])
+        alterados.extend(diff["alterados"])
+
+    return {
+        "resumo_executivo": _resumo(incluidos, removidos, alterados),
+        "impacto_sugerido": "Revisar as páginas e linhas alteradas no PDF.",
+        "itens_incluidos": _limitar(incluidos),
+        "itens_removidos": _limitar(removidos),
+        "itens_alterados": _limitar(alterados),
+    }
 
 
 def _comparar_zip(anterior: Path, atual: Path) -> dict[str, Any]:
     with zipfile.ZipFile(anterior) as z_ant, zipfile.ZipFile(atual) as z_atual:
-        ant = {i.filename: i.file_size for i in z_ant.infolist()}
-        novo = {i.filename: i.file_size for i in z_atual.infolist()}
-    incluidos = [f"{k} ({novo[k]} bytes)" for k in sorted(set(novo) - set(ant))]
-    removidos = [f"{k} ({ant[k]} bytes)" for k in sorted(set(ant) - set(novo))]
-    alterados = [
-        f"{k}: {ant[k]} bytes -> {novo[k]} bytes"
-        for k in sorted(set(ant) & set(novo))
-        if ant[k] != novo[k]
-    ]
+        ant_infos = {i.filename: i for i in z_ant.infolist()}
+        novo_infos = {i.filename: i for i in z_atual.infolist()}
+        ant = set(ant_infos)
+        novo = set(novo_infos)
+        incluidos = []
+        removidos = []
+        alterados = []
+
+        for nome in sorted(novo - ant):
+            data = z_atual.read(nome)
+            evidencia = _evidencia_zip_texto(data)
+            incluidos.append(
+                f"Arquivo interno incluído: {nome} ({len(data)} bytes){evidencia}"
+            )
+        for nome in sorted(ant - novo):
+            data = z_ant.read(nome)
+            evidencia = _evidencia_zip_texto(data)
+            removidos.append(
+                f"Arquivo interno removido: {nome} ({len(data)} bytes){evidencia}"
+            )
+        for nome in sorted(ant & novo):
+            data_ant = z_ant.read(nome)
+            data_novo = z_atual.read(nome)
+            if hashlib.sha256(data_ant).hexdigest() != hashlib.sha256(data_novo).hexdigest():
+                if _parece_texto(nome):
+                    diff = _comparar_linhas(
+                        _linhas_com_numero(_bytes_para_texto(data_ant)),
+                        _linhas_com_numero(_bytes_para_texto(data_novo)),
+                        contexto=f"Arquivo interno {nome}",
+                    )
+                    alterados.extend(diff["alterados"])
+                    incluidos.extend(diff["incluidos"])
+                    removidos.extend(diff["removidos"])
+                else:
+                    alterados.append(
+                        f"Arquivo interno {nome}: conteúdo binário alterado; "
+                        f"tamanho anterior {len(data_ant)} bytes; tamanho atual {len(data_novo)} bytes"
+                    )
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),
         "impacto_sugerido": "Revisar arquivos internos alterados no pacote ZIP.",
@@ -207,6 +346,35 @@ def _comparar_zip(anterior: Path, atual: Path) -> dict[str, Any]:
         "itens_removidos": _limitar(removidos),
         "itens_alterados": _limitar(alterados),
     }
+
+
+def _bytes_para_texto(data: bytes) -> str:
+    for enc in ("utf-8", "latin-1", "cp1252"):
+        try:
+            return data.decode(enc)
+        except UnicodeDecodeError:
+            continue
+    return data.decode("utf-8", errors="ignore")
+
+
+def _parece_texto(nome: str) -> bool:
+    return Path(nome).suffix.lower() in {
+        ".txt",
+        ".csv",
+        ".xml",
+        ".xsd",
+        ".json",
+        ".html",
+        ".htm",
+    }
+
+
+def _evidencia_zip_texto(data: bytes) -> str:
+    texto = _bytes_para_texto(data)
+    linhas = _normalizar_linhas(texto)
+    if not linhas:
+        return ""
+    return f"; evidência: \"{_formatar_trecho(linhas[0], 180)}\""
 
 
 def _fallback_dependencia(tipo: str, pacote: str) -> dict[str, Any]:

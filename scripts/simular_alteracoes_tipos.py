@@ -123,11 +123,18 @@ def main() -> None:
 
     xsd_a = _write(
         SIM_DIR / "xsd" / "anterior.xsd",
-        b'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element name="campoA" type="xs:string"/></xs:schema>',
+        b"""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="IdentificadorRemessa" type="xs:string"/>
+</xs:schema>
+""",
     )
     xsd_b = _write(
         SIM_DIR / "xsd" / "atual.xsd",
-        b'<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema"><xs:element name="campoA" type="xs:int"/><xs:element name="campoB" type="xs:string"/></xs:schema>',
+        b"""<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="IdentificadorRemessa" type="xs:int"/>
+  <xs:element name="CodigoControle" type="xs:string"/>
+</xs:schema>
+""",
     )
     _registrar_par(
         execucao_id=execucao_id,
@@ -140,11 +147,20 @@ def main() -> None:
 
     xml_a = _write(
         SIM_DIR / "xml" / "anterior.xml",
-        b"<root><prazo>D+1 10h</prazo><status>ativo</status></root>",
+        b"""<root>
+  <prazo>D+1 10h</prazo>
+  <status>ativo</status>
+</root>
+""",
     )
     xml_b = _write(
         SIM_DIR / "xml" / "atual.xml",
-        b"<root><prazo>D+1 09h30</prazo><status>ativo</status><controle>novo</controle></root>",
+        b"""<root>
+  <prazo>D+1 09h30</prazo>
+  <status>ativo</status>
+  <controle>CodigoControle obrigatorio</controle>
+</root>
+""",
     )
     _registrar_par(
         execucao_id=execucao_id,
@@ -191,14 +207,17 @@ def main() -> None:
 
     zip_a = _zip(
         SIM_DIR / "zip" / "anterior.zip",
-        {"schema.xsd": b"versao1", "manual.txt": b"manual antigo"},
+        {
+            "schema.xsd": b'<xs:element name="IdentificadorRemessa" type="xs:string"/>',
+            "manual.txt": b"Prazo de envio: ate 10h",
+        },
     )
     zip_b = _zip(
         SIM_DIR / "zip" / "atual.zip",
         {
-            "schema.xsd": b"versao2-alterada",
-            "manual.txt": b"manual antigo",
-            "novo.txt": b"novo arquivo",
+            "schema.xsd": b'<xs:element name="IdentificadorRemessa" type="xs:int"/>',
+            "manual.txt": b"Prazo de envio: ate 09h30",
+            "novo.txt": b"Novo controle: CodigoControle obrigatorio",
         },
     )
     _registrar_par(
@@ -212,11 +231,11 @@ def main() -> None:
 
     txt_a = _write(
         SIM_DIR / "txt" / "anterior.txt",
-        b"linha 1\nprazo antigo\nlinha 3\n",
+        b"Regra de envio: remessa diaria\nPrazo de envio: ate 10h do dia util seguinte\nResponsavel: Contabilidade\n",
     )
     txt_b = _write(
         SIM_DIR / "txt" / "atual.txt",
-        b"linha 1\nprazo novo\nlinha 3\nlinha 4 incluida\n",
+        b"Regra de envio: remessa diaria\nPrazo de envio: ate 09h30 do dia util seguinte\nResponsavel: Contabilidade\nNovo campo obrigatorio: CodigoControle\n",
     )
     _registrar_par(
         execucao_id=execucao_id,
