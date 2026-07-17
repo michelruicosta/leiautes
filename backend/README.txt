@@ -53,6 +53,5 @@ GET /email-gestor/preview
 - Execucoes pela API desativam o `_status_tail.txt` legado com
   `LEIAUTES_DISABLE_STATUS_TAIL=1`, pois o app passa a consultar o status pelo
   banco.
-- O comparador de versoes ja compara XSD/XML, texto simples e ZIP. PDF e XLSX
-  possuem fallback e ficam prontos para comparacao detalhada quando `pypdf` e
-  `openpyxl` estiverem instalados.
+- O comparador de versoes compara XSD/XML, texto simples, ZIP, PDF (`pypdf`) e
+  XLSX (`openpyxl`).
