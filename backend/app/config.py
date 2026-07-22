@@ -39,10 +39,19 @@ URL_LOGIN_RECUPERACAO = os.environ.get(
     "http://localhost:5175",
 ).rstrip("/")
 
+# SSO portal — ver documentacao/sso_portal_apps_finaud.md
 PORTAL_AUTH_URL = os.environ.get(
     "PORTAL_AUTH_URL",
+    "http://127.0.0.1:8000",
+).rstrip("/")
+PORTAL_AUTH_LEGACY_URL = os.environ.get(
+    "PORTAL_AUTH_LEGACY_URL",
     "http://127.0.0.1:8002",
 ).rstrip("/")
+AUDITORIA_PORTAL_COOKIE_NAME = os.environ.get(
+    "AUDITORIA_PORTAL_COOKIE_NAME",
+    "auditoria_sessao",
+)
 PORTAL_COOKIE_NAME = os.environ.get("PORTAL_COOKIE_NAME", "finaud_portal_sessao")
 PORTAL_AUTH_TIMEOUT_SEG = float(os.environ.get("PORTAL_AUTH_TIMEOUT_SEG", "5"))
 PORTAL_URL = os.environ.get("PORTAL_URL", "https://finaudapps.com.br").rstrip("/")
