@@ -37,7 +37,7 @@ const DEFAULTS: ConfiguracoesMapa = {
   "monitor.connect_timeout": 10,
   "monitor.read_timeout": 10,
   "monitor.only_atual": true,
-  "monitor.quiet_baseline": false,
+  "monitor.quiet_baseline": true,
   "monitor.exclude_patterns": ["versoes_anteriores", "anteriores", "historico"],
   "anexos.max_attachments": 8,
   "anexos.max_single_mb": 4,

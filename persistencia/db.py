@@ -191,7 +191,7 @@ def seed_configuracoes_padrao() -> None:
         "monitor.connect_timeout": 10,
         "monitor.read_timeout": 10,
         "monitor.only_atual": True,
-        "monitor.quiet_baseline": False,
+        "monitor.quiet_baseline": True,
         "monitor.exclude_patterns": ["versoes_anteriores", "anteriores", "historico"],
         "anexos.max_attachments": 8,
         "anexos.max_single_mb": 4,

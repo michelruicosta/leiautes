@@ -89,8 +89,12 @@ def registrar_arquivo_observado(
     mudou: bool = False,
     evidencia: str = "",
     caminho_arquivo: Optional[str] = None,
+    gerar_evidencia: bool = True,
 ) -> tuple[int, Optional[int], Optional[int]]:
     """Registra metadados atuais e cria versao/alteracao quando houver mudanca.
+
+    Com `mudou=True` e `gerar_evidencia=False`, grava apenas baseline/versão
+    (primeira observação) sem inserir em `alteracoes_detectadas`.
 
     Retorna `(arquivo_id, versao_id, alteracao_id)`.
     """
@@ -215,7 +219,7 @@ def registrar_arquivo_observado(
                 (versao_id, agora, arquivo_id),
             )
 
-            if execucao_id is not None:
+            if gerar_evidencia and execucao_id is not None:
                 comparacao = None
                 if comparar_arquivos and caminho_anterior and caminho_arquivo:
                     comparacao = comparar_arquivos(

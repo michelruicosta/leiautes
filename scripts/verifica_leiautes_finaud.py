@@ -9,6 +9,8 @@ Monitor de leiautes Bacen (v3.2a+4111)
 - **NOVO**: Suporte ao Documento 4111 (Saldos Contábeis Diários - SCD)
 """
 
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 from pathlib import Path
 from playwright.sync_api import sync_playwright
@@ -121,8 +123,8 @@ if not logger.handlers:
     logger.addHandler(fh)
     logger.addHandler(sh)
 
-# ====== AJUSTES ======
-QUIET_BASELINE = False
+# ====== AJUSTES (fallback; preferir configuracoes do banco) ======
+QUIET_BASELINE = True
 ONLY_ATUAL = True
 EXCLUDE_PATTERNS = ["versoes_anteriores", "anteriores", "historico"]
 
@@ -132,6 +134,44 @@ MAX_SINGLE_ATTACH_SIZE = 4 * 1024 * 1024
 MAX_TOTAL_ATTACH_SIZE = 18 * 1024 * 1024
 
 SEND_EMAIL_WHEN_NO_CHANGES = True
+
+
+def _as_bool(valor, default: bool = False) -> bool:
+    if isinstance(valor, bool):
+        return valor
+    if valor is None:
+        return default
+    return str(valor).strip().lower() in {"1", "true", "yes", "sim", "on"}
+
+
+def _carregar_flags_monitor() -> tuple[bool, bool]:
+    """Lê monitor.quiet_baseline / monitor.only_atual da tela (tabela configuracoes)."""
+    quiet = QUIET_BASELINE
+    only_atual = ONLY_ATUAL
+    try:
+        from persistencia.config_db import obter_configuracao
+
+        quiet = _as_bool(obter_configuracao("monitor.quiet_baseline", quiet), quiet)
+        only_atual = _as_bool(obter_configuracao("monitor.only_atual", only_atual), only_atual)
+    except Exception as e:
+        logger.warning(f"Config do monitor indisponível; usando defaults. Motivo: {e}")
+    return quiet, only_atual
+
+
+def _metadados_mudaram(info: dict, anterior: dict, use_partial_fp: bool = True) -> tuple[bool, list[str]]:
+    """Compara Last-Modified/etag/etc. com a baseline anterior. Sem anterior = sem mudança real."""
+    if not anterior:
+        return False, []
+    reasons: list[str] = []
+    for key in ("etag", "last_modified", "content_length", "final_url"):
+        atual = info.get(key)
+        if atual and atual != anterior.get(key):
+            reasons.append(f"{key} mudou")
+    if use_partial_fp:
+        atual_fp = info.get("partial_fp")
+        if atual_fp and atual_fp != anterior.get("partial_fp"):
+            reasons.append("partial_fp mudou")
+    return bool(reasons), reasons
 
 # ====== PÁGINAS A MONITORAR ======
 urls = [
@@ -214,13 +254,29 @@ def baixar_conteudo_para_historico(session, url, max_single=MAX_SINGLE_ATTACH_SI
 ANEXO_REGEX = re.compile(r"\.(pdf|xlsx?|xsd|zip)$", re.IGNORECASE)
 
 def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_partial_fp=True):
+    """Compara anexos com a baseline anterior.
+
+    Regra (item 3):
+    - primeira observação de um URL: grava manifesto/baseline, sem evidência "Mudou";
+    - evidência só quando Last-Modified/etag/hash mudou em relação à baseline.
+    """
+    quiet_baseline, _only_atual = _carregar_flags_monitor()
     manifest = _load_manifest()
     alterados, sess = [], _session()
     first_run = len(manifest) == 0
     categoria_por_url = categoria_por_url or {}
+    primeiras_obs = 0
+
+    if first_run:
+        logger.info(
+            "Manifesto vazio: primeira baseline. quiet_baseline=%s "
+            "(evidências só em mudanças reais de metadados).",
+            quiet_baseline,
+        )
 
     for url in urls_anexos:
         cur = manifest.get(url, {})
+        eh_primeira_obs = url not in manifest
         try:
             info = head_info(sess, url)
         except Exception as e:
@@ -239,38 +295,29 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
                 manifest[url] = {**cur,"error": f"HEAD fail: {e}","checked_at": datetime.now().isoformat()}
                 continue
 
-        changed = (
-            (info.get("etag") and info.get("etag") != cur.get("etag")) or
-            (info.get("last_modified") and info.get("last_modified") != cur.get("last_modified")) or
-            (info.get("content_length") and info.get("content_length") != cur.get("content_length")) or
-            (info.get("final_url") and info.get("final_url") != cur.get("final_url"))
-        )
-
         if not (info.get("etag") or info.get("last_modified") or info.get("content_length")) and use_partial_fp:
             if "partial_fp" not in info:
-                try: info["partial_fp"] = small_range_fingerprint(sess, url)
-                except Exception: pass
-            if info.get("partial_fp") and info.get("partial_fp") != cur.get("partial_fp"):
-                changed = True
+                try:
+                    info["partial_fp"] = small_range_fingerprint(sess, url)
+                except Exception:
+                    pass
 
-        mudou_ou_novo = changed or url not in manifest
+        mudanca_real, reasons = _metadados_mudaram(
+            info, cur if not eh_primeira_obs else {}, use_partial_fp
+        )
         evidencia = ""
-        if mudou_ou_novo:
-            if not (first_run and QUIET_BASELINE):
-                reasons = []
-                for k in ("etag","last_modified","content_length","final_url","partial_fp"):
-                    if info.get(k) and info.get(k) != cur.get(k): reasons.append(f"{k} mudou")
-                if not reasons: reasons.append("novo arquivo observado")
-                logger.info(f"Alteração detectada em anexo: {url} | {'; '.join(reasons)}")
-                evidencia = ", ".join(reasons)
-                alterados.append({"url": url, "evidencia": evidencia})
+        if mudanca_real:
+            logger.info(f"Alteração detectada em anexo: {url} | {', '.join(reasons)}")
+            evidencia = ", ".join(reasons)
+            alterados.append({"url": url, "evidencia": evidencia})
+        elif eh_primeira_obs:
+            primeiras_obs += 1
+            logger.info(f"Baseline silenciosa (primeira observação): {url}")
 
+        # Versão de conteúdo: mudança real, ou primeira obs (baseline sem evidência).
+        precisa_versao = mudanca_real or eh_primeira_obs
         caminho_arquivo = None
-        if (
-            salvar_conteudo_versao
-            and mudou_ou_novo
-            and not (first_run and QUIET_BASELINE)
-        ):
+        if salvar_conteudo_versao and precisa_versao:
             try:
                 conteudo, motivo_historico = baixar_conteudo_para_historico(sess, url)
                 if conteudo:
@@ -293,9 +340,10 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
                     info=info,
                     categoria=categoria_por_url.get(url),
                     execucao_id=execucao_id,
-                    mudou=mudou_ou_novo and not (first_run and QUIET_BASELINE),
+                    mudou=precisa_versao,
                     evidencia=evidencia,
                     caminho_arquivo=caminho_arquivo,
+                    gerar_evidencia=mudanca_real,
                 )
             except Exception as e:
                 logger.warning(f"Falha ao registrar arquivo no banco: {url} | {e}")
@@ -310,7 +358,17 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
         }
 
     _save_manifest(manifest)
-    return alterados, manifest
+    if primeiras_obs:
+        logger.info(
+            "Primeiras observações sem evidência: %s arquivo(s). Mudanças reais: %s.",
+            primeiras_obs,
+            len(alterados),
+        )
+    return alterados, manifest, {
+        "first_run": first_run,
+        "quiet_baseline": quiet_baseline,
+        "primeiras_observacoes": primeiras_obs,
+    }
 
 
 # ====== PLAYWRIGHT ======
@@ -778,6 +836,7 @@ def load_email_config(path: Path):
 
 # ===== DEFINIÇÃO DA MAIN =====
 def main():
+    global ONLY_ATUAL
     logger.info("Iniciando monitoração...")
     execucao_id_env = os.environ.get("LEIAUTES_EXECUCAO_ID", "").strip()
     execucao_id = int(execucao_id_env) if execucao_id_env.isdigit() else None
@@ -785,6 +844,13 @@ def main():
         "1",
         "true",
         "yes",
+    )
+    quiet_cfg, ONLY_ATUAL = _carregar_flags_monitor()
+    logger.info(
+        "Flags monitor: quiet_baseline=%s only_atual=%s disable_email=%s",
+        quiet_cfg,
+        ONLY_ATUAL,
+        disable_email,
     )
 
     anexos_detectados = []
@@ -803,18 +869,24 @@ def main():
             logger.warning(f"Erro ao processar URL {url}: {e}")
             continue
 
-    alterados, manifest = verificar_anexos(
+    alterados, manifest, flags_anexos = verificar_anexos(
         anexos_detectados,
         categoria_por_url=categoria_por_url,
         execucao_id=execucao_id,
     )
     anexos_nomes = [_filename_from_url(a["url"]) for a in alterados]
+    quiet_baseline = bool(flags_anexos.get("quiet_baseline"))
+    first_run = bool(flags_anexos.get("first_run"))
 
     emails_enviados = 0
     destinatarios = []
 
     if disable_email:
         logger.info("Envio de e-mail desativado por LEIAUTES_DISABLE_EMAIL=1.")
+    elif first_run and quiet_baseline and not alterados:
+        logger.info(
+            "Primeira baseline quieta (monitor.quiet_baseline=true): e-mail omitido."
+        )
     elif alterados or SEND_EMAIL_WHEN_NO_CHANGES:
         email_cfg = load_email_config(CONFIG_PATH)
         destinatarios = email_cfg.get("to", [])
