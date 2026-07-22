@@ -1,0 +1,12 @@
+# API MVP v1 - instalar com o venv ativo:
+#   python -m pip install -r backend/requirements-api.txt
+fastapi~=0.115.0
+uvicorn[standard]~=0.32.0
+pydantic~=2.10.0
+python-dotenv~=1.0.0
+bcrypt~=4.2.0
+itsdangerous~=2.2.0
+pypdf~=5.9.0
+openpyxl~=3.1.0
+reportlab~=4.4.0
+xlrd~=2.0.0

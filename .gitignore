@@ -1,7 +1,13 @@
 venv/
+node_modules/
+frontend/node_modules/
+frontend/dist/
 logs/
 runtime/
+dados/
+storage/
 __pycache__/
+**/__pycache__/
 *.pyc
 *.log
 *.gz
