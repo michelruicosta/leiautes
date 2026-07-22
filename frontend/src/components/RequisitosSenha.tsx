@@ -24,8 +24,12 @@ const ITENS = [
   ["maiuscula", "Uma letra maiúscula"],
   ["minuscula", "Uma letra minúscula"],
   ["numero", "Um número"],
-  ["especial", "Um caractere especial (!@#$%…)"],
+  ["especial", "Um caractere especial (!@#$%...)"],
 ] as const;
+
+/** Evita mojibake: escapes ASCII no JS, nao depende de encoding do CSS. */
+const MARCA_OK = "\u2713";
+const MARCA_PENDENTE = "\u25CB";
 
 type Props = {
   senha: string;
@@ -35,11 +39,17 @@ export default function RequisitosSenha({ senha }: Props) {
   const reqs = avaliarRequisitosSenha(senha);
   return (
     <ul className="requisitos-senha" aria-live="polite">
-      {ITENS.map(([chave, label]) => (
-        <li key={chave} className={reqs[chave] ? "ok" : undefined}>
-          {label}
-        </li>
-      ))}
+      {ITENS.map(([chave, label]) => {
+        const ok = reqs[chave];
+        return (
+          <li key={chave} className={ok ? "ok" : undefined}>
+            <span className="requisitos-senha-marca" aria-hidden>
+              {ok ? MARCA_OK : MARCA_PENDENTE}
+            </span>
+            {label}
+          </li>
+        );
+      })}
     </ul>
   );
 }

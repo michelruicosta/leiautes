@@ -229,25 +229,24 @@ textarea {
 }
 
 .requisitos-senha li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4rem;
   margin: 0.2rem 0;
-  padding-left: 1.35rem;
-  position: relative;
   color: #64748b;
 }
 
-.requisitos-senha li::before {
-  content: "○";
-  position: absolute;
-  left: 0;
+.requisitos-senha-marca {
+  flex-shrink: 0;
+  width: 1rem;
+  text-align: center;
 }
 
 .requisitos-senha li.ok {
   color: #2b8a3e;
 }
 
-.requisitos-senha li.ok::before {
-  content: "✓";
-  color: #2b8a3e;
+.requisitos-senha li.ok .requisitos-senha-marca {
   font-weight: 700;
 }
 
