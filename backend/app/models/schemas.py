@@ -227,7 +227,6 @@ class RecuperarSenhaRequest(BaseModel):
 
 
 class AlterarSenhaRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=200)
-    senha_atual: str = Field(default="", max_length=200)
+    senha_atual: str = Field(min_length=1, max_length=200)
     nova_senha: str = Field(min_length=8, max_length=200)
     confirmar_senha: str = Field(min_length=8, max_length=200)

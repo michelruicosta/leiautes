@@ -86,7 +86,7 @@ export async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return resp.json() as Promise<T>;
 }
 
-export async function apiPost<T>(path: string, body: unknown): Promise<T> {
+export async function apiPost<T>(path: string, body: unknown = {}): Promise<T> {
   const resp = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     credentials: "include",
@@ -103,7 +103,14 @@ export async function apiPost<T>(path: string, body: unknown): Promise<T> {
     }
     throw new ApiError(resp.status, message);
   }
-  return resp.json() as Promise<T>;
+  if (resp.status === 204) {
+    return undefined as T;
+  }
+  const text = await resp.text();
+  if (!text) {
+    return undefined as T;
+  }
+  return JSON.parse(text) as T;
 }
 
 export async function apiDelete(path: string): Promise<void> {

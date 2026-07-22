@@ -43,6 +43,21 @@ def buscar_usuario_por_email(email: str) -> Optional[dict]:
     return _row_usuario(row) if row else None
 
 
+def buscar_usuario_por_id(usuario_id: int) -> Optional[dict]:
+    init_db()
+    with conectar() as conn:
+        row = conn.execute(
+            """
+            SELECT id, email, nome, perfil_codigo, senha_hash, cargo,
+                   departamento, ativo, criado_em, atualizado_em
+            FROM usuarios
+            WHERE id = ?
+            """,
+            (usuario_id,),
+        ).fetchone()
+    return _row_usuario(row) if row else None
+
+
 def listar_usuarios() -> tuple[list[dict], int]:
     init_db()
     with conectar() as conn:

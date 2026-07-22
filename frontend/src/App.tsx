@@ -1,31 +1,31 @@
 import { useState } from "react";
 import AppShell, { type RotaPainel } from "./components/AppShell";
 import AlteracoesPage from "./pages/AlteracoesPage";
+import AlterarSenhaPage from "./pages/AlterarSenhaPage";
 import AuditoriaPage from "./pages/AuditoriaPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
 import EmailGestorPage from "./pages/EmailGestorPage";
-import type { UsuarioAuth } from "./api/auth";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
-import PlaceholderPage from "./pages/PlaceholderPage";
 import RoboPage from "./pages/RoboPage";
 import UsuariosPage from "./pages/UsuariosPage";
+import { useAuth } from "./context/AuthContext";
 
 export default function App() {
-  const [autenticado, setAutenticado] = useState(false);
-  const [, setUsuario] = useState<UsuarioAuth | null>(null);
+  const { usuario, carregando } = useAuth();
   const [rota, setRota] = useState<RotaPainel>("dashboard");
 
-  if (!autenticado) {
+  if (carregando) {
     return (
-      <LoginPage
-        onEntrar={(usuario) => {
-          setUsuario(usuario);
-          setAutenticado(true);
-        }}
-      />
+      <div className="login-shell">
+        <p className="meta">Carregando…</p>
+      </div>
     );
+  }
+
+  if (!usuario) {
+    return <LoginPage />;
   }
 
   const pagina =
@@ -43,6 +43,8 @@ export default function App() {
       <ConfiguracoesPage />
     ) : rota === "auditoria" ? (
       <AuditoriaPage />
+    ) : rota === "alterar-senha" ? (
+      <AlterarSenhaPage onVoltar={() => setRota("dashboard")} />
     ) : (
       <UsuariosPage />
     );

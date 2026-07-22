@@ -1,65 +1,131 @@
 import { type FormEvent, useState } from "react";
-import { loginAuth, recuperarSenhaAuth, type UsuarioAuth } from "../api/auth";
+import { recuperarSenhaAuth } from "../api/auth";
 import { ApiError } from "../api/client";
 import CampoSenha from "../components/CampoSenha";
-
-type Props = {
-  onEntrar: (usuario: UsuarioAuth) => void;
-};
+import MarcaOrganizacao from "../components/MarcaOrganizacao";
+import { useAuth } from "../context/AuthContext";
 
 type Modo = "login" | "recuperar";
 
-export default function LoginPage({ onEntrar }: Props) {
+export default function LoginPage() {
+  const { entrar } = useAuth();
   const [modo, setModo] = useState<Modo>("login");
-  const [email, setEmail] = useState("gestor@finaud.com.br");
+  const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erro, setErro] = useState<string | null>(null);
-  const [mensagem, setMensagem] = useState<string | null>(null);
+  const [sucesso, setSucesso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
-  const entrar = async (event: FormEvent) => {
-    event.preventDefault();
+  const cabecalho = (
+    <MarcaOrganizacao
+      nome="FINAUD TEC"
+      subtitulo="Leiautes Bacen · Monitoramento"
+    />
+  );
+
+  const onLogin = async (e: FormEvent) => {
+    e.preventDefault();
     setErro(null);
-    setMensagem(null);
+    setSucesso(null);
     setEnviando(true);
     try {
-      const resp = await loginAuth(email.trim(), senha);
-      onEntrar(resp.usuario);
-    } catch (e) {
-      setErro(e instanceof ApiError ? e.message : "Não foi possível entrar.");
+      await entrar(email.trim(), senha);
+    } catch (err) {
+      setErro(
+        err instanceof ApiError
+          ? err.message
+          : "Não foi possível entrar. Tente novamente.",
+      );
     } finally {
       setEnviando(false);
     }
   };
 
-  const recuperar = async (event: FormEvent) => {
-    event.preventDefault();
+  const onRecuperar = async (e: FormEvent) => {
+    e.preventDefault();
     setErro(null);
-    setMensagem(null);
+    setSucesso(null);
     setEnviando(true);
     try {
-      const resp = await recuperarSenhaAuth(email.trim());
-      setMensagem(resp.mensagem);
-    } catch (e) {
-      setErro(e instanceof ApiError ? e.message : "Não foi possível solicitar recuperação.");
+      const resposta = await recuperarSenhaAuth(email.trim());
+      setSucesso(resposta.mensagem);
+    } catch (err) {
+      setErro(
+        err instanceof ApiError
+          ? err.message
+          : "Não foi possível enviar o pedido. Tente novamente.",
+      );
     } finally {
       setEnviando(false);
     }
   };
+
+  if (modo === "recuperar") {
+    return (
+      <div className="login-shell login-shell-marca">
+        <form
+          className="login-card login-card-marca"
+          onSubmit={(e) => void onRecuperar(e)}
+        >
+          {cabecalho}
+          <h2 className="login-titulo-secundario">Recuperar acesso</h2>
+          <p className="login-subtitulo-recuperar">
+            Informe seu e-mail corporativo. Se a conta estiver ativa, enviamos
+            uma senha temporária.
+          </p>
+
+          <div className="field">
+            <label className="field-label" htmlFor="recuperar-email">
+              E-mail
+            </label>
+            <input
+              id="recuperar-email"
+              className="field-input"
+              type="email"
+              autoComplete="username"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+            />
+          </div>
+
+          {erro && <p className="login-erro">{erro}</p>}
+          {sucesso && <p className="login-sucesso">{sucesso}</p>}
+
+          <button
+            type="submit"
+            className="btn-primary login-submit"
+            disabled={enviando || !!sucesso}
+          >
+            {enviando
+              ? "Enviando…"
+              : sucesso
+                ? "E-mail solicitado"
+                : "Enviar senha temporária"}
+          </button>
+
+          <p className="login-rodape">
+            <button
+              type="button"
+              className="btn-link"
+              onClick={() => {
+                setModo("login");
+                setErro(null);
+                setSucesso(null);
+              }}
+            >
+              ← Voltar ao login
+            </button>
+          </p>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="login-shell login-shell-marca">
-      <form
-        className="login-card login-card-marca"
-        onSubmit={(e) => void (modo === "login" ? entrar(e) : recuperar(e))}
-      >
-        <div className="marca-org">
-          <div className="marca-org-logo-placeholder">FT</div>
-          <div className="marca-org-textos">
-            <strong className="marca-org-nome">FINAUD TEC</strong>
-            <span className="marca-org-sub">Leiautes Bacen · Monitoramento</span>
-          </div>
-        </div>
+      <form className="login-card login-card-marca" onSubmit={(e) => void onLogin(e)}>
+        {cabecalho}
 
         <div className="field">
           <label className="field-label" htmlFor="login-email">
@@ -76,29 +142,19 @@ export default function LoginPage({ onEntrar }: Props) {
           />
         </div>
 
-        {modo === "login" ? (
-          <CampoSenha
-            id="login-senha"
-            label="Senha"
-            autoComplete="current-password"
-            value={senha}
-            onChange={setSenha}
-            required
-          />
-        ) : (
-          <p className="meta">
-            Informe o e-mail. Se a conta estiver ativa, a recuperação será registrada.
-          </p>
-        )}
+        <CampoSenha
+          id="login-senha"
+          label="Senha"
+          autoComplete="current-password"
+          value={senha}
+          onChange={setSenha}
+          required
+        />
 
-        {erro && <p className="erro">{erro}</p>}
-        {mensagem && <p className="login-sucesso">{mensagem}</p>}
-        <button type="submit" className="btn-primary login-submit">
-          {enviando
-            ? "Aguarde..."
-            : modo === "login"
-              ? "Entrar"
-              : "Solicitar recuperação"}
+        {erro && <p className="login-erro">{erro}</p>}
+
+        <button type="submit" className="btn-primary login-submit" disabled={enviando}>
+          {enviando ? "Entrando…" : "Entrar"}
         </button>
 
         <p className="login-rodape">
@@ -106,12 +162,12 @@ export default function LoginPage({ onEntrar }: Props) {
             type="button"
             className="btn-link"
             onClick={() => {
-              setModo(modo === "login" ? "recuperar" : "login");
+              setModo("recuperar");
               setErro(null);
-              setMensagem(null);
+              setSucesso(null);
             }}
           >
-            {modo === "login" ? "Esqueceu a senha?" : "Voltar ao login"}
+            Esqueceu a senha?
           </button>
         </p>
       </form>

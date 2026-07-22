@@ -147,9 +147,422 @@ textarea {
   margin-top: 0.5rem;
 }
 
+.login-erro {
+  color: #c92a2a;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.login-sucesso {
+  color: #2b8a3e;
+  font-size: 0.9rem;
+  margin: 0 0 1rem;
+}
+
+.login-titulo-secundario {
+  margin: 0 0 0.5rem;
+  font-size: 1.1rem;
+}
+
+.login-subtitulo-recuperar {
+  margin: 0 0 1.25rem;
+  color: #495057;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
 .login-rodape {
   margin: 1rem 0 0;
   text-align: center;
+}
+
+.marca-org-logo-quadro {
+  width: 3.25rem;
+  height: 3.25rem;
+  border-radius: 8px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.marca-org-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.voltar {
+  margin-bottom: 1rem;
+  border: none;
+  background: none;
+  color: var(--marca-cor);
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+}
+
+.perfil-card {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  border-radius: 12px;
+  padding: 2rem 1.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+}
+
+.alterar-senha-card {
+  max-width: 420px;
+}
+
+.requisitos-senha {
+  list-style: none;
+  margin: 0 0 0.85rem;
+  padding: 0.65rem 0.85rem;
+  background: #f8f9fa;
+  border: 1px solid #dde1e6;
+  border-radius: 8px;
+  font-size: 0.84rem;
+}
+
+.requisitos-senha li {
+  margin: 0.2rem 0;
+  padding-left: 1.35rem;
+  position: relative;
+  color: #64748b;
+}
+
+.requisitos-senha li::before {
+  content: "○";
+  position: absolute;
+  left: 0;
+}
+
+.requisitos-senha li.ok {
+  color: #2b8a3e;
+}
+
+.requisitos-senha li.ok::before {
+  content: "✓";
+  color: #2b8a3e;
+  font-weight: 700;
+}
+
+.senha-feedback {
+  margin: 0.35rem 0 0;
+  font-size: 0.84rem;
+}
+
+.senha-feedback.ok {
+  color: #2b8a3e;
+}
+
+.senha-feedback.erro {
+  color: #c92a2a;
+}
+
+.app-menu {
+  position: relative;
+}
+
+.app-menu-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid #dee2e6;
+  background: #fff;
+  color: #212529;
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.9rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: 8px;
+}
+
+.app-menu-chevron {
+  color: #868e96;
+  font-size: 0.75rem;
+}
+
+.app-menu-list {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  min-width: 180px;
+  margin: 0;
+  padding: 0.35rem 0;
+  list-style: none;
+  background: #fff;
+  border: 1px solid #e2e5ea;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+  z-index: 50;
+}
+
+.app-menu-item {
+  display: block;
+  width: 100%;
+  border: none;
+  background: none;
+  text-align: left;
+  padding: 0.55rem 1rem;
+  font: inherit;
+  font-size: 0.9rem;
+  color: #212529;
+  cursor: pointer;
+}
+
+.app-menu-item:hover {
+  background: #f8f9fa;
+}
+
+.app-menu-item-perigo {
+  color: #c92a2a;
+}
+
+.filtros-periodo {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.filtros-periodo button {
+  padding: 0.35rem 0.85rem;
+  border: 1px solid #c8cdd6;
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.filtros-periodo button.ativo {
+  background: var(--marca-cor);
+  color: #fff;
+  border-color: var(--marca-cor);
+}
+
+.periodo-personalizado {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 1rem 1.25rem;
+  margin: 0 0 1.1rem;
+  padding: 1rem 1.15rem;
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 10px;
+  position: relative;
+  z-index: 30;
+  overflow: visible;
+}
+
+.periodo-personalizado-campo {
+  display: grid;
+  gap: 0.4rem;
+  min-width: 12.5rem;
+  flex: 0 1 auto;
+  overflow: visible;
+}
+
+.periodo-personalizado-campo .field-label {
+  display: block;
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.periodo-personalizado-ajuda {
+  width: 100%;
+  margin: 0;
+  font-size: 0.84rem;
+  color: #64748b;
+}
+
+.campo-data-br {
+  position: relative;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.campo-data-br .field-label {
+  display: block;
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.88rem;
+  color: #334155;
+}
+
+.campo-data-br-linha {
+  display: flex;
+  align-items: stretch;
+  gap: 0.35rem;
+}
+
+.campo-data-br-input {
+  flex: 1;
+  min-width: 9.5rem;
+}
+
+.campo-data-br-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  padding: 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 1.05rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.campo-data-br-btn:hover {
+  background: #fff;
+  border-color: var(--marca-cor);
+}
+
+.calendario-popup {
+  position: fixed;
+  z-index: 1200;
+  width: 17.5rem;
+  padding: 0.75rem;
+  background: #fff;
+  border: 1px solid #dde1e6;
+  border-radius: 12px;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.calendario-cabecalho {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.calendario-titulo {
+  font-weight: 700;
+  font-size: 0.92rem;
+  color: #1e293b;
+  text-align: center;
+  flex: 1;
+}
+
+.calendario-nav {
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.calendario-nav:hover {
+  border-color: var(--marca-cor);
+  color: var(--marca-cor);
+}
+
+.calendario-grade-head,
+.calendario-grade {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.2rem;
+}
+
+.calendario-grade-head {
+  margin-bottom: 0.35rem;
+}
+
+.calendario-dia-semana {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #64748b;
+  padding: 0.15rem 0;
+}
+
+.calendario-celula {
+  aspect-ratio: 1;
+  min-height: 2rem;
+}
+
+.calendario-celula-vazia {
+  display: block;
+}
+
+.calendario-dia {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 0.82rem;
+  color: #334155;
+  cursor: pointer;
+}
+
+.calendario-dia:hover {
+  background: #f1f5f9;
+}
+
+.calendario-dia-hoje {
+  border-color: #fbbf24;
+  font-weight: 700;
+}
+
+.calendario-dia-selecionado {
+  background: var(--marca-cor);
+  border-color: var(--marca-cor);
+  color: #fff;
+  font-weight: 700;
+}
+
+.calendario-dia-selecionado:hover {
+  background: var(--marca-cor);
+  filter: brightness(0.95);
+}
+
+.calendario-rodape {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: 0.65rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.calendario-acao {
+  flex: 1;
+  padding: 0.4rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: #475569;
+  cursor: pointer;
+}
+
+.calendario-acao:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+.calendario-acao-primaria {
+  color: var(--marca-cor);
+  border-color: color-mix(in srgb, var(--marca-cor) 35%, #e2e8f0);
+}
+
+.calendario-acao-primaria:hover {
+  background: color-mix(in srgb, var(--marca-cor) 8%, #fff);
 }
 
 .campo-senha-wrap {
@@ -312,6 +725,10 @@ textarea {
   border-radius: 8px;
 }
 
+.app-menu-trigger.user-menu-trigger {
+  padding: 0.35rem 0.65rem;
+}
+
 .user-avatar {
   width: 32px;
   height: 32px;
@@ -365,12 +782,6 @@ textarea {
   font-size: 0.95rem;
   line-height: 1.45;
   color: #343a40;
-}
-
-.login-sucesso {
-  color: #2b8a3e;
-  font-size: 0.9rem;
-  margin: 0 0 1rem;
 }
 
 .admin-tabs {
@@ -869,14 +1280,17 @@ textarea {
 }
 
 .filtros-log {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 0.85rem;
-  margin-bottom: 1rem;
-  padding: 1rem;
-  background: #fff;
-  border: 1px solid #dde1e6;
-  border-radius: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+
+.filtros-log .field {
+  margin: 0;
+  flex: 1;
+  min-width: 10rem;
+  max-width: 14rem;
 }
 
 .log-acao {

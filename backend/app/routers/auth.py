@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from app import config
+from app.deps.auth import exigir_usuario
 from app.models.schemas import (
     AlterarSenhaRequest,
     LoginRequest,
@@ -90,6 +91,11 @@ def logout(response: Response) -> None:
     response.delete_cookie(key=config.AUTH_COOKIE_NAME, **_cookie_params())
 
 
+@router.get("/me", response_model=UsuarioAuthResponse)
+def me(usuario: dict = Depends(exigir_usuario)) -> UsuarioAuthResponse:
+    return _usuario_auth(usuario)
+
+
 @router.post("/recuperar-senha")
 def recuperar_senha(body: RecuperarSenhaRequest) -> dict[str, str]:
     usuario = buscar_usuario_por_email(body.email)
@@ -109,26 +115,32 @@ def recuperar_senha(body: RecuperarSenhaRequest) -> dict[str, str]:
 
 
 @router.post("/alterar-senha")
-def alterar_senha(body: AlterarSenhaRequest) -> dict[str, str]:
-    usuario = buscar_usuario_por_email(body.email)
-    if usuario is None or not usuario.get("ativo"):
-        raise HTTPException(status_code=404, detail="Usuário não encontrado.")
+def alterar_senha(
+    body: AlterarSenhaRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> dict[str, str]:
     if body.nova_senha != body.confirmar_senha:
         raise HTTPException(status_code=400, detail="As senhas não coincidem.")
+    if body.senha_atual == body.nova_senha:
+        raise HTTPException(
+            status_code=400,
+            detail="A nova senha deve ser diferente da senha atual.",
+        )
     erro = validar_politica_senha(body.nova_senha)
     if erro:
         raise HTTPException(status_code=400, detail=erro)
-    if tem_senha_local(usuario.get("senha_hash")) and not verificar_senha(
-        body.senha_atual,
-        usuario.get("senha_hash"),
-    ):
+    if not tem_senha_local(usuario.get("senha_hash")):
+        raise HTTPException(
+            status_code=400,
+            detail="Este usuário ainda não tem senha local definida.",
+        )
+    if not verificar_senha(body.senha_atual, usuario.get("senha_hash")):
         raise HTTPException(status_code=400, detail="Senha atual incorreta.")
     atualizar_senha_usuario(usuario["id"], hash_senha(body.nova_senha))
     registrar_log(
         usuario=usuario["email"],
-        pagina="Login",
+        pagina="Alterar senha",
         acao="Alterar senha",
         detalhe="Senha alterada pelo usuário.",
     )
     return {"mensagem": "Senha alterada com sucesso."}
-

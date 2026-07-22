@@ -1,8 +1,22 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { listarAuditoria } from "../api/leiautes";
 import type { LogAuditoria } from "../api/types";
+import { ApiError } from "../api/client";
+import CampoDataBr from "../components/CampoDataBr";
+import { isoHoje, periodoPersonalizadoPadrao } from "../lib/datas";
 
-const PAGINAS = ["Todas", "Leiautes", "Usuários e perfis", "Robô", "Configurações"] as const;
+const POR_PAGINA = 10;
+
+const PAGINAS = [
+  "Todas",
+  "Leiautes",
+  "Usuários e perfis",
+  "Robô",
+  "Configurações",
+  "Alterar senha",
+  "Login",
+] as const;
+
 const ACOES = [
   "Todas",
   "Criação",
@@ -11,18 +25,12 @@ const ACOES = [
   "Inativação",
   "Ativação",
   "Execução manual",
+  "Autenticação",
+  "Alterar senha",
+  "Recuperação de senha",
 ] as const;
-const POR_PAGINA = 10;
 
-function formatarQuando(iso: string): string {
-  const data = new Date(iso);
-  if (Number.isNaN(data.getTime())) return iso;
-  return data.toLocaleString("pt-BR", { hour12: false });
-}
-
-function hojeIso(): string {
-  return new Date().toISOString().slice(0, 10);
-}
+type Periodo = "todos" | "hoje" | "semana" | "mes" | "ano" | "personalizado";
 
 function classeAcao(acao: string): string {
   const map: Record<string, string> = {
@@ -36,37 +44,87 @@ function classeAcao(acao: string): string {
   return map[acao] ?? "log-acao-outro";
 }
 
+function formatarQuando(iso: string): string {
+  const data = new Date(iso);
+  if (Number.isNaN(data.getTime())) return iso;
+  return data.toLocaleString("pt-BR", { hour12: false });
+}
+
+function periodoParaDatas(
+  periodo: Periodo,
+  personalizado: { de: string | null; ate: string | null },
+) {
+  const hoje = isoHoje();
+  if (periodo === "todos") return { de: undefined, ate: undefined };
+  if (periodo === "hoje") return { de: hoje, ate: hoje };
+  if (periodo === "semana") {
+    const d = new Date(`${hoje}T12:00:00`);
+    d.setDate(d.getDate() - 7);
+    return { de: d.toISOString().slice(0, 10), ate: hoje };
+  }
+  if (periodo === "mes") return { de: `${hoje.slice(0, 7)}-01`, ate: hoje };
+  if (periodo === "ano") return { de: `${hoje.slice(0, 4)}-01-01`, ate: hoje };
+  if (periodo === "personalizado" && personalizado.de && personalizado.ate) {
+    return { de: personalizado.de, ate: personalizado.ate };
+  }
+  return null;
+}
+
 export default function AuditoriaPage() {
   const [registros, setRegistros] = useState<LogAuditoria[]>([]);
   const [total, setTotal] = useState(0);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
   const [paginaAtual, setPaginaAtual] = useState(1);
+  const [periodo, setPeriodo] = useState<Periodo>("todos");
+  const [personalizado, setPersonalizado] = useState({
+    deIso: "",
+    ateIso: "",
+    aplicado: false,
+  });
   const [filtroPagina, setFiltroPagina] = useState("Todas");
   const [filtroAcao, setFiltroAcao] = useState("Todas");
-  const [dataDe, setDataDe] = useState("");
-  const [dataAte, setDataAte] = useState("");
+  const [filtroUsuario, setFiltroUsuario] = useState("Todos");
+  const [usuarios, setUsuarios] = useState<string[]>([]);
+
+  const datas = useMemo(
+    () =>
+      periodoParaDatas(periodo, {
+        de: personalizado.deIso || null,
+        ate: personalizado.ateIso || null,
+      }),
+    [periodo, personalizado.deIso, personalizado.ateIso],
+  );
 
   const carregar = useCallback(async () => {
+    if (periodo === "personalizado" && !personalizado.aplicado) {
+      setRegistros([]);
+      setTotal(0);
+      return;
+    }
     setCarregando(true);
     setErro(null);
     try {
       const resp = await listarAuditoria({
-        data_de: dataDe || undefined,
-        data_ate: dataAte || undefined,
+        data_de: datas?.de,
+        data_ate: datas?.ate,
         pagina: filtroPagina === "Todas" ? undefined : filtroPagina,
         acao: filtroAcao === "Todas" ? undefined : filtroAcao,
+        usuario: filtroUsuario === "Todos" ? undefined : filtroUsuario,
         limit: 500,
       });
       setRegistros(resp.registros);
       setTotal(resp.total);
       setPaginaAtual(1);
-    } catch {
-      setErro("Erro ao carregar a trilha de auditoria.");
+      if (filtroUsuario === "Todos") {
+        setUsuarios([...new Set(resp.registros.map((item) => item.usuario))].sort());
+      }
+    } catch (e) {
+      setErro(e instanceof ApiError ? e.message : "Erro ao carregar a trilha de auditoria.");
     } finally {
       setCarregando(false);
     }
-  }, [dataAte, dataDe, filtroAcao, filtroPagina]);
+  }, [periodo, personalizado.aplicado, datas, filtroPagina, filtroAcao, filtroUsuario]);
 
   useEffect(() => {
     void carregar();
@@ -100,7 +158,7 @@ export default function AuditoriaPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `trilha-auditoria-${hojeIso()}.csv`;
+    a.download = `trilha-auditoria-${isoHoje()}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -113,7 +171,7 @@ export default function AuditoriaPage() {
           <p className="page-sub">Quem fez o quê, quando e em qual tela.</p>
         </div>
         <button type="button" className="btn-secondary" onClick={exportarCsv}>
-          Exportar CSV
+          ⬇ Exportar CSV
         </button>
       </div>
 
@@ -123,33 +181,102 @@ export default function AuditoriaPage() {
       </p>
 
       {erro && <p className="erro">{erro}</p>}
-      {carregando && <p className="meta">Carregando...</p>}
+      {carregando && <p className="meta">Carregando…</p>}
+
+      <div className="filtros-periodo">
+        {(
+          [
+            ["todos", "Todos"],
+            ["hoje", "Hoje"],
+            ["semana", "Esta semana"],
+            ["mes", "Mês"],
+            ["ano", "Ano"],
+            ["personalizado", "Personalizado"],
+          ] as const
+        ).map(([id, label]) => (
+          <button
+            key={id}
+            type="button"
+            className={periodo === id ? "ativo" : ""}
+            onClick={() => {
+              setPaginaAtual(1);
+              if (id !== "personalizado") {
+                setPeriodo(id);
+                setPersonalizado((p) => ({ ...p, aplicado: false }));
+                return;
+              }
+              if (periodo !== "personalizado") {
+                const padrao = periodoPersonalizadoPadrao();
+                setPersonalizado({
+                  deIso: padrao.de,
+                  ateIso: padrao.ate,
+                  aplicado: false,
+                });
+              }
+              setPeriodo("personalizado");
+            }}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {periodo === "personalizado" && (
+        <div className="periodo-personalizado">
+          <p className="periodo-personalizado-ajuda">
+            Digite <strong>dd/mm/aaaa</strong> ou use o ícone do calendário, depois clique em{" "}
+            <strong>Aplicar</strong>.
+          </p>
+          <div className="periodo-personalizado-campo">
+            <CampoDataBr
+              label="De"
+              value={personalizado.deIso}
+              onChange={(iso) =>
+                setPersonalizado((p) => ({ ...p, deIso: iso, aplicado: false }))
+              }
+            />
+          </div>
+          <div className="periodo-personalizado-campo">
+            <CampoDataBr
+              label="Até"
+              value={personalizado.ateIso}
+              onChange={(iso) =>
+                setPersonalizado((p) => ({ ...p, ateIso: iso, aplicado: false }))
+              }
+            />
+          </div>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => {
+              const { deIso, ateIso } = personalizado;
+              if (!deIso || !ateIso) {
+                alert("Informe as datas no formato dd/mm/aaaa.");
+                return;
+              }
+              if (deIso > ateIso) {
+                alert("A data De não pode ser maior que a data Até.");
+                return;
+              }
+              setPersonalizado((p) => ({ ...p, aplicado: true }));
+              setPaginaAtual(1);
+            }}
+          >
+            Aplicar
+          </button>
+        </div>
+      )}
 
       <section className="filtros-log">
-        <label className="field">
-          <span className="field-label">Data inicial</span>
-          <input
-            className="field-input"
-            type="date"
-            value={dataDe}
-            onChange={(event) => setDataDe(event.target.value)}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">Data final</span>
-          <input
-            className="field-input"
-            type="date"
-            value={dataAte}
-            onChange={(event) => setDataAte(event.target.value)}
-          />
-        </label>
-        <label className="field">
-          <span className="field-label">Página</span>
+        <div className="field">
+          <label className="field-label">Página</label>
           <select
             className="field-input"
             value={filtroPagina}
-            onChange={(event) => setFiltroPagina(event.target.value)}
+            onChange={(event) => {
+              setFiltroPagina(event.target.value);
+              setPaginaAtual(1);
+            }}
           >
             {PAGINAS.map((pagina) => (
               <option key={pagina} value={pagina}>
@@ -157,13 +284,16 @@ export default function AuditoriaPage() {
               </option>
             ))}
           </select>
-        </label>
-        <label className="field">
-          <span className="field-label">Ação</span>
+        </div>
+        <div className="field">
+          <label className="field-label">Ação</label>
           <select
             className="field-input"
             value={filtroAcao}
-            onChange={(event) => setFiltroAcao(event.target.value)}
+            onChange={(event) => {
+              setFiltroAcao(event.target.value);
+              setPaginaAtual(1);
+            }}
           >
             {ACOES.map((acao) => (
               <option key={acao} value={acao}>
@@ -171,10 +301,32 @@ export default function AuditoriaPage() {
               </option>
             ))}
           </select>
-        </label>
+        </div>
+        <div className="field">
+          <label className="field-label">Usuário</label>
+          <select
+            className="field-input"
+            value={filtroUsuario}
+            onChange={(event) => {
+              setFiltroUsuario(event.target.value);
+              setPaginaAtual(1);
+            }}
+          >
+            <option value="Todos">Todos</option>
+            {usuarios.map((usuario) => (
+              <option key={usuario} value={usuario}>
+                {usuario}
+              </option>
+            ))}
+          </select>
+        </div>
       </section>
 
-      <p className="meta">{total} registro(s) encontrado(s)</p>
+      <p className="meta">
+        {periodo === "personalizado" && !personalizado.aplicado
+          ? "Selecione o período e clique em Aplicar."
+          : `${total} registro(s) encontrado(s)`}
+      </p>
       <div className="tabela-wrap">
         <table className="tabela">
           <thead>
@@ -212,7 +364,7 @@ export default function AuditoriaPage() {
         </table>
         <div className="paginacao-log">
           <span>
-            Página {paginaAtual} de {totalPaginas} - {registros.length} registro(s)
+            Página {paginaAtual} de {totalPaginas} — {registros.length} registro(s)
           </span>
           <div>
             <button
@@ -220,14 +372,14 @@ export default function AuditoriaPage() {
               disabled={paginaAtual <= 1}
               onClick={() => setPaginaAtual((p) => p - 1)}
             >
-              Anterior
+              ← Anterior
             </button>
             <button
               type="button"
               disabled={paginaAtual >= totalPaginas}
               onClick={() => setPaginaAtual((p) => p + 1)}
             >
-              Próximo
+              Próximo →
             </button>
           </div>
         </div>
