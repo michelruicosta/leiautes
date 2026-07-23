@@ -135,7 +135,7 @@ if not logger.handlers:
 # ====== AJUSTES (fallback; preferir configuracoes do banco) ======
 QUIET_BASELINE = True
 ONLY_ATUAL = True
-EXCLUDE_PATTERNS = ["versoes_anteriores", "anteriores", "historico"]
+EXCLUDE_PATTERNS = ["versoes_anteriores", "anteriores", "historico", "manual_cadip"]
 
 ATTACH_CHANGED_FILES = True
 MAX_ATTACHMENTS = 8
@@ -395,13 +395,62 @@ def extrair_anexos_4111(page):
                     categorias[abs_url] = "4111 - SCD"
     return urls_4111, categorias
 
+
+def _categoria_da_pagina(page_url: str) -> str:
+    u = (page_url or "").lower()
+    if "leiautedocumentoscrd" in u or "scrd" in u:
+        return "4111 - SCD"
+    if "ddr2011" in u or "documentoDDR".lower() in u:
+        return "DDR-2011"
+    if "leiautedocumentodrm" in u or "drm" in u:
+        return "DRM-2060"
+    if "leiautedoc2061" in u or "2061" in u:
+        return "DLO-2061"
+    if "leiautedoc2062" in u or "2062" in u:
+        return "DLI-2062"
+    if "drl2160" in u or "2160" in u:
+        return "DRL-2160"
+    return "Sem categoria"
+
+
+def _filtrar_urls_anexos(candidatos: list[str]) -> list[str]:
+    """Aplica excludes e only_atual.
+
+    Páginas DLO/DLI usam pasta /Atual/. DRM/DRL não usam — nesses casos
+    only_atual vira 'excluir histórico' (versoes_anteriores etc.), não exige /atual/.
+    """
+    limpos = []
+    for u in candidatos:
+        pl = (u or "").lower()
+        if not pl:
+            continue
+        if any(pat in pl for pat in EXCLUDE_PATTERNS):
+            continue
+        limpos.append(u)
+
+    if not ONLY_ATUAL:
+        return limpos
+
+    com_atual = [u for u in limpos if "/atual/" in u.lower()]
+    if com_atual:
+        return com_atual
+    return limpos
+
+
 def extrair_datas_categorias_e_anexos(url):
+    categoria_pagina = _categoria_da_pagina(url)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         page = browser.new_page()
-        page.goto(url, timeout=60000, wait_until="load")
-        try: page.wait_for_selector("table", timeout=5000)
-        except: pass
+        # DRM/DRL são Angular: precisa esperar a hidratação dos links.
+        wait_mode = "networkidle" if any(x in url.lower() for x in ("drm", "drl2160")) else "load"
+        page.goto(url, timeout=90000, wait_until=wait_mode)
+        try:
+            page.wait_for_selector("a[href]", timeout=8000)
+        except Exception:
+            pass
+        if wait_mode == "networkidle":
+            page.wait_for_timeout(3000)
 
         if "leiautedocumentoscrd" in url.lower():
             anexos_4111, categorias_4111 = extrair_anexos_4111(page)
@@ -414,36 +463,50 @@ def extrair_datas_categorias_e_anexos(url):
                 text = (cell.inner_text() or "").strip()
                 if len(text) == 10 and text[2] == "/" and text[5] == "/":
                     datas.append(text)
-        except: pass
-
-        try:
-            items = page.evaluate(r"""() => {
-              const res = [];
-              const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
-              for (const a of Array.from(document.querySelectorAll('a[href]'))) {
-                const href = a.getAttribute('href') || '';
-                if (!isAsset(href)) continue;
-                const abs = new URL(href, document.baseURI).toString();
-                res.push({ href: abs, text: (a.textContent || '').trim(), categoria: 'Sem categoria' });
-              }
-              return res;
-            }""")
         except Exception:
-            items = []
+            pass
+
+        hrefs: list[str] = []
+        try:
+            hrefs.extend(
+                page.evaluate(
+                    r"""() => {
+                      const res = [];
+                      const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
+                      for (const a of Array.from(document.querySelectorAll('a[href]'))) {
+                        const href = a.getAttribute('href') || '';
+                        if (!isAsset(href)) continue;
+                        res.push(new URL(href, document.baseURI).toString());
+                      }
+                      return res;
+                    }"""
+                )
+            )
+        except Exception:
+            pass
+
+        # Complemento: assets embutidos no HTML (ex.: XSD do DRM que às vezes não vira <a>).
+        try:
+            html = page.content()
+            for m in re.findall(
+                r"https?://[^\"'\s<>]+?\.(?:pdf|xlsx?|xsd|zip)",
+                html,
+                flags=re.I,
+            ):
+                hrefs.append(m)
+            for m in re.findall(
+                r"[\"']((?:/)?content/[^\"']+\.(?:pdf|xlsx?|xsd|zip))[\"']",
+                html,
+                flags=re.I,
+            ):
+                hrefs.append(page.evaluate("u => new URL(u, document.baseURI).toString()", m))
+        except Exception:
+            pass
 
         browser.close()
 
-        categoria_por_url, anexos, seen = {}, [], set()
-        for it in items:
-            u = it.get("href") or ""
-            if not u: continue
-            pl = u.lower()
-            if ONLY_ATUAL and "/atual/" not in pl: continue
-            if any(pat in pl for pat in EXCLUDE_PATTERNS): continue
-            if u not in seen:
-                seen.add(u)
-                anexos.append(u)
-                categoria_por_url[u] = (it.get("categoria") or "Sem categoria").strip()
+        anexos = _filtrar_urls_anexos(list(dict.fromkeys(hrefs)))
+        categoria_por_url = {u: categoria_pagina for u in anexos}
         return datas, anexos, categoria_por_url
 
 
