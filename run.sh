@@ -1,40 +1,49 @@
 #!/usr/bin/env bash
+# Wrapper do motor (path novo ou legado detectado pela pasta do script).
 set -euo pipefail
 
-SITE_HOME="/home/tsalachtech.com.br"
-APP_DIR="$SITE_HOME/apps/leiautes"
-PUBLIC_DIR="$SITE_HOME/public_html/monitoramentos/leiautes"
-VENV_DIR="$APP_DIR/venv"
-LOG_DIR="$APP_DIR/logs"
-TAIL="$PUBLIC_DIR/_status_tail.txt"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+VENV_DIR="$APP_DIR/.venv"
+# Compat: instalação antiga usa venv/ em vez de .venv/
+if [ ! -x "$VENV_DIR/bin/python" ] && [ -x "$APP_DIR/venv/bin/python" ]; then
+  VENV_DIR="$APP_DIR/venv"
+fi
 PY="$VENV_DIR/bin/python"
-REQ="$APP_DIR/requirements.txt"
-MAIN=$(ls -1 "$APP_DIR/scripts/"*.py 2>/dev/null | head -n1)
+MAIN="$APP_DIR/scripts/verifica_leiautes_finaud.py"
+LOG_DIR="$APP_DIR/logs"
 
-mkdir -p "$LOG_DIR"; touch "$TAIL"; chmod 664 "$TAIL"
-log(){ echo "$(date '+%F %T') | $1" | tee -a "$LOG_DIR/execucao_$(date '+%Y%m%d').log"; }
-tailw(){ echo "$(date '+%d/%m/%Y %H:%M:%S') | $1" > "$TAIL"; }
+export HOME="$APP_DIR"
+export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$APP_DIR/runtime/browsers}"
+export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$APP_DIR/runtime/cache}"
+export LEIAUTES_DISABLE_STATUS_TAIL="${LEIAUTES_DISABLE_STATUS_TAIL:-1}"
+# Fase paralela: redireciona destinatários do config_email.json só para Michel
+export LEIAUTES_EMAIL_TEST_TO="${LEIAUTES_EMAIL_TEST_TO:-michel@finaud.com.br}"
 
-log "=== INÍCIO leiautes ==="
-#tailw "Iniciando execução (leiautes)..."
-
-# venv
-if [ ! -x "$PY" ]; then
-  python3 -m venv "$VENV_DIR"
-  "$VENV_DIR/bin/pip" install --upgrade pip
+if [ -f "$APP_DIR/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$APP_DIR/.env"
+  set +a
 fi
 
-# requirements (se existir)
-[ -f "$REQ" ] && "$VENV_DIR/bin/pip" install -r "$REQ" -q || true
+mkdir -p "$LOG_DIR" "$PLAYWRIGHT_BROWSERS_PATH" "$XDG_CACHE_HOME"
 
-# checagens mínimas
-if [ -z "$MAIN" ]; then
-  log "Nenhum script .py encontrado em $APP_DIR/scripts."
- # tailw "ERRO | Nenhum .py em scripts/"
+log(){ echo "$(date '+%F %T') | $1" | tee -a "$LOG_DIR/execucao_$(date '+%Y%m%d').log"; }
+
+if [ ! -x "$PY" ]; then
+  log "Python do venv não encontrado: $PY"
+  exit 2
+fi
+if [ ! -f "$MAIN" ]; then
+  log "Script do motor não encontrado: $MAIN"
   exit 2
 fi
 
-# executa
+if [[ "${1:-}" ]]; then
+  export MONITOR_TEST_DATE="$1"
+fi
+
+log "=== INÍCIO leiautes (APP_DIR=$APP_DIR) ==="
 set +e
 cd "$APP_DIR"
 "$PY" "$MAIN"
@@ -43,10 +52,7 @@ set -e
 
 if [ "$rc" -eq 0 ]; then
   log "Execução concluída com sucesso (rc=0)."
-  #tailw "OK | Última execução: $(date '+%d/%m/%Y %H:%M:%S')"
   exit 0
-else
-  log "Falha na execução (rc=$rc)."
-  #tailw "ERRO | Código $rc em $(date '+%d/%m/%Y %H:%M:%S')"
-  exit "$rc"
 fi
+log "Falha na execução (rc=$rc)."
+exit "$rc"

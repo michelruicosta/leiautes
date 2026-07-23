@@ -94,12 +94,21 @@ try:
         registrar_arquivo_observado,
         salvar_conteudo_versao,
     )
-    from persistencia.db import conectar, init_db
+    from persistencia.db import (
+        conectar,
+        finalizar_execucao,
+        init_db,
+        iniciar_execucao,
+    )
+    from persistencia.execucoes_db import contar_resultados_execucao
 except Exception:
     registrar_arquivo_observado = None
     salvar_conteudo_versao = None
     conectar = None
     init_db = None
+    iniciar_execucao = None
+    finalizar_execucao = None
+    contar_resultados_execucao = None
 
 CONNECT_TIMEOUT = 10
 READ_TIMEOUT = 10
@@ -497,6 +506,8 @@ def _parse_evidencia_item(texto: str) -> dict:
         r'^(.*?): antes "([\s\S]*)"; depois "([\s\S]*)"$',
         r"^(.*?): antes '([\s\S]*)'; depois '([\s\S]*)'$",
         r"^(.*?): (linha anterior.*?); antes \((.*)\); depois \((.*)\)$",
+        # XLSX/XLS do comparador: "Aba X, célula A1: antes valor; depois valor"
+        r"^(.*?): antes ([\s\S]*); depois ([\s\S]*)$",
     ]
     for padrao in padroes:
         m = re.match(padrao, texto)
@@ -606,87 +617,187 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
     """
 
 
-def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str) -> str:
+# Limite de linhas de evidência por arquivo no e-mail (leitura limpa).
+MAX_DIFFS_EMAIL = 5
+
+
+def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
+    if not detalhe:
+        return evidencia or "metadados alterados"
+    n_in = len(detalhe.get("itens_incluidos") or [])
+    n_out = len(detalhe.get("itens_removidos") or [])
+    n_ch = len(detalhe.get("itens_alterados") or [])
+    partes = []
+    if n_ch:
+        partes.append(f"{n_ch} mudou")
+    if n_in:
+        partes.append(f"{n_in} entrou")
+    if n_out:
+        partes.append(f"{n_out} saiu")
+    if not partes:
+        return evidencia or "alteração detectada"
+    return " · ".join(partes)
+
+
+def _html_tabela_mudancas(itens: list[str]) -> str:
+    """Uma tabela compacta Local | Antes | Depois (sem cards aninhados)."""
     if not itens:
-        conteudo = f"<p class='muted'>{html.escape(vazio)}</p>"
-    elif tipo == "mudou":
-        cards = []
-        for texto in itens[:8]:
-            item = _parse_evidencia_item(str(texto))
-            cards.append(
-                f"""
-                <div class="evidence-card evidence-change">
-                  <div class="evidence-head"><strong>{html.escape(item.get('local', 'Alteração'))}</strong></div>
-                  <table class="before-after" role="presentation" cellpadding="0" cellspacing="0">
-                    <tr>
-                      <td><small>Antes</small><p>{html.escape(str(item.get('antes', '')))}</p></td>
-                      <td><small>Depois</small><p>{html.escape(str(item.get('depois', '')))}</p></td>
-                    </tr>
-                  </table>
-                </div>
-                """
-            )
-        if len(itens) > 8:
-            cards.append(f"<p class='more'>+ {len(itens) - 8} alteração(ões) adicional(is) no arquivo.</p>")
-        conteudo = "".join(cards)
-    else:
-        grupos: list[tuple[str, list[dict]]] = []
-        for texto in itens:
-            item = _parse_evidencia_item(str(texto))
-            grupo = _grupo_local(item.get("local", "Evidência"))
-            if grupos and grupos[-1][0] == grupo:
-                grupos[-1][1].append(item)
-            else:
-                grupos.append((grupo, [item]))
-        cards = []
-        for grupo, dados in grupos[:4]:
-            local = _numeros_linha(dados, removido=tipo == "saiu")
-            titulo_card = f"{grupo} - {local}" if local else grupo
-            textos = [
-                item.get("antes" if tipo == "saiu" else "depois", item.get("depois", ""))
-                for item in dados
-            ]
-            cards.append(_html_card_simples(titulo_card, textos, tipo == "saiu"))
-        if len(grupos) > 4:
-            cards.append(f"<p class='more'>+ {len(grupos) - 4} bloco(s) adicional(is) no arquivo.</p>")
-        conteudo = "".join(cards)
+        return ""
+    linhas = []
+    for texto in itens[:MAX_DIFFS_EMAIL]:
+        item = _parse_evidencia_item(str(texto))
+        local = html.escape(str(item.get("local") or "Alteração"))
+        antes = html.escape(str(item.get("antes") or "—"))
+        depois = html.escape(str(item.get("depois") or "—"))
+        linhas.append(
+            f"<tr><td class='col-local'>{local}</td>"
+            f"<td>{antes}</td><td>{depois}</td></tr>"
+        )
+    extra = ""
+    if len(itens) > MAX_DIFFS_EMAIL:
+        extra = (
+            f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} "
+            f"alteração(ões) adicional(is) — consulte o arquivo anexo ou o Bacen.</p>"
+        )
     return f"""
-      <div class="diff-block">
-        <p class="diff-title">{html.escape(titulo)}</p>
-        {conteudo}
-      </div>
+      <table class="diff-table" role="presentation" cellpadding="0" cellspacing="0">
+        <thead>
+          <tr>
+            <th>Onde</th><th>Antes</th><th>Depois</th>
+          </tr>
+        </thead>
+        <tbody>
+          {''.join(linhas)}
+        </tbody>
+      </table>
+      {extra}
     """
+
+
+def _html_lista_simples(titulo: str, tipo: str, itens: list[str]) -> str:
+    """Lista curta para inclusões/remoções — omitida se vazia."""
+    if not itens:
+        return ""
+    bullets = []
+    for texto in itens[:MAX_DIFFS_EMAIL]:
+        item = _parse_evidencia_item(str(texto))
+        if tipo == "saiu":
+            trecho = item.get("antes") or item.get("depois") or texto
+        else:
+            trecho = item.get("depois") or item.get("antes") or texto
+        local = item.get("local") or "Item"
+        bullets.append(
+            f"<li><strong>{html.escape(str(local))}:</strong> "
+            f"{html.escape(str(trecho))}</li>"
+        )
+    extra = ""
+    if len(itens) > MAX_DIFFS_EMAIL:
+        extra = f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} item(ns) adicional(is).</p>"
+    return f"""
+      <p class="sec-label">{html.escape(titulo)}</p>
+      <ul class="compact-list">{''.join(bullets)}</ul>
+      {extra}
+    """
+
+
+def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str = "") -> str:
+    """Compat: seções vazias não aparecem (e-mail limpo)."""
+    del vazio  # não mostrar estado vazio
+    if not itens:
+        return ""
+    if tipo == "mudou":
+        return f'<p class="sec-label">{html.escape(titulo)}</p>{_html_tabela_mudancas(itens)}'
+    return _html_lista_simples(titulo, tipo, itens)
 
 
 def _html_detalhe_alteracao(item, detalhe) -> str:
     url = item["url"]
     nome = _filename_from_url(url)
-    evidencia = html.escape(item.get("evidencia") or "")
+    evidencia = item.get("evidencia") or ""
     link = (
         f'<a href="{html.escape(url)}" target="_blank" '
         f'style="color:{BLUE_BRAND}; text-decoration:none;">{html.escape(nome)}</a>'
     )
     if not detalhe:
-        evidencia_html = f"<p class='muted'>{evidencia}</p>" if evidencia else ""
-        return f"<li>{link}{evidencia_html}</li>"
+        ev = f" — <span class='muted'>{html.escape(evidencia)}</span>" if evidencia else ""
+        return f"<div class='file-block'><p class='file-title'>{link}{ev}</p></div>"
 
-    titulo = html.escape(
-        f"{detalhe.get('leiaute_codigo') or 'Leiaute'} - {detalhe.get('nome_arquivo') or nome}"
+    codigo = (detalhe.get("leiaute_codigo") or "").strip()
+    titulo_nome = detalhe.get("nome_arquivo") or nome
+    titulo = html.escape(f"{codigo} · {titulo_nome}" if codigo else str(titulo_nome))
+    contagem = html.escape(_contagem_curta(detalhe, evidencia))
+
+    incluidos = detalhe.get("itens_incluidos") or []
+    alterados = detalhe.get("itens_alterados") or []
+    removidos = detalhe.get("itens_removidos") or []
+    secoes = "".join(
+        [
+            _html_lista_diferencas("Entrou", "entrou", incluidos),
+            _html_lista_diferencas("Mudou", "mudou", alterados),
+            _html_lista_diferencas("Saiu", "saiu", removidos),
+        ]
     )
-    tipo = html.escape(str(detalhe.get("tipo_arquivo") or ""))
-    resumo = html.escape(str(detalhe.get("resumo_executivo") or "Alteracao detectada."))
-    impacto = html.escape(str(detalhe.get("impacto_sugerido") or "Revisar o arquivo alterado."))
+    if not secoes and evidencia:
+        secoes = f"<p class='muted'>{html.escape(evidencia)}</p>"
+
     return f"""
-      <div class="change-card">
-        <p class="change-title">{titulo} <span class="muted">({tipo})</span></p>
-        <p>{link}</p>
-        <p>{resumo}</p>
-        <p class="muted">{impacto}</p>
-        {_html_lista_diferencas("Entrou", "entrou", detalhe.get("itens_incluidos", []), "Nenhuma inclusao identificada.")}
-        {_html_lista_diferencas("Mudou", "mudou", detalhe.get("itens_alterados", []), "Nenhuma alteracao de conteudo identificada.")}
-        {_html_lista_diferencas("Saiu", "saiu", detalhe.get("itens_removidos", []), "Nenhuma remocao identificada.")}
+      <div class="file-block">
+        <p class="file-title">{titulo}</p>
+        <p class="file-meta">{link} · {contagem}</p>
+        {secoes}
       </div>
     """
+
+
+def montar_corpo_email_alteracoes(
+    alterados: list[dict],
+    detalhes_por_url: dict,
+    categoria_por_url: dict | None = None,
+) -> str:
+    """Corpo limpo: resumo em tabela + detalhes só com mudanças reais."""
+    del categoria_por_url  # agrupamento por categoria poluía; lista única
+    n = len(alterados)
+    resumo_linhas = []
+    detalhes_html = []
+    for item in alterados:
+        url = item["url"]
+        nome = _filename_from_url(url)
+        detalhe = detalhes_por_url.get(url) or {}
+        codigo = (detalhe.get("leiaute_codigo") or "").strip() or "—"
+        contagem = _contagem_curta(detalhe, item.get("evidencia") or "")
+        link = (
+            f'<a href="{html.escape(url)}" target="_blank">'
+            f"{html.escape(nome)}</a>"
+        )
+        resumo_linhas.append(
+            "<tr>"
+            f"<td class='col-leiaute'>{html.escape(codigo)}</td>"
+            f"<td>{link}</td>"
+            f"<td class='col-resumo'>{html.escape(contagem)}</td>"
+            "</tr>"
+        )
+        detalhes_html.append(_html_detalhe_alteracao(item, detalhe or None))
+
+    return f"""
+      <p class="lead-count">
+        <strong style="color:{BLUE_BRAND};">{n} arquivo(s) alterado(s)</strong>
+      </p>
+      <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0">
+        <thead>
+          <tr>
+            <th>Leiaute</th>
+            <th>Arquivo</th>
+            <th>Resumo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {''.join(resumo_linhas)}
+        </tbody>
+      </table>
+      <p class="sec-title">O que mudou</p>
+      {''.join(detalhes_html)}
+    """
+
 
 def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
     return f"""
@@ -696,29 +807,30 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
 <meta charset="UTF-8">
 <style>
   body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; background:#fff; }}
-  .wrap {{ width: 100%; max-width: 980px; margin: 0 auto; }}
-  .item p {{ margin: 0 0 8px; line-height: 1.55; font-size: 16px; }}
-  .change-card {{ border:1px solid #dde1e6; border-radius:8px; padding:16px 18px; margin:16px 0; background:#fff; }}
-  .change-title {{ font-size:18px; font-weight:bold; margin:0 0 8px; }}
-  .diff-block {{ background:#fff; border:1px solid #e2e6ec; border-radius:8px; padding:12px 14px; margin:12px 0; }}
-  .diff-title {{ color:{BLUE_BRAND}; font-weight:bold; font-size:17px; margin:0 0 8px; }}
-  .evidence-card {{ border:1px solid #d9e0ea; border-radius:8px; margin:8px 0; overflow:hidden; background:#fbfcfe; }}
-  .evidence-head {{ padding:9px 11px; border-bottom:1px solid #e7ebf0; background:#f8fafc; }}
-  .evidence-head span {{ display:inline-block; border-radius:999px; padding:3px 8px; margin-right:8px; background:#e8f7ee; color:#237a3b; font-size:12px; font-weight:bold; }}
-  .evidence-change .evidence-head span {{ background:#fff4db; color:#8a5b00; }}
-  .evidence-body {{ padding:12px 14px; font-size:14px; color:#202124; }}
-  .evidence-body p {{ margin:0 0 9px; line-height:1.55; }}
-  .before-after {{ width:100%; border-collapse:collapse; }}
-  .before-after td {{ width:50%; vertical-align:top; padding:10px 12px; border-top:1px solid #e7ebf0; }}
-  .before-after td + td {{ border-left:1px solid #e7ebf0; }}
-  .before-after small {{ color:#5b6b84; font-weight:bold; text-transform:uppercase; }}
-  .before-after p {{ margin:6px 0 0; line-height:1.45; }}
-  .more {{ display:inline-block; border-radius:999px; background:#eef2ff; color:{BLUE_BRAND}; padding:5px 10px; font-size:13px; font-weight:bold; }}
-  .muted {{ color:#5b6b84; font-size:14px; }}
-  a {{ color: #1a73e8; text-decoration: none; }}
+  .wrap {{ width: 100%; max-width: 920px; margin: 0 auto; }}
+  .lead-count {{ font-size: 17px; margin: 8px 0 12px; }}
+  .summary-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 18px; }}
+  .summary-table th {{ text-align: left; background: #f5f7fa; color: #5b6b84; font-size: 12px; text-transform: uppercase; padding: 8px 9px; border: 1px solid #e7ebf0; }}
+  .summary-table td {{ vertical-align: top; padding: 8px 9px; border: 1px solid #e7ebf0; line-height: 1.4; word-break: break-word; }}
+  .summary-table .col-leiaute {{ width: 12%; white-space: nowrap; font-weight: bold; color: #333; }}
+  .summary-table .col-resumo {{ width: 22%; white-space: nowrap; color: #333; }}
+  .sec-title {{ font-size: 17px; margin: 22px 0 10px; color: {BLUE_BRAND}; font-weight: bold; border-bottom: 1px solid #e7ebf0; padding-bottom: 6px; }}
+  .file-block {{ margin: 0 0 18px; padding: 0 0 14px; border-bottom: 1px solid #eef1f4; }}
+  .file-block:last-child {{ border-bottom: none; }}
+  .file-title {{ font-size: 16px; font-weight: bold; margin: 0 0 4px; }}
+  .file-meta {{ margin: 0 0 10px; font-size: 14px; color: #333; }}
+  .sec-label {{ color: {BLUE_BRAND}; font-weight: bold; font-size: 14px; margin: 10px 0 6px; }}
+  .diff-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 8px; }}
+  .diff-table th {{ text-align: left; background: #f5f7fa; color: #5b6b84; font-size: 12px; text-transform: uppercase; padding: 7px 8px; border: 1px solid #e7ebf0; }}
+  .diff-table td {{ vertical-align: top; padding: 7px 8px; border: 1px solid #e7ebf0; line-height: 1.4; word-break: break-word; }}
+  .diff-table .col-local {{ width: 28%; color: #333; font-weight: bold; }}
+  .compact-list {{ margin: 0 0 8px 18px; padding: 0; font-size: 13px; line-height: 1.45; }}
+  .compact-list li {{ margin: 0 0 4px; }}
+  .more {{ color: {BLUE_BRAND}; font-size: 12px; font-weight: bold; margin: 4px 0 0; }}
+  .muted {{ color: #5b6b84; font-size: 13px; }}
+  a {{ color: {BLUE_BRAND}; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
-  .rodape {{ font-size: 12px; color: #555; margin-top: 40px; text-align: center; }}
-  .sec-title {{ font-size: 18px; margin-top: 18px; color: {BLUE_BRAND}; font-weight: bold; }}
+  .rodape {{ font-size: 12px; color: #555; margin-top: 36px; text-align: center; }}
 </style>
 </head>
 <body>
@@ -726,8 +838,8 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
     <div style="text-align:center; margin-bottom: 12px;">
       <img src="cid:{logo_cid}" alt="FINAUD TEC" style="max-width:220px; height:auto;">
     </div>
-    <p style="font-size:18px; margin-top:24px;">
-      Foram identificadas possíveis atualizações na data de <strong>{data_ref}</strong>.
+    <p style="font-size:17px; margin-top:20px; line-height:1.5;">
+      Atualizações nos leiautes do Bacen em <strong>{data_ref}</strong>.
     </p>
     {conteudo_html}
     <div class="rodape">
@@ -902,24 +1014,16 @@ def main():
 
             if alterados:
                 detalhes_por_url = _carregar_detalhes_alteracoes(execucao_id)
-                blocos_por_categoria = {}
-                for item in alterados:
-                    url = item["url"]
-                    categoria = categoria_por_url.get(url, "Sem categoria")
-                    detalhe = detalhes_por_url.get(url)
-                    bloco = _html_detalhe_alteracao(item, detalhe)
-                    blocos_por_categoria.setdefault(categoria, []).append(bloco)
-
-                partes = []
-                partes.append(f"<p style='font-size:17px;'><strong style='color:{BLUE_BRAND};'>Arquivo(s) alterado(s):</strong></p>")
-                for cat, blocos in blocos_por_categoria.items():
-                    partes.append(f"<p><strong>{html.escape(cat)}</strong></p>{''.join(blocos)}")
-                corpo = "".join(partes)
-                html = gerar_html_email(corpo, hoje, logo_cid)
+                corpo = montar_corpo_email_alteracoes(
+                    alterados,
+                    detalhes_por_url,
+                    categoria_por_url,
+                )
+                corpo_html = gerar_html_email(corpo, hoje, logo_cid)
             else:
-                html = gerar_html_sem_novidade(hoje, logo_cid)
+                corpo_html = gerar_html_sem_novidade(hoje, logo_cid)
 
-            msg.attach(MIMEText(html, "html", "utf-8"))
+            msg.attach(MIMEText(corpo_html, "html", "utf-8"))
 
             with open(LOGO_PATH, "rb") as f:
                 img = MIMEImage(f.read())
@@ -927,9 +1031,18 @@ def main():
                 img.add_header("Content-Disposition", "inline", filename="logo.jpg")
                 msg.attach(img)
 
+            # Com muitos arquivos, anexos deixam o e-mail pesado; prioriza links no corpo.
+            max_anexos = 3 if len(alterados) > 3 else len(alterados)
             session = _session()
             total_size = 0
+            anexados = 0
             for item in alterados:
+                if anexados >= max_anexos:
+                    logger.info(
+                        "Anexos limitados a %s arquivo(s) para manter o e-mail leve.",
+                        max_anexos,
+                    )
+                    break
                 url = item["url"]
                 content, maintype, subtype, motivo = baixar_para_anexo(session, url)
                 if content:
@@ -942,6 +1055,7 @@ def main():
                     part.add_header("Content-Disposition", "attachment", filename=_filename_from_url(url))
                     msg.attach(part)
                     total_size += len(content)
+                    anexados += 1
                 elif motivo:
                     logger.warning(f"Não foi possível anexar {url} | Motivo: {motivo}")
 
@@ -982,6 +1096,23 @@ def _fmt_duracao(delta: timedelta) -> str:
 
 # ===== MAIN RUN =====
 if __name__ == "__main__":
+    # Cron/CLI: cria execução no banco se a API não passou LEIAUTES_EXECUCAO_ID.
+    # Sem isso, versões/alterações (antes/depois) não são gravadas e o e-mail fica só com metadados.
+    execucao_propria = False
+    execucao_id_cli = None
+    env_exec = os.environ.get("LEIAUTES_EXECUCAO_ID", "").strip()
+    if not env_exec.isdigit() and iniciar_execucao:
+        try:
+            execucao_id_cli = iniciar_execucao()
+            os.environ["LEIAUTES_EXECUCAO_ID"] = str(execucao_id_cli)
+            execucao_propria = True
+            logger.info(
+                "Execução %s criada pelo motor (cron/CLI) para evidências antes/depois.",
+                execucao_id_cli,
+            )
+        except Exception as exc:
+            logger.warning("Não foi possível criar execução no banco: %s", exc)
+
     try:
         inicio_exec = datetime.now()
         result = main()
@@ -1081,7 +1212,31 @@ if __name__ == "__main__":
 
         _write_status_tail("leiautes", header, resumo, [], aviso_tecnico)
 
+        if execucao_propria and execucao_id_cli and finalizar_execucao:
+            contadores = (
+                contar_resultados_execucao(execucao_id_cli)
+                if contar_resultados_execucao
+                else {"qtd_leiautes": 0, "qtd_arquivos": 0, "qtd_alteracoes": len(alterados)}
+            )
+            finalizar_execucao(
+                execucao_id_cli,
+                status="sucesso",
+                qtd_leiautes=contadores.get("qtd_leiautes", 0),
+                qtd_arquivos=contadores.get("qtd_arquivos", 0),
+                qtd_alteracoes=contadores.get("qtd_alteracoes", len(alterados)),
+                emails_enviados=emails_enviados,
+            )
+
     except Exception as e:
+        if execucao_propria and execucao_id_cli and finalizar_execucao:
+            try:
+                finalizar_execucao(
+                    execucao_id_cli,
+                    status="erro",
+                    erro=str(e).splitlines()[-1][:2000],
+                )
+            except Exception:
+                pass
         try:
             resumo_err = {"Motivo": str(e).splitlines()[-1]}
         except Exception:

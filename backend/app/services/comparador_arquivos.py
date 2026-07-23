@@ -234,37 +234,56 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
     except Exception:
         return _fallback_dependencia("XLSX", "openpyxl")
 
-    wb_ant = openpyxl.load_workbook(anterior, data_only=True, read_only=True)
-    wb_atual = openpyxl.load_workbook(atual, data_only=True, read_only=True)
+    from openpyxl.utils import get_column_letter
+
+    # read_only=False: max_row/max_column refletem melhor a área usada;
+    # data_only=False: evita recalcular fórmulas (mais rápido e estável no servidor).
+    wb_ant = openpyxl.load_workbook(anterior, data_only=False, read_only=False)
+    wb_atual = openpyxl.load_workbook(atual, data_only=False, read_only=False)
     abas_ant = set(wb_ant.sheetnames)
     abas_atual = set(wb_atual.sheetnames)
-    from openpyxl.utils import get_column_letter
 
     incluidos = [f"Aba incluída: {aba}" for aba in sorted(abas_atual - abas_ant)]
     removidos = [f"Aba removida: {aba}" for aba in sorted(abas_ant - abas_atual)]
     alterados: list[str] = []
+    limite_evidencias = 50
 
     for aba in sorted(abas_ant & abas_atual):
+        if len(alterados) >= limite_evidencias:
+            break
         ws_ant = wb_ant[aba]
         ws_atual = wb_atual[aba]
-        max_row = max(ws_ant.max_row or 0, ws_atual.max_row or 0)
-        max_col = max(ws_ant.max_column or 0, ws_atual.max_column or 0)
-        for row in range(1, max_row + 1):
-            for col in range(1, max_col + 1):
-                v_ant = ws_ant.cell(row=row, column=col).value
-                v_atual = ws_atual.cell(row=row, column=col).value
-                if v_ant != v_atual:
-                    coluna = get_column_letter(col)
-                    cabecalho = ws_atual.cell(row=1, column=col).value
-                    contexto = f", coluna {cabecalho}" if cabecalho and row != 1 else ""
-                    alterados.append(
-                        f"Aba {aba}, célula {coluna}{row}{contexto}: "
-                        f"antes {_formatar_valor_planilha(v_ant)}; depois {_formatar_valor_planilha(v_atual)}"
-                    )
-                    if len(alterados) >= 200:
-                        break
-            if len(alterados) >= 200:
+        # Compara por linhas (valores) em vez de célula a célula com .cell() —
+        # muito mais rápido em planilhas grandes do Bacen.
+        rows_ant = list(ws_ant.iter_rows(values_only=True))
+        rows_atual = list(ws_atual.iter_rows(values_only=True))
+        max_row = max(len(rows_ant), len(rows_atual))
+        cabecalhos = rows_atual[0] if rows_atual else ()
+
+        for row_idx in range(max_row):
+            if len(alterados) >= limite_evidencias:
                 break
+            row_ant = rows_ant[row_idx] if row_idx < len(rows_ant) else ()
+            row_atual = rows_atual[row_idx] if row_idx < len(rows_atual) else ()
+            max_col = max(len(row_ant), len(row_atual))
+            for col_idx in range(max_col):
+                v_ant = row_ant[col_idx] if col_idx < len(row_ant) else None
+                v_atual = row_atual[col_idx] if col_idx < len(row_atual) else None
+                if v_ant == v_atual:
+                    continue
+                coluna = get_column_letter(col_idx + 1)
+                cabecalho = cabecalhos[col_idx] if col_idx < len(cabecalhos) else None
+                contexto = f", coluna {cabecalho}" if cabecalho and row_idx != 0 else ""
+                alterados.append(
+                    f"Aba {aba}, célula {coluna}{row_idx + 1}{contexto}: "
+                    f'antes "{_formatar_valor_planilha(v_ant)}"; '
+                    f'depois "{_formatar_valor_planilha(v_atual)}"'
+                )
+                if len(alterados) >= limite_evidencias:
+                    break
+
+    wb_ant.close()
+    wb_atual.close()
 
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),
@@ -317,7 +336,8 @@ def _comparar_xls(anterior: Path, atual: Path) -> dict[str, Any]:
                     contexto = f", coluna {cabecalho}" if cabecalho else ""
                     alterados.append(
                         f"Aba {aba}, célula {coluna}{row + 1}{contexto}: "
-                        f"antes {_formatar_valor_planilha(v_ant)}; depois {_formatar_valor_planilha(v_atual)}"
+                        f'antes "{_formatar_valor_planilha(v_ant)}"; '
+                        f'depois "{_formatar_valor_planilha(v_atual)}"'
                     )
                     if len(alterados) >= 200:
                         break

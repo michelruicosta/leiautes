@@ -43,6 +43,16 @@ function parseEvidencia(texto: string, tipo: DiffTipo): Evidencia {
     };
   }
 
+  // XLSX legado (sem aspas): "Aba X, célula A1: antes valor; depois valor"
+  const antesDepoisSemAspas = texto.match(/^(.*?): antes ([\s\S]*); depois ([\s\S]*)$/);
+  if (antesDepoisSemAspas) {
+    return {
+      local: antesDepoisSemAspas[1],
+      antes: antesDepoisSemAspas[2],
+      depois: antesDepoisSemAspas[3],
+    };
+  }
+
   const incluidoComLinha = texto.match(/^(.*?): incluído "([\s\S]*)"$/);
   if (incluidoComLinha) {
     return {

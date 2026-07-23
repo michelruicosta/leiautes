@@ -46,6 +46,8 @@ app.add_middleware(
         "https://finaudapps.com.br",
         "https://www.finaudapps.com.br",
         "https://admin.finaudapps.com.br",
+        "https://leiautes-bacen.finaudapps.com.br",
+        "https://www.leiautes-bacen.finaudapps.com.br",
     ],
     allow_credentials=True,
     allow_methods=["*"],
