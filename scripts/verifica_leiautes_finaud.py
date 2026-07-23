@@ -683,17 +683,6 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
 # Limite de linhas de evidência por arquivo no e-mail (leitura limpa).
 MAX_DIFFS_EMAIL = 5
 
-_TEXTO_AVISO_TECNICO = (
-    "Alteração <strong>técnica</strong> do arquivo no site do Bacen "
-    "(não é mudança de texto, célula ou tabela). "
-    "Em termos simples: o Bacen republicou ou atualizou o arquivo no servidor "
-    "(por exemplo data de publicação, tamanho ou identificador interno). "
-    "<strong>Você não precisa agir por isso.</strong> "
-    "Só revise com atenção quando aparecer a tabela <em>Onde | Antes | Depois</em> "
-    "com alterações de conteúdo."
-)
-
-
 def _eh_evidencia_tecnica(texto: str) -> bool:
     t = (texto or "").lower()
     chaves = (
@@ -740,26 +729,11 @@ def _detalhe_so_tecnico(detalhe: dict | None, evidencia: str = "") -> bool:
     return not (inc or rem or alt)
 
 
-def _html_aviso_tecnico(evidencia: str = "") -> str:
-    detalhe = ""
-    if evidencia:
-        detalhe = (
-            f"<p class='muted' style='margin:8px 0 0;'>"
-            f"Sinal técnico: {html.escape(evidencia)}</p>"
-        )
-    return f"""
-      <div class="note-tech">
-        <p style="margin:0; line-height:1.5;">{_TEXTO_AVISO_TECNICO}</p>
-        {detalhe}
-      </div>
-    """
-
-
 def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
     if _detalhe_so_tecnico(detalhe, evidencia):
-        return "alteração técnica (sem mudança de conteúdo)"
+        return "técnico"
     if not detalhe:
-        return evidencia or "alteração detectada"
+        return evidencia or "alterado"
     _, conteudo_alt = _separar_itens_tecnicos_e_conteudo(detalhe.get("itens_alterados") or [])
     n_in = len(detalhe.get("itens_incluidos") or [])
     n_out = len(detalhe.get("itens_removidos") or [])
@@ -772,7 +746,7 @@ def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
     if n_out:
         partes.append(f"{n_out} saiu")
     if not partes:
-        return evidencia or "alteração detectada"
+        return "conteúdo alterado"
     return " · ".join(partes)
 
 
@@ -847,44 +821,24 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str 
     return _html_lista_simples(titulo, tipo, itens)
 
 
-def _html_detalhe_alteracao(item, detalhe) -> str:
+def _html_detalhe_conteudo(item, detalhe) -> str:
+    """Um arquivo com mudança interna — título único + diffs (sem repetir nome)."""
     url = item["url"]
     nome = _filename_from_url(url)
     evidencia = item.get("evidencia") or ""
+    codigo = ((detalhe or {}).get("leiaute_codigo") or "").strip()
+    titulo_nome = (detalhe or {}).get("nome_arquivo") or nome
+    rotulo = f"{codigo} · {titulo_nome}" if codigo else str(titulo_nome)
+    contagem = _contagem_curta(detalhe, evidencia)
     link = (
-        f'<a href="{html.escape(url)}" target="_blank" '
-        f'style="color:{BLUE_BRAND}; text-decoration:none;">{html.escape(nome)}</a>'
-    )
-    if not detalhe:
-        if _eh_evidencia_tecnica(evidencia):
-            return (
-                f"<div class='file-block'><p class='file-title'>{link}</p>"
-                f"{_html_aviso_tecnico(evidencia)}</div>"
-            )
-        ev = f" — <span class='muted'>{html.escape(evidencia)}</span>" if evidencia else ""
-        return f"<div class='file-block'><p class='file-title'>{link}{ev}</p></div>"
-
-    codigo = (detalhe.get("leiaute_codigo") or "").strip()
-    titulo_nome = detalhe.get("nome_arquivo") or nome
-    titulo = html.escape(f"{codigo} · {titulo_nome}" if codigo else str(titulo_nome))
-    contagem = html.escape(_contagem_curta(detalhe, evidencia))
-
-    incluidos = detalhe.get("itens_incluidos") or []
-    removidos = detalhe.get("itens_removidos") or []
-    tecnicos, conteudo = _separar_itens_tecnicos_e_conteudo(
-        detalhe.get("itens_alterados") or []
+        f'<a href="{html.escape(url)}" target="_blank">{html.escape(rotulo)}</a>'
     )
 
-    if _detalhe_so_tecnico(detalhe, evidencia):
-        sinal = evidencia or (tecnicos[0] if tecnicos else "")
-        return f"""
-      <div class="file-block">
-        <p class="file-title">{titulo}</p>
-        <p class="file-meta">{link} · {contagem}</p>
-        {_html_aviso_tecnico(sinal)}
-      </div>
-    """
-
+    incluidos = (detalhe or {}).get("itens_incluidos") or []
+    removidos = (detalhe or {}).get("itens_removidos") or []
+    _, conteudo = _separar_itens_tecnicos_e_conteudo(
+        (detalhe or {}).get("itens_alterados") or []
+    )
     secoes = "".join(
         [
             _html_lista_diferencas("Entrou", "entrou", incluidos),
@@ -892,22 +846,37 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
             _html_lista_diferencas("Saiu", "saiu", removidos),
         ]
     )
-    if tecnicos:
-        secoes += (
-            "<p class='muted' style='margin:8px 0 0;'>"
-            "Também houve sinal técnico no site do Bacen "
-            "(republicação/atualização do arquivo). "
-            "Isso sozinho não exige ação — o importante está na tabela acima."
-            "</p>"
-        )
-
     return f"""
       <div class="file-block">
-        <p class="file-title">{titulo}</p>
-        <p class="file-meta">{link} · {contagem}</p>
+        <p class="file-title">{link}
+          <span class="muted"> — {html.escape(contagem)}</span></p>
         {secoes}
       </div>
     """
+
+
+def _html_lista_tecnica(itens_bloco: list[tuple[dict, dict]]) -> str:
+    """Lista simples de arquivos técnicos — sem tabela nem cards repetidos."""
+    bullets = []
+    for item, detalhe in itens_bloco:
+        url = item["url"]
+        nome = _filename_from_url(url)
+        codigo = (detalhe.get("leiaute_codigo") or "").strip()
+        rotulo = f"{codigo} · {nome}" if codigo else nome
+        link = (
+            f'<a href="{html.escape(url)}" target="_blank">'
+            f"{html.escape(rotulo)}</a>"
+        )
+        bullets.append(f"<li>{link}</li>")
+    return f"<ul class='tech-list'>{''.join(bullets)}</ul>"
+
+
+def _html_detalhe_alteracao(item, detalhe) -> str:
+    """Compat: detalhe de conteúdo; técnico vira item de lista no bloco."""
+    evidencia = item.get("evidencia") or ""
+    if _detalhe_so_tecnico(detalhe, evidencia):
+        return _html_lista_tecnica([(item, detalhe or {})])
+    return _html_detalhe_conteudo(item, detalhe)
 
 
 def montar_corpo_email_alteracoes(
@@ -915,68 +884,55 @@ def montar_corpo_email_alteracoes(
     detalhes_por_url: dict,
     categoria_por_url: dict | None = None,
 ) -> str:
-    """Corpo limpo: resumo em tabela + detalhes só com mudanças reais."""
-    del categoria_por_url  # agrupamento por categoria poluía; lista única
-    n = len(alterados)
-    resumo_linhas = []
-    detalhes_html = []
-    qtd_tecnicos = 0
+    """Dois blocos limpos: Precisa agir (conteúdo) e Não precisa agir (técnico)."""
+    del categoria_por_url
+    precisa_agir: list[tuple[dict, dict]] = []
+    nao_precisa: list[tuple[dict, dict]] = []
+
     for item in alterados:
         url = item["url"]
-        nome = _filename_from_url(url)
         detalhe = detalhes_por_url.get(url) or {}
-        codigo = (detalhe.get("leiaute_codigo") or "").strip() or "—"
         evidencia = item.get("evidencia") or ""
+        par = (item, detalhe)
         if _detalhe_so_tecnico(detalhe, evidencia):
-            qtd_tecnicos += 1
-        contagem = _contagem_curta(detalhe, evidencia)
-        link = (
-            f'<a href="{html.escape(url)}" target="_blank">'
-            f"{html.escape(nome)}</a>"
-        )
-        resumo_linhas.append(
-            "<tr>"
-            f"<td class='col-leiaute'>{html.escape(codigo)}</td>"
-            f"<td>{link}</td>"
-            f"<td class='col-resumo'>{html.escape(contagem)}</td>"
-            "</tr>"
-        )
-        detalhes_html.append(_html_detalhe_alteracao(item, detalhe or None))
+            nao_precisa.append(par)
+        else:
+            precisa_agir.append(par)
 
-    guia = ""
-    if qtd_tecnicos:
-        guia = f"""
-      <div class="note-tech" style="margin:0 0 14px;">
-        <p style="margin:0; line-height:1.5;">
-          <strong>Como ler este e-mail:</strong>
-          quando o resumo disser <em>alteração técnica</em>, o Bacen só tocou
-          no arquivo no servidor (data/tamanho/identificador).
-          <strong>Não é mudança de conteúdo</strong> — não precisa se preocupar.
-          Se houver mudança interna (texto, célula, aba), você verá a tabela
-          <em>Onde | Antes | Depois</em> abaixo.
-        </p>
-      </div>
+    n = len(alterados)
+    n_acao = len(precisa_agir)
+    n_tech = len(nao_precisa)
+
+    bloco_acao = ""
+    if precisa_agir:
+        detalhes = "".join(
+            _html_detalhe_conteudo(item, detalhe or None)
+            for item, detalhe in precisa_agir
+        )
+        bloco_acao = f"""
+      <h2 class="h-acao">1. Precisa agir ({n_acao})</h2>
+      <p class="desc">Mudança dentro do arquivo — revise Antes/Depois.</p>
+      {detalhes}
+    """
+
+    bloco_tech = ""
+    if nao_precisa:
+        bloco_tech = f"""
+      <h2 class="h-tech">2. Não precisa agir ({n_tech})</h2>
+      <p class="desc">
+        Só republicação no site do Bacen (data/tamanho/identificador).
+        Sem mudança de texto, célula ou tabela.
+      </p>
+      {_html_lista_tecnica(nao_precisa)}
     """
 
     return f"""
-      <p class="lead-count">
-        <strong style="color:{BLUE_BRAND};">{n} arquivo(s) alterado(s)</strong>
+      <p class="lead">
+        <strong>{n} arquivo(s)</strong>
+        <span class="muted"> — {n_acao} precisa agir, {n_tech} técnico</span>
       </p>
-      {guia}
-      <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0">
-        <thead>
-          <tr>
-            <th>Leiaute</th>
-            <th>Arquivo</th>
-            <th>Resumo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {''.join(resumo_linhas)}
-        </tbody>
-      </table>
-      <p class="sec-title">O que mudou</p>
-      {''.join(detalhes_html)}
+      {bloco_acao}
+      {bloco_tech}
     """
 
 
@@ -987,45 +943,46 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
 <head>
 <meta charset="UTF-8">
 <style>
-  body {{ font-family: Arial, sans-serif; margin: 20px; color:#111; background:#fff; }}
-  .wrap {{ width: 100%; max-width: 920px; margin: 0 auto; }}
-  .lead-count {{ font-size: 17px; margin: 8px 0 12px; }}
-  .summary-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 18px; }}
-  .summary-table th {{ text-align: left; background: #f5f7fa; color: #5b6b84; font-size: 12px; text-transform: uppercase; padding: 8px 9px; border: 1px solid #e7ebf0; }}
-  .summary-table td {{ vertical-align: top; padding: 8px 9px; border: 1px solid #e7ebf0; line-height: 1.4; word-break: break-word; }}
-  .summary-table .col-leiaute {{ width: 12%; white-space: nowrap; font-weight: bold; color: #333; }}
-  .summary-table .col-resumo {{ width: 22%; white-space: nowrap; color: #333; }}
-  .sec-title {{ font-size: 17px; margin: 22px 0 10px; color: {BLUE_BRAND}; font-weight: bold; border-bottom: 1px solid #e7ebf0; padding-bottom: 6px; }}
-  .file-block {{ margin: 0 0 18px; padding: 0 0 14px; border-bottom: 1px solid #eef1f4; }}
+  body {{ font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 24px; color: #222; background: #fff; font-size: 15px; line-height: 1.45; }}
+  .wrap {{ max-width: 880px; margin: 0 auto; }}
+  .lead {{ margin: 16px 0 20px; font-size: 15px; }}
+  .h-acao, .h-tech {{
+    font-size: 16px; font-weight: bold; margin: 28px 0 6px; padding: 0 0 6px;
+    border-bottom: 2px solid {BLUE_BRAND}; color: {BLUE_BRAND};
+  }}
+  .h-tech {{ border-bottom-color: #999; color: #555; }}
+  .desc {{ margin: 0 0 14px; color: #555; font-size: 14px; }}
+  .file-block {{ margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid #eee; }}
   .file-block:last-child {{ border-bottom: none; }}
-  .file-title {{ font-size: 16px; font-weight: bold; margin: 0 0 4px; }}
-  .file-meta {{ margin: 0 0 10px; font-size: 14px; color: #333; }}
-  .sec-label {{ color: {BLUE_BRAND}; font-weight: bold; font-size: 14px; margin: 10px 0 6px; }}
-  .diff-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 8px; }}
-  .diff-table th {{ text-align: left; background: #f5f7fa; color: #5b6b84; font-size: 12px; text-transform: uppercase; padding: 7px 8px; border: 1px solid #e7ebf0; }}
-  .diff-table td {{ vertical-align: top; padding: 7px 8px; border: 1px solid #e7ebf0; line-height: 1.4; word-break: break-word; }}
-  .diff-table .col-local {{ width: 28%; color: #333; font-weight: bold; }}
-  .compact-list {{ margin: 0 0 8px 18px; padding: 0; font-size: 13px; line-height: 1.45; }}
-  .compact-list li {{ margin: 0 0 4px; }}
+  .file-title {{ margin: 0 0 10px; font-size: 15px; font-weight: bold; color: #222; }}
+  .sec-label {{ margin: 10px 0 4px; font-size: 13px; font-weight: bold; color: #222; }}
+  .diff-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 6px; }}
+  .diff-table th {{
+    text-align: left; background: #f3f3f3; color: #555; font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.02em; padding: 6px 8px; border: 1px solid #e0e0e0;
+  }}
+  .diff-table td {{ vertical-align: top; padding: 6px 8px; border: 1px solid #e0e0e0; word-break: break-word; }}
+  .diff-table .col-local {{ width: 30%; font-weight: bold; color: #333; }}
+  .compact-list, .tech-list {{ margin: 0 0 8px 18px; padding: 0; font-size: 14px; }}
+  .compact-list li, .tech-list li {{ margin: 0 0 4px; }}
   .more {{ color: {BLUE_BRAND}; font-size: 12px; font-weight: bold; margin: 4px 0 0; }}
-  .muted {{ color: #5b6b84; font-size: 13px; }}
-  .note-tech {{ background:#f7f8fa; border:1px solid #e7ebf0; border-left:4px solid {BLUE_BRAND}; padding:10px 12px; font-size:13px; color:#333; }}
+  .muted {{ color: #777; font-weight: normal; font-size: 13px; }}
   a {{ color: {BLUE_BRAND}; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
-  .rodape {{ font-size: 12px; color: #555; margin-top: 36px; text-align: center; }}
+  .rodape {{ font-size: 12px; color: #777; margin-top: 32px; text-align: center; border-top: 1px solid #eee; padding-top: 16px; }}
 </style>
 </head>
 <body>
   <div class="wrap">
-    <div style="text-align:center; margin-bottom: 12px;">
-      <img src="cid:{logo_cid}" alt="FINAUD TEC" style="max-width:220px; height:auto;">
+    <div style="text-align:center; margin-bottom: 8px;">
+      <img src="cid:{logo_cid}" alt="FINAUD TEC" style="max-width:180px; height:auto;">
     </div>
-    <p style="font-size:17px; margin-top:20px; line-height:1.5;">
+    <p style="margin: 12px 0 0; font-size: 15px; text-align: center;">
       Atualizações nos leiautes do Bacen em <strong>{data_ref}</strong>.
     </p>
     {conteudo_html}
     <div class="rodape">
-      Este e-mail foi gerado automaticamente pelo sistema de monitoramento <b>FINAUD TEC SOLUÇÕES EM TECNOLOGIA</b>.
+      E-mail automático — FINAUD TEC SOLUÇÕES EM TECNOLOGIA
     </div>
   </div>
 </body>
