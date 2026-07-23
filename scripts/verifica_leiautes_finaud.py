@@ -683,13 +683,87 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
 # Limite de linhas de evidência por arquivo no e-mail (leitura limpa).
 MAX_DIFFS_EMAIL = 5
 
+_TEXTO_AVISO_TECNICO = (
+    "Alteração <strong>técnica</strong> do arquivo no site do Bacen "
+    "(não é mudança de texto, célula ou tabela). "
+    "Em termos simples: o Bacen republicou ou atualizou o arquivo no servidor "
+    "(por exemplo data de publicação, tamanho ou identificador interno). "
+    "<strong>Você não precisa agir por isso.</strong> "
+    "Só revise com atenção quando aparecer a tabela <em>Onde | Antes | Depois</em> "
+    "com alterações de conteúdo."
+)
+
+
+def _eh_evidencia_tecnica(texto: str) -> bool:
+    t = (texto or "").lower()
+    chaves = (
+        "etag",
+        "last_modified",
+        "content_length",
+        "final_url",
+        "partial_fp",
+        "metadados",
+        "versão anterior não arquivada",
+        "versao anterior nao arquivada",
+        "alteracao detectada por metadados",
+        "alteração detectada por metadados",
+    )
+    return any(k in t for k in chaves)
+
+
+def _separar_itens_tecnicos_e_conteudo(itens: list[str]) -> tuple[list[str], list[str]]:
+    tecnicos, conteudo = [], []
+    for bruto in itens or []:
+        texto = str(bruto)
+        if _eh_evidencia_tecnica(texto):
+            tecnicos.append(texto)
+        else:
+            conteudo.append(texto)
+    return tecnicos, conteudo
+
+
+def _detalhe_so_tecnico(detalhe: dict | None, evidencia: str = "") -> bool:
+    if not detalhe:
+        return bool(evidencia) and _eh_evidencia_tecnica(evidencia)
+    inc = detalhe.get("itens_incluidos") or []
+    rem = detalhe.get("itens_removidos") or []
+    alt = detalhe.get("itens_alterados") or []
+    _, conteudo_alt = _separar_itens_tecnicos_e_conteudo(alt)
+    if inc or rem or conteudo_alt:
+        return False
+    resumo = str(detalhe.get("resumo_executivo") or "")
+    if _eh_evidencia_tecnica(resumo) or _eh_evidencia_tecnica(evidencia):
+        return True
+    # Comparador sem diff de conteúdo, só sinal de mudança no site.
+    if "nenhuma diferença" in resumo.lower() or "nenhuma diferenca" in resumo.lower():
+        return True
+    return not (inc or rem or alt)
+
+
+def _html_aviso_tecnico(evidencia: str = "") -> str:
+    detalhe = ""
+    if evidencia:
+        detalhe = (
+            f"<p class='muted' style='margin:8px 0 0;'>"
+            f"Sinal técnico: {html.escape(evidencia)}</p>"
+        )
+    return f"""
+      <div class="note-tech">
+        <p style="margin:0; line-height:1.5;">{_TEXTO_AVISO_TECNICO}</p>
+        {detalhe}
+      </div>
+    """
+
 
 def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
+    if _detalhe_so_tecnico(detalhe, evidencia):
+        return "alteração técnica (sem mudança de conteúdo)"
     if not detalhe:
-        return evidencia or "metadados alterados"
+        return evidencia or "alteração detectada"
+    _, conteudo_alt = _separar_itens_tecnicos_e_conteudo(detalhe.get("itens_alterados") or [])
     n_in = len(detalhe.get("itens_incluidos") or [])
     n_out = len(detalhe.get("itens_removidos") or [])
-    n_ch = len(detalhe.get("itens_alterados") or [])
+    n_ch = len(conteudo_alt)
     partes = []
     if n_ch:
         partes.append(f"{n_ch} mudou")
@@ -782,6 +856,11 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
         f'style="color:{BLUE_BRAND}; text-decoration:none;">{html.escape(nome)}</a>'
     )
     if not detalhe:
+        if _eh_evidencia_tecnica(evidencia):
+            return (
+                f"<div class='file-block'><p class='file-title'>{link}</p>"
+                f"{_html_aviso_tecnico(evidencia)}</div>"
+            )
         ev = f" — <span class='muted'>{html.escape(evidencia)}</span>" if evidencia else ""
         return f"<div class='file-block'><p class='file-title'>{link}{ev}</p></div>"
 
@@ -791,17 +870,36 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
     contagem = html.escape(_contagem_curta(detalhe, evidencia))
 
     incluidos = detalhe.get("itens_incluidos") or []
-    alterados = detalhe.get("itens_alterados") or []
     removidos = detalhe.get("itens_removidos") or []
+    tecnicos, conteudo = _separar_itens_tecnicos_e_conteudo(
+        detalhe.get("itens_alterados") or []
+    )
+
+    if _detalhe_so_tecnico(detalhe, evidencia):
+        sinal = evidencia or (tecnicos[0] if tecnicos else "")
+        return f"""
+      <div class="file-block">
+        <p class="file-title">{titulo}</p>
+        <p class="file-meta">{link} · {contagem}</p>
+        {_html_aviso_tecnico(sinal)}
+      </div>
+    """
+
     secoes = "".join(
         [
             _html_lista_diferencas("Entrou", "entrou", incluidos),
-            _html_lista_diferencas("Mudou", "mudou", alterados),
+            _html_lista_diferencas("Mudou", "mudou", conteudo),
             _html_lista_diferencas("Saiu", "saiu", removidos),
         ]
     )
-    if not secoes and evidencia:
-        secoes = f"<p class='muted'>{html.escape(evidencia)}</p>"
+    if tecnicos:
+        secoes += (
+            "<p class='muted' style='margin:8px 0 0;'>"
+            "Também houve sinal técnico no site do Bacen "
+            "(republicação/atualização do arquivo). "
+            "Isso sozinho não exige ação — o importante está na tabela acima."
+            "</p>"
+        )
 
     return f"""
       <div class="file-block">
@@ -822,12 +920,16 @@ def montar_corpo_email_alteracoes(
     n = len(alterados)
     resumo_linhas = []
     detalhes_html = []
+    qtd_tecnicos = 0
     for item in alterados:
         url = item["url"]
         nome = _filename_from_url(url)
         detalhe = detalhes_por_url.get(url) or {}
         codigo = (detalhe.get("leiaute_codigo") or "").strip() or "—"
-        contagem = _contagem_curta(detalhe, item.get("evidencia") or "")
+        evidencia = item.get("evidencia") or ""
+        if _detalhe_so_tecnico(detalhe, evidencia):
+            qtd_tecnicos += 1
+        contagem = _contagem_curta(detalhe, evidencia)
         link = (
             f'<a href="{html.escape(url)}" target="_blank">'
             f"{html.escape(nome)}</a>"
@@ -841,10 +943,26 @@ def montar_corpo_email_alteracoes(
         )
         detalhes_html.append(_html_detalhe_alteracao(item, detalhe or None))
 
+    guia = ""
+    if qtd_tecnicos:
+        guia = f"""
+      <div class="note-tech" style="margin:0 0 14px;">
+        <p style="margin:0; line-height:1.5;">
+          <strong>Como ler este e-mail:</strong>
+          quando o resumo disser <em>alteração técnica</em>, o Bacen só tocou
+          no arquivo no servidor (data/tamanho/identificador).
+          <strong>Não é mudança de conteúdo</strong> — não precisa se preocupar.
+          Se houver mudança interna (texto, célula, aba), você verá a tabela
+          <em>Onde | Antes | Depois</em> abaixo.
+        </p>
+      </div>
+    """
+
     return f"""
       <p class="lead-count">
         <strong style="color:{BLUE_BRAND};">{n} arquivo(s) alterado(s)</strong>
       </p>
+      {guia}
       <table class="summary-table" role="presentation" cellpadding="0" cellspacing="0">
         <thead>
           <tr>
@@ -891,6 +1009,7 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
   .compact-list li {{ margin: 0 0 4px; }}
   .more {{ color: {BLUE_BRAND}; font-size: 12px; font-weight: bold; margin: 4px 0 0; }}
   .muted {{ color: #5b6b84; font-size: 13px; }}
+  .note-tech {{ background:#f7f8fa; border:1px solid #e7ebf0; border-left:4px solid {BLUE_BRAND}; padding:10px 12px; font-size:13px; color:#333; }}
   a {{ color: {BLUE_BRAND}; text-decoration: none; }}
   a:hover {{ text-decoration: underline; }}
   .rodape {{ font-size: 12px; color: #555; margin-top: 36px; text-align: center; }}
