@@ -40,7 +40,7 @@
 | 5 | vHost Conf (dist + `/api/` → 8003) | ✅ |
 | 6 | Cloudflare laranja após SSL | ✅ |
 | 7 | Validação login / telas | **pendente Michel** (`michel@`) |
-| 8 | Card portal finaudapps | pendente |
+| 8 | Card portal finaudapps | ✅ (Michel — outro chat) |
 | 9 | Robô novo em paralelo (cron root + deps motor) | ✅ 2026-07-22 — **antigo ainda ativo** |
 | 10 | Desligar cron legado (`tsala9334` / `paine6949`) | **não fazer** até Michel validar |
 
