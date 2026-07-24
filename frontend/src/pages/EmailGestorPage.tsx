@@ -1,38 +1,17 @@
 import { useEffect, useState } from "react";
-import { DiffEvidenceList } from "../components/DiffEvidence";
+import EmailGestorTemplate from "../components/EmailGestorTemplate";
 import { obterPreviewEmailGestor } from "../api/leiautes";
-import type { AlteracaoResumo, EmailGestorPreviewResponse } from "../api/types";
+import type { EmailGestorPreviewResponse } from "../api/types";
 
-function AlteracaoEmailCard({ alteracao }: { alteracao: AlteracaoResumo }) {
-  return (
-    <article className="email-alteracao">
-      <header>
-        <h2>
-          {alteracao.leiaute_codigo} · {alteracao.arquivo_nome}
-        </h2>
-        <span className="meta">{alteracao.arquivo_tipo}</span>
-      </header>
-      <p>{alteracao.resumo_executivo}</p>
-      <p className="meta">{alteracao.impacto_sugerido}</p>
-      <div className="email-diff-grid">
-        <DiffEvidenceList
-          titulo="Entrou"
-          tipo="incluido"
-          itens={alteracao.itens_incluidos}
-        />
-        <DiffEvidenceList
-          titulo="Mudou"
-          tipo="alterado"
-          itens={alteracao.itens_alterados}
-        />
-        <DiffEvidenceList
-          titulo="Saiu"
-          tipo="removido"
-          itens={alteracao.itens_removidos}
-        />
-      </div>
-    </article>
-  );
+function formatarDataRef(preview: EmailGestorPreviewResponse | null): string {
+  const iso = preview?.alteracoes?.[0]?.criado_em;
+  if (iso) {
+    const d = new Date(iso);
+    if (!Number.isNaN(d.getTime())) {
+      return d.toLocaleDateString("pt-BR");
+    }
+  }
+  return new Date().toLocaleDateString("pt-BR");
 }
 
 export default function EmailGestorPage() {
@@ -58,13 +37,15 @@ export default function EmailGestorPage() {
     carregar(false);
   }, []);
 
+  const dataRef = formatarDataRef(preview);
+
   return (
     <div className="admin-page">
       <div className="page-cabecalho">
         <div>
           <h1 className="page-title">E-mail do gestor</h1>
           <p className="page-sub">
-            Prévia do comunicado com resumo executivo das diferenças.
+            Prévia do comunicado no mesmo layout do e-mail enviado ao gestor.
           </p>
         </div>
         <div className="admin-acoes">
@@ -94,7 +75,7 @@ export default function EmailGestorPage() {
       <div className="email-preview">
         <div className="email-preview-head">
           <strong>Assunto</strong>
-          <span>{preview?.assunto ?? "Atualização em leiautes Bacen - {data}"}</span>
+          <span>{preview?.assunto ?? `Atualização em leiautes Bacen - ${dataRef}`}</span>
           <span className="meta">
             Para: {preview?.destinatarios.join(", ") || "destinatários não configurados"}
           </span>
@@ -102,21 +83,16 @@ export default function EmailGestorPage() {
             <span className="meta">Cc: {preview.copia.join(", ")}</span>
           ) : null}
         </div>
-        <div className="email-preview-body">
-          <p>{preview?.resumo ?? "Prévia ainda não carregada."}</p>
-          {(preview?.alteracoes ?? []).length === 0 ? (
-            <p className="admin-ajuda">
-              Nenhuma alteração registrada ainda. Após a comparação real, esta área
-              exibirá o resumo por leiaute e os itens incluídos, removidos e alterados.
+        <div className="email-preview-body email-preview-body-tpl">
+          <EmailGestorTemplate
+            dataRef={dataRef}
+            alteracoes={preview?.alteracoes ?? []}
+          />
+          {(preview?.anexos?.length ?? 0) > 0 ? (
+            <p className="email-tpl-anexos">
+              Anexos: {preview?.anexos.join(", ")}
             </p>
-          ) : (
-            preview?.alteracoes.map((alt) => (
-              <AlteracaoEmailCard key={alt.id} alteracao={alt} />
-            ))
-          )}
-          <p className="meta">
-            Anexos: {preview?.anexos.join(", ") || "nenhum anexo selecionado"}
-          </p>
+          ) : null}
         </div>
       </div>
     </div>
