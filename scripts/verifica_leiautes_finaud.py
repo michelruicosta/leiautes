@@ -898,12 +898,24 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
     link = (
         f'<a href="{html.escape(url)}" target="_blank">{html.escape(rotulo)}</a>'
     )
+    resumo = str((detalhe or {}).get("resumo_executivo") or "").strip()
+    resumo_html = (
+        f'<p class="desc" style="margin:0 0 10px;">{html.escape(resumo)}</p>'
+        if resumo
+        else ""
+    )
 
     incluidos = (detalhe or {}).get("itens_incluidos") or []
     removidos = (detalhe or {}).get("itens_removidos") or []
     _, conteudo = _separar_itens_tecnicos_e_conteudo(
         (detalhe or {}).get("itens_alterados") or []
     )
+    # Evita tabela genérica "novo arquivo observado" quando já há diff real.
+    conteudo = [
+        c
+        for c in conteudo
+        if "novo arquivo observado" not in str(c).lower()
+    ]
     secoes = "".join(
         [
             _html_lista_diferencas("Entrou", "entrou", incluidos),
@@ -915,6 +927,7 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
       <div class="file-block">
         <p class="file-title">{link}
           <span class="muted"> — {html.escape(contagem)}</span></p>
+        {resumo_html}
         {secoes}
       </div>
     """
@@ -976,7 +989,7 @@ def montar_corpo_email_alteracoes(
         )
         bloco_acao = f"""
       <h2 class="h-acao">1. Precisa agir ({n_acao})</h2>
-      <p class="desc">Mudança dentro do arquivo — revise Antes/Depois.</p>
+      <p class="desc">Arquivo novo ou mudança de conteúdo — revise o anexo e o Antes/Depois quando houver.</p>
       {detalhes}
     """
 

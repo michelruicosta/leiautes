@@ -22,7 +22,7 @@ def _resolver(caminho: str | None) -> Path | None:
     return path
 
 
-def _limitar(itens: list[str], limite: int = 500) -> list[str]:
+def _limitar(itens: list[str], limite: int = 80) -> list[str]:
     if len(itens) <= limite:
         return itens
     return [*itens[:limite], f"... lista completa excede {limite} item(ns)"]

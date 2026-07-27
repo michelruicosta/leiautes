@@ -31,6 +31,72 @@ def _slug(texto: str) -> str:
     return slug.strip("._") or "arquivo"
 
 
+def _familia_nome_arquivo(nome_arquivo: str) -> str:
+    """Normaliza nome Bacen para achar versão anterior (v7-vi8 → v8-vi9)."""
+    from urllib.parse import unquote
+
+    base = unquote(nome_arquivo or "")
+    base = Path(base).name
+    # Remove versões tipicas: -v8-vi9, -v7, _v2
+    base = re.sub(r"[-_\s]?v\d+-vi\d+", "", base, flags=re.IGNORECASE)
+    base = re.sub(r"[-_\s]?v\d+(?=\s|[-_.]|$)", "", base, flags=re.IGNORECASE)
+    base = re.sub(r"\s+", " ", base).strip().lower()
+    return base
+
+
+def _buscar_caminho_versao_parente(
+    *,
+    nome_arquivo: str,
+    leiaute_id: Optional[int],
+    excluir_arquivo_id: Optional[int] = None,
+    conn: Any = None,
+) -> Optional[tuple[str, str]]:
+    """Retorna (caminho_arquivo, nome_anterior) da versão 'irmã' mais recente no histórico."""
+    familia = _familia_nome_arquivo(nome_arquivo)
+    if not familia or len(familia) < 8:
+        return None
+
+    sql = """
+        SELECT ar.id, ar.nome_arquivo, v.caminho_arquivo
+        FROM arquivos_monitorados ar
+        JOIN versoes_arquivos v ON v.id = ar.ultima_versao_id
+        WHERE v.caminho_arquivo IS NOT NULL
+          AND TRIM(v.caminho_arquivo) != ''
+    """
+    params: list[Any] = []
+    if leiaute_id is not None:
+        sql += " AND ar.leiaute_id = ?"
+        params.append(leiaute_id)
+    if excluir_arquivo_id is not None:
+        sql += " AND ar.id != ?"
+        params.append(excluir_arquivo_id)
+    sql += " ORDER BY ar.atualizado_em DESC, v.id DESC LIMIT 80"
+
+    def _candidatos(rows) -> Optional[tuple[str, str]]:
+        for row in rows:
+            nome_ant = row["nome_arquivo"] or ""
+            if _familia_nome_arquivo(nome_ant) != familia:
+                continue
+            if nome_ant.strip().lower() == (nome_arquivo or "").strip().lower():
+                continue
+            caminho = row["caminho_arquivo"]
+            path = Path(caminho)
+            if not path.is_absolute():
+                path = RAIZ / caminho
+            if path.exists():
+                return str(caminho), nome_ant
+        return None
+
+    if conn is not None:
+        rows = conn.execute(sql, params).fetchall()
+        return _candidatos(rows)
+
+    init_db()
+    with conectar() as c:
+        rows = c.execute(sql, params).fetchall()
+        return _candidatos(rows)
+
+
 def salvar_conteudo_versao(
     *,
     conteudo: bytes,
@@ -221,60 +287,108 @@ def registrar_arquivo_observado(
 
             if gerar_evidencia and execucao_id is not None:
                 comparacao = None
-                if comparar_arquivos and caminho_anterior and caminho_arquivo:
-                    comparacao = comparar_arquivos(
-                        caminho_anterior=caminho_anterior,
-                        caminho_atual=caminho_arquivo,
-                        tipo_arquivo=tipo,
+                nome_anterior_parente = None
+                if not caminho_anterior:
+                    parente = _buscar_caminho_versao_parente(
+                        nome_arquivo=nome_arquivo,
+                        leiaute_id=leiaute_id,
+                        excluir_arquivo_id=arquivo_id,
+                        conn=conn,
                     )
-                novo_arquivo = "novo arquivo" in (evidencia or "").lower()
-                if comparacao:
-                    resumo = comparacao.get("resumo_executivo")
-                    # Arquivo novo na página: mesmo sem diff de células, não rotular como "só metadados".
-                    if novo_arquivo and (
-                        not resumo
-                        or "nenhuma diferença" in str(resumo).lower()
-                        or "nenhuma diferenca" in str(resumo).lower()
-                        or "metadados" in str(resumo).lower()
-                    ):
-                        resumo = (
-                            "Arquivo novo observado na página do Bacen — "
-                            "revise o documento (ainda sem Antes/Depois da versão anterior)."
+                    if not parente:
+                        # Fallback: histórico antigo às vezes ficou sem leiaute_id.
+                        parente = _buscar_caminho_versao_parente(
+                            nome_arquivo=nome_arquivo,
+                            leiaute_id=None,
+                            excluir_arquivo_id=arquivo_id,
+                            conn=conn,
                         )
-                elif novo_arquivo:
-                    resumo = (
-                        "Arquivo novo observado na página do Bacen — "
-                        "revise o documento anexo."
+                    if parente:
+                        caminho_anterior, nome_anterior_parente = parente
+                if comparar_arquivos and caminho_anterior and caminho_arquivo:
+                    try:
+                        comparacao = comparar_arquivos(
+                            caminho_anterior=caminho_anterior,
+                            caminho_atual=caminho_arquivo,
+                            tipo_arquivo=tipo,
+                        )
+                    except Exception as exc:
+                        # Não perde o alerta de arquivo novo se o diff PDF/XLSX falhar.
+                        comparacao = {
+                            "resumo_executivo": (
+                                f"Arquivo alterado, mas o diff automático falhou: {exc}"
+                            ),
+                            "impacto_sugerido": (
+                                "Revisar manualmente o arquivo anexo."
+                            ),
+                            "itens_incluidos": [],
+                            "itens_removidos": [],
+                            "itens_alterados": [],
+                        }
+                novo_arquivo = "novo arquivo" in (evidencia or "").lower()
+                resumo_cmp = str((comparacao or {}).get("resumo_executivo") or "")
+                tem_diff_conteudo = bool(
+                    comparacao
+                    and (
+                        (comparacao.get("itens_incluidos") or [])
+                        or (comparacao.get("itens_removidos") or [])
+                        or (comparacao.get("itens_alterados") or [])
                     )
+                    and "nenhuma diferença" not in resumo_cmp.lower()
+                    and "nenhuma diferenca" not in resumo_cmp.lower()
+                )
+
+                if tem_diff_conteudo and comparacao:
+                    resumo = resumo_cmp
+                    if novo_arquivo and nome_anterior_parente:
+                        resumo = (
+                            f"Arquivo novo na página (substitui {nome_anterior_parente}). "
+                            + resumo
+                        )
+                    elif novo_arquivo:
+                        resumo = "Arquivo novo na página. " + resumo
+                    impacto = comparacao.get("impacto_sugerido") or (
+                        "Revisar as diferenças Antes/Depois e o arquivo anexo."
+                    )
+                    incluidos = list(comparacao.get("itens_incluidos") or [])
+                    removidos = list(comparacao.get("itens_removidos") or [])
+                    alterados = list(comparacao.get("itens_alterados") or [])
+                elif novo_arquivo:
+                    if nome_anterior_parente:
+                        resumo = (
+                            f"Arquivo novo na página do Bacen (versão anterior local: "
+                            f"{nome_anterior_parente}). Abra o anexo para revisar; "
+                            "não foi possível extrair diff textual automático."
+                        )
+                    else:
+                        resumo = (
+                            "Arquivo novo na página do Bacen — revise o documento anexo. "
+                            "Ainda não há versão anterior no histórico para Antes/Depois."
+                        )
+                    impacto = "Baixar o arquivo novo e avaliar impacto nas rotinas internas."
+                    incluidos = [
+                        "Novo arquivo na página"
+                        + (
+                            f" (antes: {nome_anterior_parente})"
+                            if nome_anterior_parente
+                            else ""
+                        )
+                        + "."
+                    ]
+                    removidos = []
+                    alterados = []
                 elif evidencia:
                     resumo = f"Alteracao detectada por metadados: {evidencia}"
-                else:
-                    resumo = "Alteracao detectada por metadados do arquivo."
-                impacto = (
-                    comparacao.get("impacto_sugerido")
-                    if comparacao and not novo_arquivo
-                    else (
-                        "Baixar o arquivo novo e avaliar impacto nas rotinas internas."
-                        if novo_arquivo
-                        else (
-                            comparacao.get("impacto_sugerido")
-                            if comparacao
-                            else "Revisar o arquivo alterado e avaliar impacto operacional."
-                        )
-                    )
-                )
-                if comparacao and not novo_arquivo:
-                    incluidos = comparacao.get("itens_incluidos", [])
-                    removidos = comparacao.get("itens_removidos", [])
-                    alterados = comparacao.get("itens_alterados", [])
-                elif novo_arquivo:
-                    incluidos = ["Novo arquivo observado na página do Bacen."]
-                    removidos = []
-                    alterados = [evidencia] if evidencia else ["novo arquivo observado"]
-                else:
+                    impacto = "Revisar o arquivo alterado e avaliar impacto operacional."
                     incluidos = []
                     removidos = []
-                    alterados = [evidencia] if evidencia else []
+                    alterados = [evidencia]
+                else:
+                    resumo = "Alteracao detectada por metadados do arquivo."
+                    impacto = "Revisar o arquivo alterado e avaliar impacto operacional."
+                    incluidos = []
+                    removidos = []
+                    alterados = []
                 cur_alt = conn.execute(
                     """
                     INSERT INTO alteracoes_detectadas (

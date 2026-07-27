@@ -265,7 +265,8 @@ export default function EmailGestorTemplate({ dataRef, alteracoes }: Props) {
         <section className="email-tpl-bloco">
           <h2 className="email-tpl-h-acao">1. Precisa agir ({precisaAgir.length})</h2>
           <p className="email-tpl-desc">
-            Mudança dentro do arquivo — revise Antes/Depois.
+            Arquivo novo ou mudança de conteúdo — revise o anexo e o Antes/Depois quando
+            houver.
           </p>
           {precisaAgir.map((alt) => (
             <ArquivoConteudo key={alt.id} alt={alt} />
