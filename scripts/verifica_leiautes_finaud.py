@@ -994,8 +994,46 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
     """
 
 
+def _descrever_mudanca_tecnica(evidencia: str = "", detalhe: dict | None = None) -> str:
+    """Traduz evidência técnica (etag/lm/…) para frase que o gestor entende."""
+    textos = [evidencia or ""]
+    if detalhe:
+        textos.append(str(detalhe.get("resumo_executivo") or ""))
+        for lista in (
+            detalhe.get("itens_alterados") or [],
+            detalhe.get("itens_incluidos") or [],
+        ):
+            textos.extend(str(x) for x in lista)
+    junto = " ".join(textos).lower()
+
+    partes: list[str] = []
+    if "last_modified" in junto or "last-modified" in junto:
+        partes.append("data de publicação no site")
+    if "content_length" in junto:
+        partes.append("tamanho do arquivo no site")
+    if "etag" in junto:
+        partes.append("identificador do arquivo no site (etag)")
+    if "final_url" in junto:
+        partes.append("endereço final do download")
+    if "partial_fp" in junto:
+        partes.append("assinatura parcial do arquivo")
+    if "versão anterior não arquivada" in junto or "versao anterior nao arquivada" in junto:
+        partes.append("sem versão anterior arquivada para comparar")
+    if not partes and ("metadado" in junto or "republic" in junto):
+        partes.append("republicação no site (metadados)")
+    if not partes:
+        # Fallback: limpa o jargão cru.
+        bruto = (evidencia or "").strip()
+        if bruto:
+            return bruto.replace(" mudou", "").replace("_", " ").strip() or "metadados no site"
+        return "metadados no site"
+    if len(partes) == 1:
+        return f"mudou a {partes[0]}" if not partes[0].startswith("sem ") else partes[0]
+    return "mudou: " + "; ".join(partes)
+
+
 def _html_lista_tecnica(itens_bloco: list[tuple[dict, dict]]) -> str:
-    """Lista simples de arquivos técnicos — sem tabela nem cards repetidos."""
+    """Lista técnica com o que mudou no site (ainda sem ação de conteúdo)."""
     bullets = []
     for item, detalhe in itens_bloco:
         url = item["url"]
@@ -1006,7 +1044,12 @@ def _html_lista_tecnica(itens_bloco: list[tuple[dict, dict]]) -> str:
             f'<a href="{html.escape(url)}" target="_blank">'
             f"{html.escape(rotulo)}</a>"
         )
-        bullets.append(f"<li>{link}</li>")
+        o_que = _descrever_mudanca_tecnica(item.get("evidencia") or "", detalhe)
+        bullets.append(
+            f"<li>{link}"
+            f"<br><span class='muted'><strong>O que mudou:</strong> "
+            f"{html.escape(o_que)}</span></li>"
+        )
     return f"<ul class='tech-list'>{''.join(bullets)}</ul>"
 
 
@@ -1059,8 +1102,8 @@ def montar_corpo_email_alteracoes(
         bloco_tech = f"""
       <h2 class="h-tech">2. Não precisa agir ({n_tech})</h2>
       <p class="desc">
-        Só republicação no site do Bacen (data/tamanho/identificador).
-        Sem mudança de texto, célula ou tabela.
+        Só republicação no site do Bacen — sem mudança de texto, célula ou tabela.
+        Mesmo assim mostramos o que mudou nos metadados do site.
       </p>
       {_html_lista_tecnica(nao_precisa)}
     """

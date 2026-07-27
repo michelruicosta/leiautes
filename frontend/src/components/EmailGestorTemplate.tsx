@@ -206,10 +206,52 @@ function ArquivoConteudo({ alt }: { alt: AlteracaoResumo }) {
   );
 }
 
-type Props = {
-  dataRef: string;
-  alteracoes: AlteracaoResumo[];
-};
+function descreverMudancaTecnica(alt: AlteracaoResumo): string {
+  const textos = [
+    alt.resumo_executivo || "",
+    ...(alt.itens_alterados || []),
+    ...(alt.itens_incluidos || []),
+  ]
+    .join(" ")
+    .toLowerCase();
+  const partes: string[] = [];
+  if (textos.includes("last_modified") || textos.includes("last-modified")) {
+    partes.push("data de publicação no site");
+  }
+  if (textos.includes("content_length")) partes.push("tamanho do arquivo no site");
+  if (textos.includes("etag")) partes.push("identificador do arquivo no site (etag)");
+  if (textos.includes("final_url")) partes.push("endereço final do download");
+  if (textos.includes("partial_fp")) partes.push("assinatura parcial do arquivo");
+  if (
+    textos.includes("versão anterior não arquivada") ||
+    textos.includes("versao anterior nao arquivada")
+  ) {
+    partes.push("sem versão anterior arquivada para comparar");
+  }
+  if (!partes.length && (textos.includes("metadado") || textos.includes("republic"))) {
+    partes.push("republicação no site (metadados)");
+  }
+  if (!partes.length) return "metadados no site";
+  if (partes.length === 1) {
+    return partes[0].startsWith("sem ") ? partes[0] : `mudou a ${partes[0]}`;
+  }
+  return `mudou: ${partes.join("; ")}`;
+}
+
+function ArquivoTecnico({ alt }: { alt: AlteracaoResumo }) {
+  const rotulo = alt.leiaute_codigo
+    ? `${alt.leiaute_codigo} · ${alt.arquivo_nome}`
+    : alt.arquivo_nome;
+  return (
+    <li>
+      {rotulo}
+      <br />
+      <span className="email-tpl-muted">
+        <strong>O que mudou:</strong> {descreverMudancaTecnica(alt)}
+      </span>
+    </li>
+  );
+}
 
 export default function EmailGestorTemplate({ dataRef, alteracoes }: Props) {
   const precisaAgir = alteracoes.filter((a) => !alteracaoSoTecnica(a));
@@ -278,16 +320,13 @@ export default function EmailGestorTemplate({ dataRef, alteracoes }: Props) {
         <section className="email-tpl-bloco">
           <h2 className="email-tpl-h-tech">2. Não precisa agir ({naoPrecisa.length})</h2>
           <p className="email-tpl-desc">
-            Só republicação no site do Bacen (data/tamanho/identificador). Sem mudança
-            de texto, célula ou tabela.
+            Só republicação no site do Bacen — sem mudança de texto, célula ou tabela.
+            Mesmo assim mostramos o que mudou nos metadados do site.
           </p>
           <ul className="email-tpl-tech-list">
-            {naoPrecisa.map((alt) => {
-              const rotulo = alt.leiaute_codigo
-                ? `${alt.leiaute_codigo} · ${alt.arquivo_nome}`
-                : alt.arquivo_nome;
-              return <li key={alt.id}>{rotulo}</li>;
-            })}
+            {naoPrecisa.map((alt) => (
+              <ArquivoTecnico key={alt.id} alt={alt} />
+            ))}
           </ul>
         </section>
       ) : null}
