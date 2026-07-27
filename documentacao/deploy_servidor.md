@@ -133,6 +133,22 @@ Espelho do Cap. 12 Normativos. **Não desligar o antigo** até uma execução do
 | **paine6949** | `0 18 * * 1-5 …/apps/leiautes/run.sh` | **ativo** (legado) |
 | **root** | `0 18 * * 1-5` + `flock` → `/srv/finaud/tec/leiautes_bacen/` | **ativo** (teste paralelo) |
 
+### Cron garantia (check-up automático)
+
+Seg–Sex **17:30** (antes do robô das 18h). Só e-mail se falhar.
+
+```cron
+# [leiautes_bacen] garantia automática — Seg-Sex 17:30; e-mail só em FALHA para michel@
+30 17 * * 1-5 flock -n /srv/finaud/tec/leiautes_bacen/.garantia.lock -c "cd /srv/finaud/tec/leiautes_bacen && set -a && . ./.env && set +a && export LEIAUTES_DISABLE_STATUS_TAIL=1 LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br HOME=/srv/finaud/tec/leiautes_bacen && .venv/bin/python scripts/garantia_robo_leiautes.py >> /srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log 2>&1"
+```
+
+| Item | Detalhe |
+|------|---------|
+| Script | `scripts/garantia_robo_leiautes.py` |
+| Log | `/srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log` |
+| E-mail | **só se falhar** → `michel@finaud.com.br` |
+| O que checa | scrape Bacen com anexos; classificação precisa/técnico; HTML “O que mudou”; diff PDF se houver v7/v8 |
+
 ### Cron novo (root)
 
 ```cron
