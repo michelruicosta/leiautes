@@ -315,6 +315,12 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
             info, cur if not eh_primeira_obs else {}, use_partial_fp
         )
         evidencia = ""
+        # Legado: arquivo novo na página (URL ainda não no manifesto) também alerta,
+        # exceto na primeira baseline quieta do manifesto vazio.
+        if eh_primeira_obs and not (first_run and quiet_baseline):
+            mudanca_real = True
+            if not reasons:
+                reasons = ["novo arquivo observado"]
         if mudanca_real:
             logger.info(f"Alteração detectada em anexo: {url} | {', '.join(reasons)}")
             evidencia = ", ".join(reasons)
@@ -437,20 +443,68 @@ def _filtrar_urls_anexos(candidatos: list[str]) -> list[str]:
     return limpos
 
 
+def _coletar_hrefs_assets(page) -> list[str]:
+    hrefs: list[str] = []
+    try:
+        hrefs.extend(
+            page.evaluate(
+                r"""() => {
+                  const res = [];
+                  const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
+                  for (const a of Array.from(document.querySelectorAll('a[href]'))) {
+                    const href = a.getAttribute('href') || '';
+                    if (!isAsset(href)) continue;
+                    res.push(new URL(href, document.baseURI).toString());
+                  }
+                  return res;
+                }"""
+            )
+        )
+    except Exception:
+        pass
+
+    # Complemento: assets embutidos no HTML (ex.: XSD do DRM que às vezes não vira <a>).
+    try:
+        html = page.content()
+        for m in re.findall(
+            r"https?://[^\"'\s<>]+?\.(?:pdf|xlsx?|xsd|zip)",
+            html,
+            flags=re.I,
+        ):
+            hrefs.append(m)
+        for m in re.findall(
+            r"[\"']((?:/)?content/[^\"']+\.(?:pdf|xlsx?|xsd|zip))[\"']",
+            html,
+            flags=re.I,
+        ):
+            hrefs.append(page.evaluate("u => new URL(u, document.baseURI).toString()", m))
+    except Exception:
+        pass
+    return list(dict.fromkeys(hrefs))
+
+
 def extrair_datas_categorias_e_anexos(url):
+    """Espelha o legado: espera conteúdo útil da página Angular e coleta anexos."""
     categoria_pagina = _categoria_da_pagina(url)
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, args=["--no-sandbox", "--disable-dev-shm-usage"])
         page = browser.new_page()
-        # DRM/DRL são Angular: precisa esperar a hidratação dos links.
-        wait_mode = "networkidle" if any(x in url.lower() for x in ("drm", "drl2160")) else "load"
-        page.goto(url, timeout=90000, wait_until=wait_mode)
+        # Páginas Bacen são Angular — networkidle + seletor de anexo evita lista vazia.
+        page.goto(url, timeout=90000, wait_until="networkidle")
         try:
-            page.wait_for_selector("a[href]", timeout=8000)
+            page.wait_for_selector("table", timeout=8000)
         except Exception:
             pass
-        if wait_mode == "networkidle":
-            page.wait_for_timeout(3000)
+        try:
+            page.wait_for_selector(
+                'a[href$=".pdf"], a[href$=".xlsx"], a[href$=".xls"], '
+                'a[href$=".xsd"], a[href$=".zip"], '
+                'a[href*=".pdf?"], a[href*=".xlsx?"], a[href*=".xls?"]',
+                timeout=25000,
+            )
+        except Exception:
+            # Fallback: menu já tem <a>, mas conteúdo pode atrasar — dá tempo extra.
+            page.wait_for_timeout(5000)
 
         if "leiautedocumentoscrd" in url.lower():
             anexos_4111, categorias_4111 = extrair_anexos_4111(page)
@@ -466,46 +520,22 @@ def extrair_datas_categorias_e_anexos(url):
         except Exception:
             pass
 
-        hrefs: list[str] = []
-        try:
-            hrefs.extend(
-                page.evaluate(
-                    r"""() => {
-                      const res = [];
-                      const isAsset = (h) => /\.(pdf|xlsx?|xsd|zip)$/i.test(h||"");
-                      for (const a of Array.from(document.querySelectorAll('a[href]'))) {
-                        const href = a.getAttribute('href') || '';
-                        if (!isAsset(href)) continue;
-                        res.push(new URL(href, document.baseURI).toString());
-                      }
-                      return res;
-                    }"""
-                )
-            )
-        except Exception:
-            pass
-
-        # Complemento: assets embutidos no HTML (ex.: XSD do DRM que às vezes não vira <a>).
-        try:
-            html = page.content()
-            for m in re.findall(
-                r"https?://[^\"'\s<>]+?\.(?:pdf|xlsx?|xsd|zip)",
-                html,
-                flags=re.I,
-            ):
-                hrefs.append(m)
-            for m in re.findall(
-                r"[\"']((?:/)?content/[^\"']+\.(?:pdf|xlsx?|xsd|zip))[\"']",
-                html,
-                flags=re.I,
-            ):
-                hrefs.append(page.evaluate("u => new URL(u, document.baseURI).toString()", m))
-        except Exception:
-            pass
+        hrefs = _coletar_hrefs_assets(page)
+        # Retry curto se a hidratação ainda não trouxe anexos (caso 24/07 no 2061).
+        if len(_filtrar_urls_anexos(hrefs)) < 3:
+            page.wait_for_timeout(4000)
+            hrefs = _coletar_hrefs_assets(page)
 
         browser.close()
 
-        anexos = _filtrar_urls_anexos(list(dict.fromkeys(hrefs)))
+        anexos = _filtrar_urls_anexos(hrefs)
+        if not anexos:
+            logger.warning(
+                "Scrape sem anexos úteis em %s (possível página Angular incompleta).",
+                url,
+            )
+        else:
+            logger.info("Scrape %s: %s anexo(s) após filtro.", url, len(anexos))
         categoria_por_url = {u: categoria_pagina for u in anexos}
         return datas, anexos, categoria_por_url
 
@@ -1119,6 +1149,20 @@ def main():
         except Exception as e:
             logger.warning(f"Erro ao processar URL {url}: {e}")
             continue
+
+    # Se o scrape Angular falhar em alguma página, ainda recheca o que já conhecemos
+    # (metadados). Arquivo novo na página continua dependendo do scrape.
+    vistos = set(anexos_detectados)
+    for url_conhecida, _meta in _load_manifest().items():
+        if url_conhecida in vistos:
+            continue
+        anexos_detectados.append(url_conhecida)
+        vistos.add(url_conhecida)
+        categoria_por_url.setdefault(url_conhecida, _categoria_da_pagina(url_conhecida))
+    logger.info(
+        "Anexos para checagem: %s (scrape + fallback manifesto).",
+        len(anexos_detectados),
+    )
 
     alterados, manifest, flags_anexos = verificar_anexos(
         anexos_detectados,
