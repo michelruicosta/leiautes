@@ -63,6 +63,40 @@ def _formatar_trecho(valor: str, limite: int = 5000) -> str:
     return f"{valor[:limite]}... [texto completo excede {limite} caracteres]"
 
 
+def _recortar_par_diff(antes: str, depois: str, contexto: int = 50) -> tuple[str, str]:
+    """Recorta só a região que mudou (+ contexto), para Antes/Depois ficar legível."""
+    a = (antes or "").strip()
+    b = (depois or "").strip()
+    if not a and not b:
+        return "—", "—"
+    if a == b:
+        curto = _formatar_trecho(a, 120)
+        return curto, curto
+    if not a:
+        return "—", _formatar_trecho(b, 180)
+    if not b:
+        return _formatar_trecho(a, 180), "—"
+
+    sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    spans = [
+        (i1, i2, j1, j2)
+        for tag, i1, i2, j1, j2 in sm.get_opcodes()
+        if tag != "equal"
+    ]
+    if not spans:
+        return _formatar_trecho(a, 160), _formatar_trecho(b, 160)
+
+    i1 = min(s[0] for s in spans)
+    i2 = max(s[1] for s in spans)
+    j1 = min(s[2] for s in spans)
+    j2 = max(s[3] for s in spans)
+    ai, aj = max(0, i1 - contexto), min(len(a), i2 + contexto)
+    bi, bj = max(0, j1 - contexto), min(len(b), j2 + contexto)
+    trecho_a = (("…" if ai else "") + a[ai:aj] + ("…" if aj < len(a) else ""))
+    trecho_b = (("…" if bi else "") + b[bi:bj] + ("…" if bj < len(b) else ""))
+    return _formatar_trecho(trecho_a, 220), _formatar_trecho(trecho_b, 220)
+
+
 def _formatar_valor_planilha(valor: Any) -> str:
     if valor is None:
         return "em branco"
@@ -105,9 +139,10 @@ def _comparar_linhas(
                 ant = linhas_ant_num[i1 + idx] if i1 + idx < i2 else None
                 novo = linhas_atual_num[j1 + idx] if j1 + idx < j2 else None
                 if ant and novo:
+                    antes_c, depois_c = _recortar_par_diff(ant[1], novo[1])
                     alterados.append(
                         f"{prefixo}linha anterior {ant[0]} -> linha atual {novo[0]}: "
-                        f"antes \"{_formatar_trecho(ant[1])}\"; depois \"{_formatar_trecho(novo[1])}\""
+                        f"antes \"{antes_c}\"; depois \"{depois_c}\""
                     )
                 elif novo:
                     incluidos.append(
@@ -366,6 +401,9 @@ def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
             paginas.append(_linhas_com_numero(page.extract_text() or ""))
         return paginas
 
+    # Ruído típico de cabeçalho/rodapé em PDF do Bacen — não ajuda o gestor.
+    ruido = {"interno", "confidencial", "página", "pagina"}
+
     paginas_ant = extrair_paginas(anterior)
     paginas_atual = extrair_paginas(atual)
     incluidos: list[str] = []
@@ -376,9 +414,28 @@ def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
         ant = paginas_ant[idx] if idx < len(paginas_ant) else []
         novo = paginas_atual[idx] if idx < len(paginas_atual) else []
         diff = _comparar_linhas(ant, novo, contexto=f"Página {idx + 1}")
-        incluidos.extend(diff["incluidos"])
-        removidos.extend(diff["removidos"])
-        alterados.extend(diff["alterados"])
+        for item in diff["incluidos"]:
+            trecho = item.rsplit(': incluído "', 1)[-1].rstrip('"').strip().lower()
+            if trecho in ruido or len(trecho) <= 2:
+                continue
+            incluidos.append(item)
+        for item in diff["removidos"]:
+            trecho = item.rsplit(': removido "', 1)[-1].rstrip('"').strip().lower()
+            if trecho in ruido or len(trecho) <= 2:
+                continue
+            removidos.append(item)
+        for item in diff["alterados"]:
+            # Descarta "mudança" em que o recorte ficou idêntico (só ruído de layout).
+            if ': antes "' in item and '"; depois "' in item:
+                try:
+                    meio = item.split(': antes "', 1)[1]
+                    ant_t, dep_t = meio.rsplit('"; depois "', 1)
+                    dep_t = dep_t.rstrip('"')
+                    if ant_t.strip() == dep_t.strip():
+                        continue
+                except Exception:
+                    pass
+            alterados.append(item)
 
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),

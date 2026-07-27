@@ -21,7 +21,7 @@ from email.mime.base import MIMEBase
 from email.utils import make_msgid
 from email import encoders
 
-import html, ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes, traceback
+import html, ssl, smtplib, os, re, json, hashlib, requests, sys, mimetypes, traceback, difflib
 from urllib.parse import urlparse, unquote
 
 # >>> ajuste este caminho por projeto
@@ -815,6 +815,34 @@ def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
     return " · ".join(partes)
 
 
+def _html_marcar_diferenca(antes: str, depois: str) -> tuple[str, str]:
+    """Destaca em vermelho/verde só o trecho que mudou (e-mail)."""
+    a = antes or ""
+    b = depois or ""
+    if a == b:
+        return html.escape(a or "—"), html.escape(b or "—")
+    sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    ha: list[str] = []
+    hb: list[str] = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        ta, tb = html.escape(a[i1:i2]), html.escape(b[j1:j2])
+        if tag == "equal":
+            ha.append(ta)
+            hb.append(tb)
+        elif tag == "replace":
+            if ta:
+                ha.append(f'<span style="background:#ffe0e0;color:#9b0000;">{ta}</span>')
+            if tb:
+                hb.append(f'<span style="background:#e3f5e3;color:#0b6b0b;">{tb}</span>')
+        elif tag == "delete":
+            if ta:
+                ha.append(f'<span style="background:#ffe0e0;color:#9b0000;">{ta}</span>')
+        elif tag == "insert":
+            if tb:
+                hb.append(f'<span style="background:#e3f5e3;color:#0b6b0b;">{tb}</span>')
+    return "".join(ha) or "—", "".join(hb) or "—"
+
+
 def _html_tabela_mudancas(itens: list[str]) -> str:
     """Uma tabela compacta Local | Antes | Depois (sem cards aninhados)."""
     if not itens:
@@ -823,11 +851,20 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
     for texto in itens[:MAX_DIFFS_EMAIL]:
         item = _parse_evidencia_item(str(texto))
         local = html.escape(str(item.get("local") or "Alteração"))
-        antes = html.escape(str(item.get("antes") or "—"))
-        depois = html.escape(str(item.get("depois") or "—"))
+        antes_bruto = str(item.get("antes") or "—")
+        depois_bruto = str(item.get("depois") or "—")
+        # Garante recorte legível mesmo em evidências antigas longas.
+        if len(antes_bruto) > 160 or len(depois_bruto) > 160:
+            try:
+                from backend.app.services.comparador_arquivos import _recortar_par_diff
+
+                antes_bruto, depois_bruto = _recortar_par_diff(antes_bruto, depois_bruto)
+            except Exception:
+                antes_bruto, depois_bruto = antes_bruto[:160] + "…", depois_bruto[:160] + "…"
+        antes_h, depois_h = _html_marcar_diferenca(antes_bruto, depois_bruto)
         linhas.append(
             f"<tr><td class='col-local'>{local}</td>"
-            f"<td>{antes}</td><td>{depois}</td></tr>"
+            f"<td>{antes_h}</td><td>{depois_h}</td></tr>"
         )
     extra = ""
     if len(itens) > MAX_DIFFS_EMAIL:
