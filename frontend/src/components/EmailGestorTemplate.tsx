@@ -41,7 +41,13 @@ function parseEvidencia(texto: string): Evidencia {
   return { local: "Item", depois: texto };
 }
 
+function ehNovoArquivo(texto: string): boolean {
+  const t = (texto || "").toLowerCase();
+  return t.includes("novo arquivo") || t.includes("arquivo novo");
+}
+
 function ehEvidenciaTecnica(texto: string): boolean {
+  if (ehNovoArquivo(texto)) return false;
   const t = (texto || "").toLowerCase();
   return [
     "etag",
@@ -68,6 +74,14 @@ function separarItens(itens: string[]): { tecnicos: string[]; conteudo: string[]
 }
 
 export function alteracaoSoTecnica(alt: AlteracaoResumo): boolean {
+  const textos = [
+    alt.resumo_executivo || "",
+    ...(alt.itens_incluidos || []),
+    ...(alt.itens_removidos || []),
+    ...(alt.itens_alterados || []),
+  ];
+  if (textos.some((t) => ehNovoArquivo(t))) return false;
+
   const { conteudo } = separarItens(alt.itens_alterados || []);
   if (
     (alt.itens_incluidos || []).length ||

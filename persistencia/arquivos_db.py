@@ -227,31 +227,54 @@ def registrar_arquivo_observado(
                         caminho_atual=caminho_arquivo,
                         tipo_arquivo=tipo,
                     )
-                resumo = (
-                    comparacao.get("resumo_executivo")
-                    if comparacao
-                    else (
-                        f"Alteracao detectada por metadados: {evidencia}"
-                        if evidencia
-                        else "Alteracao detectada por metadados do arquivo."
+                novo_arquivo = "novo arquivo" in (evidencia or "").lower()
+                if comparacao:
+                    resumo = comparacao.get("resumo_executivo")
+                    # Arquivo novo na página: mesmo sem diff de células, não rotular como "só metadados".
+                    if novo_arquivo and (
+                        not resumo
+                        or "nenhuma diferença" in str(resumo).lower()
+                        or "nenhuma diferenca" in str(resumo).lower()
+                        or "metadados" in str(resumo).lower()
+                    ):
+                        resumo = (
+                            "Arquivo novo observado na página do Bacen — "
+                            "revise o documento (ainda sem Antes/Depois da versão anterior)."
+                        )
+                elif novo_arquivo:
+                    resumo = (
+                        "Arquivo novo observado na página do Bacen — "
+                        "revise o documento anexo."
                     )
-                )
+                elif evidencia:
+                    resumo = f"Alteracao detectada por metadados: {evidencia}"
+                else:
+                    resumo = "Alteracao detectada por metadados do arquivo."
                 impacto = (
                     comparacao.get("impacto_sugerido")
-                    if comparacao
-                    else "Revisar o arquivo alterado e avaliar impacto operacional."
+                    if comparacao and not novo_arquivo
+                    else (
+                        "Baixar o arquivo novo e avaliar impacto nas rotinas internas."
+                        if novo_arquivo
+                        else (
+                            comparacao.get("impacto_sugerido")
+                            if comparacao
+                            else "Revisar o arquivo alterado e avaliar impacto operacional."
+                        )
+                    )
                 )
-                incluidos = (
-                    comparacao.get("itens_incluidos", []) if comparacao else []
-                )
-                removidos = (
-                    comparacao.get("itens_removidos", []) if comparacao else []
-                )
-                alterados = (
-                    comparacao.get("itens_alterados", [])
-                    if comparacao
-                    else ([evidencia] if evidencia else [])
-                )
+                if comparacao and not novo_arquivo:
+                    incluidos = comparacao.get("itens_incluidos", [])
+                    removidos = comparacao.get("itens_removidos", [])
+                    alterados = comparacao.get("itens_alterados", [])
+                elif novo_arquivo:
+                    incluidos = ["Novo arquivo observado na página do Bacen."]
+                    removidos = []
+                    alterados = [evidencia] if evidencia else ["novo arquivo observado"]
+                else:
+                    incluidos = []
+                    removidos = []
+                    alterados = [evidencia] if evidencia else []
                 cur_alt = conn.execute(
                     """
                     INSERT INTO alteracoes_detectadas (

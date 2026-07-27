@@ -713,7 +713,15 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
 # Limite de linhas de evidência por arquivo no e-mail (leitura limpa).
 MAX_DIFFS_EMAIL = 5
 
+def _eh_novo_arquivo(texto: str) -> bool:
+    t = (texto or "").lower()
+    return "novo arquivo observado" in t or "arquivo novo" in t
+
+
 def _eh_evidencia_tecnica(texto: str) -> bool:
+    """Metadados HTTP / republicação — não inclui arquivo novo na página."""
+    if _eh_novo_arquivo(texto):
+        return False
     t = (texto or "").lower()
     chaves = (
         "etag",
@@ -742,6 +750,21 @@ def _separar_itens_tecnicos_e_conteudo(itens: list[str]) -> tuple[list[str], lis
 
 
 def _detalhe_so_tecnico(detalhe: dict | None, evidencia: str = "") -> bool:
+    # Arquivo novo na página do Bacen = gestor precisa revisar (como o legado alerta).
+    if _eh_novo_arquivo(evidencia):
+        return False
+    if detalhe:
+        resumo = str(detalhe.get("resumo_executivo") or "")
+        if _eh_novo_arquivo(resumo):
+            return False
+        for lista in (
+            detalhe.get("itens_incluidos") or [],
+            detalhe.get("itens_removidos") or [],
+            detalhe.get("itens_alterados") or [],
+        ):
+            if any(_eh_novo_arquivo(str(x)) for x in lista):
+                return False
+
     if not detalhe:
         return bool(evidencia) and _eh_evidencia_tecnica(evidencia)
     inc = detalhe.get("itens_incluidos") or []
@@ -760,6 +783,18 @@ def _detalhe_so_tecnico(detalhe: dict | None, evidencia: str = "") -> bool:
 
 
 def _contagem_curta(detalhe: dict | None, evidencia: str = "") -> str:
+    if _eh_novo_arquivo(evidencia) or (
+        detalhe
+        and (
+            _eh_novo_arquivo(str(detalhe.get("resumo_executivo") or ""))
+            or any(
+                _eh_novo_arquivo(str(x))
+                for x in (detalhe.get("itens_incluidos") or [])
+                + (detalhe.get("itens_alterados") or [])
+            )
+        )
+    ):
+        return "arquivo novo"
     if _detalhe_so_tecnico(detalhe, evidencia):
         return "técnico"
     if not detalhe:
