@@ -596,6 +596,7 @@ def _carregar_detalhes_alteracoes(execucao_id):
 
 def _parse_evidencia_item(texto: str) -> dict:
     padroes = [
+        r'^(.*?): mudanca "([\s\S]*)"; antes "([\s\S]*)"; depois "([\s\S]*)"$',
         r'^(.*?): antes "([\s\S]*)"; depois "([\s\S]*)"$',
         r"^(.*?): antes '([\s\S]*)'; depois '([\s\S]*)'$",
         r"^(.*?): (linha anterior.*?); antes \((.*)\); depois \((.*)\)$",
@@ -606,16 +607,23 @@ def _parse_evidencia_item(texto: str) -> dict:
         m = re.match(padrao, texto)
         if not m:
             continue
+        if len(m.groups()) == 4 and "mudanca" in padrao:
+            return {
+                "local": m.group(1),
+                "mudanca": m.group(2),
+                "antes": m.group(3),
+                "depois": m.group(4),
+            }
         if len(m.groups()) == 4:
             return {"local": f"{m.group(1)} - {m.group(2)}", "antes": m.group(3), "depois": m.group(4)}
         return {"local": m.group(1), "antes": m.group(2), "depois": m.group(3)}
 
     m = re.match(r'^(.*?): incluído "([\s\S]*)"$', texto)
     if m:
-        return {"local": m.group(1), "depois": m.group(2)}
+        return {"local": m.group(1), "depois": m.group(2), "mudanca": f'acrescentou "{m.group(2)}"'}
     m = re.match(r'^(.*?): removido "([\s\S]*)"$', texto)
     if m:
-        return {"local": m.group(1), "antes": m.group(2)}
+        return {"local": m.group(1), "antes": m.group(2), "mudanca": f'removeu "{m.group(2)}"'}
     m = re.match(r'^Arquivo interno incluído: ([^;]+); evidência: "([\s\S]*)"$', texto)
     if m:
         return {"local": f"Arquivo interno {m.group(1)}", "depois": m.group(2)}
@@ -844,7 +852,7 @@ def _html_marcar_diferenca(antes: str, depois: str) -> tuple[str, str]:
 
 
 def _html_tabela_mudancas(itens: list[str]) -> str:
-    """Uma tabela compacta Local | Antes | Depois (sem cards aninhados)."""
+    """Tabela Onde | O que mudou | Antes | Depois — a coluna do meio é a que o gestor lê."""
     if not itens:
         return ""
     linhas = []
@@ -853,7 +861,17 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
         local = html.escape(str(item.get("local") or "Alteração"))
         antes_bruto = str(item.get("antes") or "—")
         depois_bruto = str(item.get("depois") or "—")
-        # Garante recorte legível mesmo em evidências antigas longas.
+        mudanca = str(item.get("mudanca") or "").strip()
+        if not mudanca and (antes_bruto != "—" or depois_bruto != "—"):
+            try:
+                from backend.app.services.comparador_arquivos import _descrever_mudanca
+
+                mudanca = _descrever_mudanca(
+                    "" if antes_bruto == "—" else antes_bruto,
+                    "" if depois_bruto == "—" else depois_bruto,
+                )
+            except Exception:
+                mudanca = "texto alterado"
         if len(antes_bruto) > 160 or len(depois_bruto) > 160:
             try:
                 from backend.app.services.comparador_arquivos import _recortar_par_diff
@@ -862,8 +880,14 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
             except Exception:
                 antes_bruto, depois_bruto = antes_bruto[:160] + "…", depois_bruto[:160] + "…"
         antes_h, depois_h = _html_marcar_diferenca(antes_bruto, depois_bruto)
+        mudanca_h = (
+            f'<strong style="color:#2e3192;">{html.escape(mudanca)}</strong>'
+            if mudanca
+            else "—"
+        )
         linhas.append(
             f"<tr><td class='col-local'>{local}</td>"
+            f"<td>{mudanca_h}</td>"
             f"<td>{antes_h}</td><td>{depois_h}</td></tr>"
         )
     extra = ""
@@ -876,7 +900,7 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
       <table class="diff-table" role="presentation" cellpadding="0" cellspacing="0">
         <thead>
           <tr>
-            <th>Onde</th><th>Antes</th><th>Depois</th>
+            <th>Onde</th><th>O que mudou</th><th>Antes</th><th>Depois</th>
           </tr>
         </thead>
         <tbody>

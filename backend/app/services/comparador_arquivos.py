@@ -97,6 +97,54 @@ def _recortar_par_diff(antes: str, depois: str, contexto: int = 50) -> tuple[str
     return _formatar_trecho(trecho_a, 220), _formatar_trecho(trecho_b, 220)
 
 
+def _diff_so_espaco_interno(antes: str, depois: str) -> bool:
+    """True se a única diferença for espaço no meio de token (ruído típico de PDF)."""
+    a = re.sub(r"\s+", "", antes or "")
+    b = re.sub(r"\s+", "", depois or "")
+    return bool(a) and a == b and (antes or "") != (depois or "")
+
+
+def _descrever_mudanca(antes: str, depois: str) -> str:
+    """Frase curta em português do que mudou — o gestor precisa ler sem caça-palavras."""
+    a = (antes or "").strip()
+    b = (depois or "").strip()
+    if not a and b:
+        return f'acrescentou: "{_formatar_trecho(b, 80)}"'
+    if a and not b:
+        return f'removeu: "{_formatar_trecho(a, 80)}"'
+    if a == b:
+        return "sem diferença textual"
+    if _diff_so_espaco_interno(a, b):
+        return "possível ruído de leitura do PDF (só espaço no meio da palavra/número)"
+
+    sm = difflib.SequenceMatcher(None, a, b, autojunk=False)
+    partes: list[str] = []
+    for tag, i1, i2, j1, j2 in sm.get_opcodes():
+        if tag == "equal":
+            continue
+        velho = a[i1:i2]
+        novo = b[j1:j2]
+        if tag == "insert" and novo.strip():
+            partes.append(f'acrescentou "{_formatar_trecho(novo.strip(), 60)}"')
+        elif tag == "delete" and velho.strip():
+            partes.append(f'removeu "{_formatar_trecho(velho.strip(), 60)}"')
+        elif tag == "replace":
+            if velho.strip() and novo.strip():
+                partes.append(
+                    f'trocou "{_formatar_trecho(velho.strip(), 40)}" '
+                    f'por "{_formatar_trecho(novo.strip(), 40)}"'
+                )
+            elif novo.strip():
+                partes.append(f'acrescentou "{_formatar_trecho(novo.strip(), 60)}"')
+            elif velho.strip():
+                partes.append(f'removeu "{_formatar_trecho(velho.strip(), 60)}"')
+        if len(partes) >= 3:
+            break
+    if not partes:
+        return "texto alterado (veja Antes/Depois)"
+    return "; ".join(partes)
+
+
 def _formatar_valor_planilha(valor: Any) -> str:
     if valor is None:
         return "em branco"
@@ -139,9 +187,17 @@ def _comparar_linhas(
                 ant = linhas_ant_num[i1 + idx] if i1 + idx < i2 else None
                 novo = linhas_atual_num[j1 + idx] if j1 + idx < j2 else None
                 if ant and novo:
+                    if _diff_so_espaco_interno(ant[1], novo[1]):
+                        continue
                     antes_c, depois_c = _recortar_par_diff(ant[1], novo[1])
+                    if antes_c.strip() == depois_c.strip():
+                        continue
+                    descricao = _descrever_mudanca(ant[1], novo[1])
+                    if "ruído de leitura" in descricao:
+                        continue
                     alterados.append(
                         f"{prefixo}linha anterior {ant[0]} -> linha atual {novo[0]}: "
+                        f"mudanca \"{descricao}\"; "
                         f"antes \"{antes_c}\"; depois \"{depois_c}\""
                     )
                 elif novo:
@@ -426,12 +482,17 @@ def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
             removidos.append(item)
         for item in diff["alterados"]:
             # Descarta "mudança" em que o recorte ficou idêntico (só ruído de layout).
-            if ': antes "' in item and '"; depois "' in item:
+            if 'antes "' in item and 'depois "' in item:
                 try:
-                    meio = item.split(': antes "', 1)[1]
+                    if 'mudanca "' in item:
+                        meio = item.split('"; antes "', 1)[1]
+                    else:
+                        meio = item.split(': antes "', 1)[1]
                     ant_t, dep_t = meio.rsplit('"; depois "', 1)
                     dep_t = dep_t.rstrip('"')
                     if ant_t.strip() == dep_t.strip():
+                        continue
+                    if _diff_so_espaco_interno(ant_t, dep_t):
                         continue
                 except Exception:
                     pass
