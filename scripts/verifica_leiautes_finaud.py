@@ -947,8 +947,24 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str 
     return _html_lista_simples(titulo, tipo, itens)
 
 
+def _tem_diff_conteudo(detalhe: dict | None) -> bool:
+    """True se já há Antes/Depois (células/texto) para o gestor ler no e-mail."""
+    if not detalhe:
+        return False
+    inc = detalhe.get("itens_incluidos") or []
+    rem = detalhe.get("itens_removidos") or []
+    _, conteudo = _separar_itens_tecnicos_e_conteudo(
+        detalhe.get("itens_alterados") or []
+    )
+    conteudo = [
+        c for c in conteudo if "novo arquivo observado" not in str(c).lower()
+    ]
+    inc = [i for i in inc if "novo arquivo na página" not in str(i).lower()]
+    return bool(inc or rem or conteudo)
+
+
 def _texto_o_que_fazer(item: dict, detalhe: dict | None) -> str:
-    """Frase de ação que o gestor lê primeiro — sem jargão técnico."""
+    """Ação sobre o diff já mostrado — nunca pedimos 'abra e compare você'."""
     det = detalhe or {}
     impacto = str(det.get("impacto_sugerido") or "").strip()
     evidencia = item.get("evidencia") or ""
@@ -957,31 +973,42 @@ def _texto_o_que_fazer(item: dict, detalhe: dict | None) -> str:
     nome = str(det.get("nome_arquivo") or _filename_from_url(item.get("url") or ""))
     tipo = str(det.get("tipo_arquivo") or Path(nome).suffix.lstrip(".")).lower()
     alvo = f" do leiaute {codigo}" if codigo else ""
+    tem_diff = _tem_diff_conteudo(det)
 
-    if _eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo):
+    # Com tabela Antes/Depois: o trabalho do robô já foi feito.
+    if tem_diff:
         if tipo in {"xlsx", "xls", "xlsm"}:
             return (
-                f"Baixe a planilha nova{alvo}, compare com a planilha de configuração "
-                "que a equipe usa hoje e atualize parâmetros/limites se algo mudou."
+                f"Nas células abaixo{alvo}, atualize parâmetros/limites da rotina interna "
+                "conforme o Depois."
             )
         if tipo == "pdf":
             return (
-                f"Abra o PDF novo{alvo}, leia o Antes/Depois (quando houver) e "
-                "ajuste o preenchimento/rotina se a regra mudou."
+                f"Nas diferenças abaixo{alvo}, ajuste o preenchimento/rotina "
+                "conforme o Depois."
             )
         if tipo == "xsd":
             return (
-                f"Revise o schema novo{alvo} e valide se os sistemas de envio "
-                "precisam de atualização."
+                f"Nas alterações de schema abaixo{alvo}, valide se os sistemas "
+                "de envio precisam de atualização."
             )
-        return impacto or (
-            f"Baixe o arquivo novo{alvo} e avalie impacto nas rotinas internas."
+        return (
+            impacto
+            or f"Revise o Antes/Depois abaixo{alvo} e atualize a rotina interna."
         )
-    if impacto:
+
+    # Sem diff ainda (falha rara): não empurrar comparação manual como produto.
+    if _eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo):
+        return (
+            f"Arquivo novo{alvo} detectado, mas o Antes/Depois automático não saiu "
+            "neste alerta — a equipe técnica precisa reprocessar o diff; "
+            "não é esperado você comparar na mão."
+        )
+    if impacto and "compare" not in impacto.lower() and "baixe" not in impacto.lower():
         return impacto
     return (
-        f"Revise o arquivo{alvo} e o Antes/Depois abaixo; "
-        "atualize a rotina interna só se o conteúdo mudou."
+        f"Mudança{alvo} sem Antes/Depois automático neste alerta — "
+        "aguardar reprocessamento do diff."
     )
 
 
@@ -1150,8 +1177,9 @@ def montar_corpo_email_alteracoes(
         bloco_acao = f"""
       <h2 class="h-acao">1. Precisa agir ({n_acao})</h2>
       <p class="desc">
-        Nestes itens há arquivo novo ou mudança de conteúdo.
-        Siga o <strong>O que fazer</strong> de cada um (link do Bacen + anexo do e-mail).
+        O robô já comparou com a versão anterior. Use a tabela
+        <strong>Antes/Depois</strong> e o <strong>O que fazer</strong> —
+        não é necessário abrir os dois arquivos para descobrir a diferença.
       </p>
       {detalhes}
     """

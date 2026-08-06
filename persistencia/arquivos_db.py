@@ -397,33 +397,18 @@ def registrar_arquivo_observado(
                     if nome_anterior_parente:
                         resumo = (
                             f"Arquivo novo na página do Bacen (substitui/sucede "
-                            f"{nome_anterior_parente}). Diff textual automático "
-                            "não disponível — use o anexo."
+                            f"{nome_anterior_parente}). Diff automático não saiu "
+                            "neste alerta — reprocessar comparação."
                         )
                     else:
                         resumo = (
                             "Arquivo novo na página do Bacen. "
-                            "Ainda não há versão anterior no histórico para Antes/Depois."
+                            "Sem versão anterior no histórico para montar Antes/Depois."
                         )
-                    if tipo in {"xlsx", "xls", "xlsm"}:
-                        impacto = (
-                            "Baixe a planilha nova, compare com a planilha de configuração "
-                            "que a equipe usa hoje e atualize parâmetros/limites se mudou."
-                        )
-                    elif tipo == "pdf":
-                        impacto = (
-                            "Abra o PDF novo, confira as regras de preenchimento e "
-                            "ajuste a rotina interna se algo mudou."
-                        )
-                    elif tipo == "xsd":
-                        impacto = (
-                            "Revise o schema novo e valide se os sistemas de envio "
-                            "precisam de atualização."
-                        )
-                    else:
-                        impacto = (
-                            "Baixe o arquivo novo e avalie impacto nas rotinas internas."
-                        )
+                    impacto = (
+                        "Aguardar Antes/Depois automático (não comparar na mão). "
+                        "Se persistir, reprocessar o diff no servidor."
+                    )
                     incluidos = [
                         "Novo arquivo na página"
                         + (
