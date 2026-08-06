@@ -719,7 +719,9 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
 
 
 # Limite de linhas de evidência por arquivo no e-mail (leitura limpa).
+# A lista completa vai na planilha anexa Antes_Depois_leiautes_*.xlsx.
 MAX_DIFFS_EMAIL = 5
+ANEXO_ANTES_DEPOIS_PREFIXO = "Antes_Depois_leiautes"
 
 def _eh_novo_arquivo(texto: str) -> bool:
     t = (texto or "").lower()
@@ -894,7 +896,9 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
     if len(itens) > MAX_DIFFS_EMAIL:
         extra = (
             f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} "
-            f"alteração(ões) adicional(is) — consulte o arquivo anexo ou o Bacen.</p>"
+            f"alteração(ões) adicional(is) — lista completa na planilha anexa "
+            f"<strong>{html.escape(ANEXO_ANTES_DEPOIS_PREFIXO)}_….xlsx</strong> "
+            f"(colunas Onde / O que mudou / Antes / Depois / O que fazer).</p>"
         )
     return f"""
       <table class="diff-table" role="presentation" cellpadding="0" cellspacing="0">
@@ -1144,6 +1148,158 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
     return _html_detalhe_conteudo(item, detalhe)
 
 
+def _linhas_diff_para_planilha(texto: str, tipo: str) -> dict[str, str]:
+    """Normaliza evidência em colunas da planilha Antes/Depois."""
+    item = _parse_evidencia_item(str(texto))
+    local = str(item.get("local") or ("Inclusão" if tipo == "entrou" else "Alteração"))
+    antes = str(item.get("antes") or ("—" if tipo == "entrou" else "em branco"))
+    depois = str(item.get("depois") or str(texto))
+    mudanca = str(item.get("mudanca") or "").strip()
+    if not mudanca:
+        try:
+            from backend.app.services.comparador_arquivos import _descrever_mudanca
+
+            if tipo == "entrou":
+                mudanca = "acrescentou"
+            elif tipo == "saiu":
+                mudanca = "removeu"
+            else:
+                mudanca = _descrever_mudanca(
+                    "" if antes in {"—", "em branco"} else antes,
+                    "" if depois in {"—", "em branco"} else depois,
+                )
+        except Exception:
+            mudanca = "texto alterado"
+    return {
+        "tipo": {"entrou": "Entrou", "saiu": "Saiu", "mudou": "Mudou"}.get(tipo, tipo),
+        "onde": local,
+        "mudanca": mudanca,
+        "antes": antes if tipo != "entrou" else "—",
+        "depois": depois if tipo != "saiu" else "—",
+    }
+
+
+def gerar_planilha_antes_depois(
+    alterados: list[dict],
+    detalhes_por_url: dict,
+) -> tuple[bytes, str] | None:
+    """Planilha anexa com TODAS as linhas Antes/Depois + O que fazer (itens que precisam agir)."""
+    try:
+        from openpyxl import Workbook
+        from openpyxl.styles import Alignment, Font, PatternFill
+    except Exception as exc:
+        logger.warning("openpyxl indisponível para anexo Antes/Depois: %s", exc)
+        return None
+
+    precisa: list[tuple[dict, dict]] = []
+    for item in alterados:
+        det = detalhes_por_url.get(item["url"]) or {}
+        if not _detalhe_so_tecnico(det, item.get("evidencia") or ""):
+            precisa.append((item, det))
+    if not precisa:
+        return None
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Antes_Depois"
+    cab = [
+        "Leiaute",
+        "Arquivo",
+        "Tipo",
+        "Onde",
+        "O que mudou",
+        "Antes",
+        "Depois",
+        "O que fazer",
+        "Link Bacen",
+    ]
+    ws.append(cab)
+    header_fill = PatternFill("solid", fgColor="2E3192")
+    header_font = Font(name="Arial", bold=True, color="FFFFFF")
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(vertical="center", wrap_text=True)
+
+    for item, det in precisa:
+        o_que_fazer = _texto_o_que_fazer(item, det)
+        codigo = str(det.get("leiaute_codigo") or "").strip()
+        nome = str(det.get("nome_arquivo") or _filename_from_url(item["url"]))
+        url = item["url"]
+        incluidos = [
+            i
+            for i in (det.get("itens_incluidos") or [])
+            if "novo arquivo na página" not in str(i).lower()
+        ]
+        removidos = det.get("itens_removidos") or []
+        _, alterados_txt = _separar_itens_tecnicos_e_conteudo(
+            det.get("itens_alterados") or []
+        )
+        alterados_txt = [
+            c
+            for c in alterados_txt
+            if "novo arquivo observado" not in str(c).lower()
+        ]
+        blocos = (
+            [("entrou", x) for x in incluidos]
+            + [("mudou", x) for x in alterados_txt]
+            + [("saiu", x) for x in removidos]
+        )
+        if not blocos:
+            ws.append(
+                [
+                    codigo,
+                    nome,
+                    "Arquivo novo",
+                    "—",
+                    "arquivo novo sem diff",
+                    "—",
+                    "—",
+                    o_que_fazer,
+                    url,
+                ]
+            )
+            continue
+        for tipo, texto in blocos:
+            linha = _linhas_diff_para_planilha(str(texto), tipo)
+            ws.append(
+                [
+                    codigo,
+                    nome,
+                    linha["tipo"],
+                    linha["onde"],
+                    linha["mudanca"],
+                    linha["antes"],
+                    linha["depois"],
+                    o_que_fazer,
+                    url,
+                ]
+            )
+
+    widths = {
+        "A": 12,
+        "B": 42,
+        "C": 12,
+        "D": 36,
+        "E": 28,
+        "F": 40,
+        "G": 40,
+        "H": 48,
+        "I": 28,
+    }
+    for col, width in widths.items():
+        ws.column_dimensions[col].width = width
+    ws.auto_filter.ref = f"A1:I{ws.max_row}"
+    ws.freeze_panes = "A2"
+
+    from io import BytesIO
+
+    buf = BytesIO()
+    wb.save(buf)
+    nome = f"{ANEXO_ANTES_DEPOIS_PREFIXO}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
+    return buf.getvalue(), nome
+
+
 def montar_corpo_email_alteracoes(
     alterados: list[dict],
     detalhes_por_url: dict,
@@ -1177,9 +1333,10 @@ def montar_corpo_email_alteracoes(
         bloco_acao = f"""
       <h2 class="h-acao">1. Precisa agir ({n_acao})</h2>
       <p class="desc">
-        O robô já comparou com a versão anterior. Use a tabela
-        <strong>Antes/Depois</strong> e o <strong>O que fazer</strong> —
-        não é necessário abrir os dois arquivos para descobrir a diferença.
+        O robô já comparou com a versão anterior. Amostra abaixo;
+        a lista completa está na planilha anexa
+        <strong>{ANEXO_ANTES_DEPOIS_PREFIXO}_….xlsx</strong>
+        (Antes / Depois / O que fazer). Não precisa abrir os dois arquivos do Bacen.
       </p>
       {detalhes}
     """
@@ -1443,6 +1600,7 @@ def main():
             msg["To"] = ", ".join(destinatarios)
 
             logo_cid = make_msgid(domain="finaud.com.br")[1:-1]
+            detalhes_por_url: dict = {}
 
             if alterados:
                 detalhes_por_url = _carregar_detalhes_alteracoes(execucao_id)
@@ -1463,31 +1621,60 @@ def main():
                 img.add_header("Content-Disposition", "inline", filename="logo.jpg")
                 msg.attach(img)
 
-            # Com muitos arquivos, anexos deixam o e-mail pesado; prioriza links no corpo.
-            max_anexos = 3 if len(alterados) > 3 else len(alterados)
             session = _session()
             total_size = 0
             anexados = 0
-            for item in alterados:
-                if anexados >= max_anexos:
-                    logger.info(
-                        "Anexos limitados a %s arquivo(s) para manter o e-mail leve.",
-                        max_anexos,
+            # 1) Planilha Antes/Depois completa — é o anexo principal do alerta.
+            if alterados:
+                planilha = gerar_planilha_antes_depois(alterados, detalhes_por_url)
+                if planilha:
+                    content_xlsx, nome_xlsx = planilha
+                    part = MIMEBase(
+                        "application",
+                        "vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     )
+                    part.set_payload(content_xlsx)
+                    encoders.encode_base64(part)
+                    part.add_header(
+                        "Content-Disposition", "attachment", filename=nome_xlsx
+                    )
+                    msg.attach(part)
+                    total_size += len(content_xlsx)
+                    anexados += 1
+                    logger.info(
+                        "Anexo principal Antes/Depois: %s (%s bytes)",
+                        nome_xlsx,
+                        len(content_xlsx),
+                    )
+                else:
+                    logger.warning(
+                        "Não foi possível gerar planilha Antes/Depois para o e-mail."
+                    )
+
+            # 2) Opcional: 1–2 originais do Bacen (secundários; o diff já está na planilha).
+            max_anexos_bacen = 2
+            bacen_anexados = 0
+            for item in alterados:
+                if bacen_anexados >= max_anexos_bacen:
                     break
                 url = item["url"]
                 content, maintype, subtype, motivo = baixar_para_anexo(session, url)
                 if content:
                     if total_size + len(content) > MAX_TOTAL_ATTACH_SIZE:
-                        logger.warning(f"Anexo ignorado (limite total): {_filename_from_url(url)}")
+                        logger.warning(f"Anexo Bacen ignorado (limite total): {_filename_from_url(url)}")
                         continue
                     part = MIMEBase(maintype, subtype)
                     part.set_payload(content)
                     encoders.encode_base64(part)
-                    part.add_header("Content-Disposition", "attachment", filename=_filename_from_url(url))
+                    part.add_header(
+                        "Content-Disposition",
+                        "attachment",
+                        filename=_filename_from_url(url),
+                    )
                     msg.attach(part)
                     total_size += len(content)
                     anexados += 1
+                    bacen_anexados += 1
                 elif motivo:
                     logger.warning(f"Não foi possível anexar {url} | Motivo: {motivo}")
 

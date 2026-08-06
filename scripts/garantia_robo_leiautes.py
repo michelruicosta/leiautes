@@ -134,10 +134,18 @@ def check_classificacao_email() -> None:
         "Não precisa agir",
         "O que fazer",
         "O que mudou",
+        "Antes_Depois_leiautes",
         "acrescentou",
     ):
         if trecho not in html:
             raise RuntimeError(f"HTML do e-mail sem trecho esperado: {trecho!r}")
+
+    planilha = m.gerar_planilha_antes_depois(alterados, detalhes)
+    if not planilha:
+        raise RuntimeError("gerar_planilha_antes_depois retornou vazio")
+    content_xlsx, nome_xlsx = planilha
+    if "Antes_Depois_leiautes" not in nome_xlsx or not content_xlsx:
+        raise RuntimeError(f"anexo Antes/Depois inválido: {nome_xlsx!r} ({len(content_xlsx)} bytes)")
 
 
 def check_diff_pdf_se_disponivel() -> None:
