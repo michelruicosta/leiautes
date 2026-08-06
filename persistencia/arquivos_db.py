@@ -32,7 +32,7 @@ def _slug(texto: str) -> str:
 
 
 def _familia_nome_arquivo(nome_arquivo: str) -> str:
-    """Normaliza nome Bacen para achar versão anterior (v7-vi8 → v8-vi9)."""
+    """Normaliza nome Bacen para achar versão anterior (v7→v8, 202505→202607)."""
     from urllib.parse import unquote
 
     base = unquote(nome_arquivo or "")
@@ -40,8 +40,29 @@ def _familia_nome_arquivo(nome_arquivo: str) -> str:
     # Remove versões tipicas: -v8-vi9, -v7, _v2
     base = re.sub(r"[-_\s]?v\d+-vi\d+", "", base, flags=re.IGNORECASE)
     base = re.sub(r"[-_\s]?v\d+(?=\s|[-_.]|$)", "", base, flags=re.IGNORECASE)
+    # Competência YYYYMM (ex.: 2062-202607-Planilha → 2062-Planilha)
+    base = re.sub(r"[-_]\d{6}(?=[-_\s.]|$)", "", base)
     base = re.sub(r"\s+", " ", base).strip().lower()
+    base = re.sub(r"\s*-\s*", "-", base)
+    base = re.sub(r"-{2,}", "-", base)
     return base
+
+
+def _competencia_yyyymm(nome_arquivo: str) -> Optional[int]:
+    """Extrai YYYYMM do nome Bacen (ex.: 2062-202607-v1-...)."""
+    from urllib.parse import unquote
+
+    m = re.search(r"(?<!\d)(\d{6})(?!\d)", unquote(nome_arquivo or ""))
+    if not m:
+        return None
+    try:
+        val = int(m.group(1))
+    except Exception:
+        return None
+    ano, mes = divmod(val, 100)
+    if 1990 <= ano <= 2100 and 1 <= mes <= 12:
+        return val
+    return None
 
 
 def _buscar_caminho_versao_parente(
@@ -51,13 +72,14 @@ def _buscar_caminho_versao_parente(
     excluir_arquivo_id: Optional[int] = None,
     conn: Any = None,
 ) -> Optional[tuple[str, str]]:
-    """Retorna (caminho_arquivo, nome_anterior) da versão 'irmã' mais recente no histórico."""
+    """Retorna (caminho_arquivo, nome_anterior) da versão 'irmã' mais próxima no histórico."""
     familia = _familia_nome_arquivo(nome_arquivo)
     if not familia or len(familia) < 8:
         return None
+    competencia_atual = _competencia_yyyymm(nome_arquivo)
 
     sql = """
-        SELECT ar.id, ar.nome_arquivo, v.caminho_arquivo
+        SELECT ar.id, ar.nome_arquivo, v.caminho_arquivo, ar.atualizado_em, v.id AS versao_id
         FROM arquivos_monitorados ar
         JOIN versoes_arquivos v ON v.id = ar.ultima_versao_id
         WHERE v.caminho_arquivo IS NOT NULL
@@ -70,9 +92,10 @@ def _buscar_caminho_versao_parente(
     if excluir_arquivo_id is not None:
         sql += " AND ar.id != ?"
         params.append(excluir_arquivo_id)
-    sql += " ORDER BY ar.atualizado_em DESC, v.id DESC LIMIT 80"
+    sql += " ORDER BY ar.atualizado_em DESC, v.id DESC LIMIT 120"
 
     def _candidatos(rows) -> Optional[tuple[str, str]]:
+        melhores: list[tuple[tuple, str, str]] = []
         for row in rows:
             nome_ant = row["nome_arquivo"] or ""
             if _familia_nome_arquivo(nome_ant) != familia:
@@ -83,9 +106,26 @@ def _buscar_caminho_versao_parente(
             path = Path(caminho)
             if not path.is_absolute():
                 path = RAIZ / caminho
-            if path.exists():
-                return str(caminho), nome_ant
-        return None
+            if not path.exists():
+                continue
+            comp_ant = _competencia_yyyymm(nome_ant)
+            # Preferir competência imediatamente anterior; senão a mais próxima;
+            # por último, a mais recentemente atualizada.
+            if competencia_atual is not None and comp_ant is not None:
+                if comp_ant < competencia_atual:
+                    chave = (0, competencia_atual - comp_ant, -int(row["versao_id"] or 0))
+                elif comp_ant > competencia_atual:
+                    chave = (2, comp_ant - competencia_atual, -int(row["versao_id"] or 0))
+                else:
+                    chave = (1, 0, -int(row["versao_id"] or 0))
+            else:
+                chave = (3, 0, -int(row["versao_id"] or 0))
+            melhores.append((chave, str(caminho), nome_ant))
+        if not melhores:
+            return None
+        melhores.sort(key=lambda x: x[0])
+        _, caminho, nome_ant = melhores[0]
+        return caminho, nome_ant
 
     if conn is not None:
         rows = conn.execute(sql, params).fetchall()
@@ -356,16 +396,34 @@ def registrar_arquivo_observado(
                 elif novo_arquivo:
                     if nome_anterior_parente:
                         resumo = (
-                            f"Arquivo novo na página do Bacen (versão anterior local: "
-                            f"{nome_anterior_parente}). Abra o anexo para revisar; "
-                            "não foi possível extrair diff textual automático."
+                            f"Arquivo novo na página do Bacen (substitui/sucede "
+                            f"{nome_anterior_parente}). Diff textual automático "
+                            "não disponível — use o anexo."
                         )
                     else:
                         resumo = (
-                            "Arquivo novo na página do Bacen — revise o documento anexo. "
+                            "Arquivo novo na página do Bacen. "
                             "Ainda não há versão anterior no histórico para Antes/Depois."
                         )
-                    impacto = "Baixar o arquivo novo e avaliar impacto nas rotinas internas."
+                    if tipo in {"xlsx", "xls", "xlsm"}:
+                        impacto = (
+                            "Baixe a planilha nova, compare com a planilha de configuração "
+                            "que a equipe usa hoje e atualize parâmetros/limites se mudou."
+                        )
+                    elif tipo == "pdf":
+                        impacto = (
+                            "Abra o PDF novo, confira as regras de preenchimento e "
+                            "ajuste a rotina interna se algo mudou."
+                        )
+                    elif tipo == "xsd":
+                        impacto = (
+                            "Revise o schema novo e valide se os sistemas de envio "
+                            "precisam de atualização."
+                        )
+                    else:
+                        impacto = (
+                            "Baixe o arquivo novo e avalie impacto nas rotinas internas."
+                        )
                     incluidos = [
                         "Novo arquivo na página"
                         + (

@@ -947,8 +947,46 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str 
     return _html_lista_simples(titulo, tipo, itens)
 
 
+def _texto_o_que_fazer(item: dict, detalhe: dict | None) -> str:
+    """Frase de ação que o gestor lê primeiro — sem jargão técnico."""
+    det = detalhe or {}
+    impacto = str(det.get("impacto_sugerido") or "").strip()
+    evidencia = item.get("evidencia") or ""
+    resumo = str(det.get("resumo_executivo") or "")
+    codigo = str(det.get("leiaute_codigo") or "").strip()
+    nome = str(det.get("nome_arquivo") or _filename_from_url(item.get("url") or ""))
+    tipo = str(det.get("tipo_arquivo") or Path(nome).suffix.lstrip(".")).lower()
+    alvo = f" do leiaute {codigo}" if codigo else ""
+
+    if _eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo):
+        if tipo in {"xlsx", "xls", "xlsm"}:
+            return (
+                f"Baixe a planilha nova{alvo}, compare com a planilha de configuração "
+                "que a equipe usa hoje e atualize parâmetros/limites se algo mudou."
+            )
+        if tipo == "pdf":
+            return (
+                f"Abra o PDF novo{alvo}, leia o Antes/Depois (quando houver) e "
+                "ajuste o preenchimento/rotina se a regra mudou."
+            )
+        if tipo == "xsd":
+            return (
+                f"Revise o schema novo{alvo} e valide se os sistemas de envio "
+                "precisam de atualização."
+            )
+        return impacto or (
+            f"Baixe o arquivo novo{alvo} e avalie impacto nas rotinas internas."
+        )
+    if impacto:
+        return impacto
+    return (
+        f"Revise o arquivo{alvo} e o Antes/Depois abaixo; "
+        "atualize a rotina interna só se o conteúdo mudou."
+    )
+
+
 def _html_detalhe_conteudo(item, detalhe) -> str:
-    """Um arquivo com mudança interna — título único + diffs (sem repetir nome)."""
+    """Um arquivo com mudança interna — título + O que fazer + diffs."""
     url = item["url"]
     nome = _filename_from_url(url)
     evidencia = item.get("evidencia") or ""
@@ -959,14 +997,25 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
     link = (
         f'<a href="{html.escape(url)}" target="_blank">{html.escape(rotulo)}</a>'
     )
-    resumo = str((detalhe or {}).get("resumo_executivo") or "").strip()
-    resumo_html = (
-        f'<p class="desc" style="margin:0 0 10px;">{html.escape(resumo)}</p>'
-        if resumo
-        else ""
+    o_que_fazer = _texto_o_que_fazer(item, detalhe)
+    acao_html = (
+        f'<p class="acao"><strong>O que fazer:</strong> '
+        f"{html.escape(o_que_fazer)}</p>"
     )
+    resumo = str((detalhe or {}).get("resumo_executivo") or "").strip()
+    # Evita repetir o mesmo texto genérico logo abaixo do CTA.
+    if resumo and resumo.rstrip(".") not in o_que_fazer:
+        resumo_html = (
+            f'<p class="desc" style="margin:0 0 10px;">{html.escape(resumo)}</p>'
+        )
+    else:
+        resumo_html = ""
 
-    incluidos = (detalhe or {}).get("itens_incluidos") or []
+    incluidos = [
+        i
+        for i in ((detalhe or {}).get("itens_incluidos") or [])
+        if "novo arquivo na página" not in str(i).lower()
+    ]
     removidos = (detalhe or {}).get("itens_removidos") or []
     _, conteudo = _separar_itens_tecnicos_e_conteudo(
         (detalhe or {}).get("itens_alterados") or []
@@ -984,10 +1033,17 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
             _html_lista_diferencas("Saiu", "saiu", removidos),
         ]
     )
+    if not secoes and (_eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo)):
+        secoes = (
+            "<p class='desc' style='margin:0'>"
+            "Não há tabela Antes/Depois automática neste item — use o link/anexo."
+            "</p>"
+        )
     return f"""
       <div class="file-block">
         <p class="file-title">{link}
           <span class="muted"> — {html.escape(contagem)}</span></p>
+        {acao_html}
         {resumo_html}
         {secoes}
       </div>
@@ -1093,7 +1149,10 @@ def montar_corpo_email_alteracoes(
         )
         bloco_acao = f"""
       <h2 class="h-acao">1. Precisa agir ({n_acao})</h2>
-      <p class="desc">Arquivo novo ou mudança de conteúdo — revise o anexo e o Antes/Depois quando houver.</p>
+      <p class="desc">
+        Nestes itens há arquivo novo ou mudança de conteúdo.
+        Siga o <strong>O que fazer</strong> de cada um (link do Bacen + anexo do e-mail).
+      </p>
       {detalhes}
     """
 
@@ -1103,15 +1162,21 @@ def montar_corpo_email_alteracoes(
       <h2 class="h-tech">2. Não precisa agir ({n_tech})</h2>
       <p class="desc">
         Só republicação no site do Bacen — sem mudança de texto, célula ou tabela.
-        Mesmo assim mostramos o que mudou nos metadados do site.
+        Não exige ajuste de rotina; listamos só o que mudou nos metadados.
       </p>
       {_html_lista_tecnica(nao_precisa)}
     """
 
+    lead_acao = (
+        f"{n_acao} precisa agir (veja o bloco 1)"
+        if n_acao
+        else "nenhum item exige ação de conteúdo"
+    )
     return f"""
       <p class="lead">
-        <strong>{n} arquivo(s)</strong>
-        <span class="muted"> — {n_acao} precisa agir, {n_tech} técnico</span>
+        <strong>{n} arquivo(s) com diferença</strong>
+        <span class="muted"> — {lead_acao}
+        {f'; {n_tech} só técnico' if n_tech else ''}</span>
       </p>
       {bloco_acao}
       {bloco_tech}
@@ -1134,6 +1199,10 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
   }}
   .h-tech {{ border-bottom-color: #999; color: #555; }}
   .desc {{ margin: 0 0 14px; color: #555; font-size: 14px; }}
+  .acao {{
+    margin: 0 0 10px; padding: 10px 12px; background: #fff8e6;
+    border-left: 4px solid #d4a017; color: #333; font-size: 14px;
+  }}
   .file-block {{ margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid #eee; }}
   .file-block:last-child {{ border-bottom: none; }}
   .file-title {{ margin: 0 0 10px; font-size: 15px; font-weight: bold; color: #222; }}

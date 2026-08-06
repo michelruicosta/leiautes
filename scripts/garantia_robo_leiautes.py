@@ -132,6 +132,7 @@ def check_classificacao_email() -> None:
     for trecho in (
         "Precisa agir",
         "Não precisa agir",
+        "O que fazer",
         "O que mudou",
         "acrescentou",
     ):
