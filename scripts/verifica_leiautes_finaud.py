@@ -612,6 +612,21 @@ def _parse_evidencia_item(texto: str) -> dict:
             "mudanca": "renomeou aba",
         }
 
+    m = re.match(r'^Aba (.+), conta ([^:]+): incluída "(.+)"$', texto.strip())
+    if m:
+        return {
+            "local": f"Aba {m.group(1).strip()}, conta {m.group(2).strip()}",
+            "depois": m.group(3),
+            "mudanca": "acrescentou conta",
+        }
+    m = re.match(r'^Aba (.+), conta ([^:]+): removida "(.+)"$', texto.strip())
+    if m:
+        return {
+            "local": f"Aba {m.group(1).strip()}, conta {m.group(2).strip()}",
+            "antes": m.group(3),
+            "mudanca": "removeu conta",
+        }
+
     padroes = [
         r'^(.*?): mudanca "([\s\S]*)"; antes "([\s\S]*)"; depois "([\s\S]*)"$',
         r'^(.*?): antes "([\s\S]*)"; depois "([\s\S]*)"$',
@@ -1174,10 +1189,17 @@ def _html_detalhe_alteracao(item, detalhe) -> str:
 
 def _linhas_diff_para_planilha(texto: str, tipo: str) -> dict[str, str]:
     """Normaliza evidência em colunas da planilha Antes/Depois."""
+    from backend.app.services.comparador_arquivos import _formatar_valor_planilha
+
     item = _parse_evidencia_item(str(texto))
     local = str(item.get("local") or ("Inclusão" if tipo == "entrou" else "Alteração"))
-    antes = str(item.get("antes") or ("—" if tipo == "entrou" else "em branco"))
-    depois = str(item.get("depois") or str(texto))
+    antes = _formatar_valor_planilha(item.get("antes")) if item.get("antes") not in (None, "") else ("—" if tipo == "entrou" else "em branco")
+    if item.get("depois") not in (None, ""):
+        depois = _formatar_valor_planilha(item.get("depois"))
+    else:
+        depois = str(texto)
+    if depois == "em branco" and tipo == "saiu":
+        depois = "—"
     mudanca = str(item.get("mudanca") or "").strip()
     if not mudanca:
         try:

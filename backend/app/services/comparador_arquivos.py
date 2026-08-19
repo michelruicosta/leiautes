@@ -160,15 +160,168 @@ _ERROS_EXCEL_LEGIVEL = {
 }
 
 
+_RE_CODIGO_CONTA = re.compile(r"^\d+(?:\.\d+)*$")
+
+
+def _celula_ignorar_no_diff(valor: Any) -> bool:
+    """Fórmulas e erros Excel não entram no Antes/Depois (geram #VALOR! sem contexto)."""
+    if valor is None:
+        return True
+    bruto = str(valor).strip()
+    if not bruto:
+        return True
+    if bruto.startswith("="):
+        return True
+    upper = bruto.upper()
+    if upper in _ERROS_EXCEL_LEGIVEL or bruto.startswith("#"):
+        return True
+    return False
+
+
+def _detectar_colunas_contas(rows: list[tuple]) -> tuple[int, int] | None:
+    """Índices (conta, nome) — variações Bacen: NOME DA CONTA, DESCRIÇÃO, NOME, etc."""
+    for row in rows[:25]:
+        if not row:
+            continue
+        cols = [str(c or "").strip().upper() for c in row]
+        try:
+            i_conta = cols.index("CONTA")
+        except ValueError:
+            continue
+        i_nome = next(
+            (j for j, c in enumerate(cols) if j != i_conta and "NOME" in c and "CONTA" in c),
+            None,
+        )
+        if i_nome is None:
+            for j, c in enumerate(cols):
+                if j == i_conta:
+                    continue
+                if c in ("NOME", "DESCRIÇÃO", "DESCRICAO", "DESCRIÇAO"):
+                    i_nome = j
+                    break
+        if i_nome is None and i_conta + 1 < len(cols):
+            prox = cols[i_conta + 1]
+            if prox and not prox.startswith("ELEMENTO") and prox not in ("VALOR", "SALDO"):
+                i_nome = i_conta + 1
+        if i_nome is not None:
+            return i_conta, i_nome
+    return None
+
+
+def _normalizar_codigo_conta(valor: Any) -> str | None:
+    """Converte célula CONTA (número ou texto) para '180' / '180.01'."""
+    if valor is None:
+        return None
+    if isinstance(valor, float):
+        if valor.is_integer():
+            codigo = str(int(valor))
+        else:
+            codigo = f"{valor:.10f}".rstrip("0").rstrip(".")
+    elif isinstance(valor, int):
+        codigo = str(valor)
+    else:
+        codigo = str(valor).strip()
+    if _RE_CODIGO_CONTA.match(codigo):
+        return codigo
+    return None
+
+
+def _extrair_mapa_contas(
+    rows: list[tuple], idx_conta: int, idx_nome: int
+) -> dict[str, str]:
+    mapa: dict[str, str] = {}
+    for row in rows:
+        if not row or len(row) <= max(idx_conta, idx_nome):
+            continue
+        codigo_raw = row[idx_conta]
+        codigo = _normalizar_codigo_conta(codigo_raw)
+        if not codigo:
+            continue
+        nome_cel = row[idx_nome]
+        if _celula_ignorar_no_diff(nome_cel):
+            continue
+        mapa[codigo] = _formatar_valor_planilha(nome_cel)
+    return mapa
+
+
+def _comparar_aba_contas_bacen(
+    rows_ant: list[tuple],
+    rows_atual: list[tuple],
+    rotulo_aba: str,
+    *,
+    limite: int = 200,
+) -> list[str]:
+    """Diff por código contábil — ignora coluna VALOR (fórmulas)."""
+    cols = _detectar_colunas_contas(rows_ant) or _detectar_colunas_contas(rows_atual)
+    if not cols:
+        return []
+    idx_conta, idx_nome = cols
+    ant = _extrair_mapa_contas(rows_ant, idx_conta, idx_nome)
+    atual = _extrair_mapa_contas(rows_atual, idx_conta, idx_nome)
+    alterados: list[str] = []
+
+    def _norm(t: str) -> str:
+        return re.sub(r"\s+", " ", str(t or "").strip()).upper()
+
+    for cod in sorted(set(atual) - set(ant)):
+        alterados.append(f'Aba {rotulo_aba}, conta {cod}: incluída "{atual[cod]}"')
+        if len(alterados) >= limite:
+            return alterados
+    for cod in sorted(set(ant) - set(atual)):
+        alterados.append(f'Aba {rotulo_aba}, conta {cod}: removida "{ant[cod]}"')
+        if len(alterados) >= limite:
+            return alterados
+    for cod in sorted(set(ant) & set(atual)):
+        if _norm(ant[cod]) == _norm(atual[cod]):
+            continue
+        alterados.append(
+            f'Aba {rotulo_aba}, conta {cod}: mudanca "nome da conta"; '
+            f'antes "{ant[cod]}"; depois "{atual[cod]}"'
+        )
+        if len(alterados) >= limite:
+            return alterados
+    return alterados
+
+
+def _arquivo_modelo_contas_bacen(
+    abas_ant: list[str],
+    abas_atual: list[str],
+    mapa_abas: dict[str, str],
+) -> bool:
+    """True se a maioria das abas parece planilha modelo documento (contas) do Bacen."""
+    del abas_ant, abas_atual
+    nomes = {n.lower() for n in mapa_abas.values()} | {n.lower() for n in mapa_abas.keys()}
+    marcadores = {
+        "flaf",
+        "imob",
+        "pr",
+        "prcos",
+        "lcsp",
+        "lec",
+        "loc",
+        "ra",
+        "rwacirb",
+        "rwampad",
+        "rwaopad",
+        "rwasp",
+        "irrbb",
+    }
+    return len(nomes & marcadores) >= 3
+
+
 def _formatar_valor_planilha(valor: Any) -> str:
     if valor is None:
         return "em branco"
     # openpyxl pode devolver objetos Error para células com falha de fórmula.
     tipo = type(valor).__name__
-    if tipo == "Error" or (hasattr(valor, "value") and str(getattr(valor, "value", "")).startswith("#")):
+    if tipo == "Error" or (
+        hasattr(valor, "value") and str(getattr(valor, "value", "")).startswith("#")
+    ):
         bruto = str(getattr(valor, "value", valor)).strip().upper()
     else:
         bruto = str(valor).strip()
+    if bruto.startswith("="):
+        return "(fórmula — ignorada no diff)"
     if bruto.upper() in _ERROS_EXCEL_LEGIVEL:
         return _ERROS_EXCEL_LEGIVEL[bruto.upper()]
     if bruto.startswith("#") and bruto.endswith("!"):
@@ -397,7 +550,7 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
         wb_ant.sheetnames, wb_atual.sheetnames
     )
     alterados: list[str] = list(renomeadas)
-    limite_evidencias = 50
+    limite_evidencias = 200
 
     for aba_ant, aba_atual in sorted(mapa_abas.items()):
         if len(alterados) >= limite_evidencias:
@@ -405,12 +558,29 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
         ws_ant = wb_ant[aba_ant]
         ws_atual = wb_atual[aba_atual]
         rotulo_aba = aba_atual if aba_ant == aba_atual else f"{aba_ant}→{aba_atual}"
-        # Compara por linhas (valores) em vez de célula a célula com .cell() —
-        # muito mais rápido em planilhas grandes do Bacen.
         rows_ant = list(ws_ant.iter_rows(values_only=True))
         rows_atual = list(ws_atual.iter_rows(values_only=True))
-        max_row = max(len(rows_ant), len(rows_atual))
+
+        layout_contas = (
+            _detectar_colunas_contas(rows_ant) or _detectar_colunas_contas(rows_atual)
+        )
+        if layout_contas:
+            diff_contas = _comparar_aba_contas_bacen(
+                rows_ant, rows_atual, rotulo_aba, limite=limite_evidencias
+            )
+            for item in diff_contas:
+                if len(alterados) >= limite_evidencias:
+                    break
+                alterados.append(item)
+            continue
+
+        # Abas sem coluna CONTA (Capa, INSTcapital, RWAopad): diff célula a célula
+        # desalinha linhas e polui Antes/Depois — ignorar no modelo documento (contas).
+        if _arquivo_modelo_contas_bacen(wb_ant.sheetnames, wb_atual.sheetnames, mapa_abas):
+            continue
+
         cabecalhos = rows_atual[0] if rows_atual else ()
+        max_row = max(len(rows_ant), len(rows_atual))
 
         for row_idx in range(max_row):
             if len(alterados) >= limite_evidencias:
@@ -421,6 +591,10 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
             for col_idx in range(max_col):
                 v_ant = row_ant[col_idx] if col_idx < len(row_ant) else None
                 v_atual = row_atual[col_idx] if col_idx < len(row_atual) else None
+                if _celula_ignorar_no_diff(v_ant) and _celula_ignorar_no_diff(v_atual):
+                    continue
+                if _celula_ignorar_no_diff(v_ant) or _celula_ignorar_no_diff(v_atual):
+                    continue
                 v_ant_fmt = _formatar_valor_planilha(v_ant)
                 v_atual_fmt = _formatar_valor_planilha(v_atual)
                 if v_ant_fmt == v_atual_fmt:
@@ -444,7 +618,7 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
         "impacto_sugerido": "Revisar abas e células alteradas antes de atualizar rotinas internas.",
         "itens_incluidos": _limitar(incluidos),
         "itens_removidos": _limitar(removidos),
-        "itens_alterados": _limitar(alterados),
+        "itens_alterados": _limitar(alterados, 500),
     }
 
 
