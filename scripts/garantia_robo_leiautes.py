@@ -135,7 +135,8 @@ def check_classificacao_email() -> None:
         "O que fazer",
         "O que mudou",
         "Antes_Depois_leiautes",
-        "acrescentou",
+        "removeu aba",
+        "acrescentou aba",
     ):
         if trecho not in html:
             raise RuntimeError(f"HTML do e-mail sem trecho esperado: {trecho!r}")

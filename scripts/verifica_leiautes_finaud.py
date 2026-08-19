@@ -595,6 +595,23 @@ def _carregar_detalhes_alteracoes(execucao_id):
 
 
 def _parse_evidencia_item(texto: str) -> dict:
+    m = re.match(r"^Aba incluída: (.+)$", texto.strip())
+    if m:
+        nome = m.group(1).strip()
+        return {"local": f"Aba {nome}", "depois": nome, "mudanca": "acrescentou aba"}
+    m = re.match(r"^Aba removida: (.+)$", texto.strip())
+    if m:
+        nome = m.group(1).strip()
+        return {"local": f"Aba {nome}", "antes": nome, "mudanca": "removeu aba"}
+    m = re.match(r'^Aba renomeada: "(.+)" → "(.+)"$', texto.strip())
+    if m:
+        return {
+            "local": f"Aba {m.group(1)}",
+            "antes": m.group(1),
+            "depois": m.group(2),
+            "mudanca": "renomeou aba",
+        }
+
     padroes = [
         r'^(.*?): mudanca "([\s\S]*)"; antes "([\s\S]*)"; depois "([\s\S]*)"$',
         r'^(.*?): antes "([\s\S]*)"; depois "([\s\S]*)"$',
@@ -926,14 +943,21 @@ def _html_lista_simples(titulo: str, tipo: str, itens: list[str]) -> str:
             trecho = item.get("antes") or item.get("depois") or texto
         else:
             trecho = item.get("depois") or item.get("antes") or texto
-        local = item.get("local") or "Item"
-        bullets.append(
-            f"<li><strong>{html.escape(str(local))}:</strong> "
-            f"{html.escape(str(trecho))}</li>"
-        )
+        local = str(item.get("local") or "Item")
+        if local.startswith("Aba ") and trecho == local[4:]:
+            bullets.append(f"<li><strong>{html.escape(trecho)}</strong></li>")
+        else:
+            bullets.append(
+                f"<li><strong>{html.escape(local)}:</strong> "
+                f"{html.escape(str(trecho))}</li>"
+            )
     extra = ""
     if len(itens) > MAX_DIFFS_EMAIL:
-        extra = f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} item(ns) adicional(is).</p>"
+        extra = (
+            f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} item(ns) no e-mail; "
+            f"lista completa na planilha anexa "
+            f"<strong>{html.escape(ANEXO_ANTES_DEPOIS_PREFIXO)}_….xlsx</strong>.</p>"
+        )
     return f"""
       <p class="sec-label">{html.escape(titulo)}</p>
       <ul class="compact-list">{''.join(bullets)}</ul>
@@ -1060,8 +1084,8 @@ def _html_detalhe_conteudo(item, detalhe) -> str:
     secoes = "".join(
         [
             _html_lista_diferencas("Entrou", "entrou", incluidos),
-            _html_lista_diferencas("Mudou", "mudou", conteudo),
             _html_lista_diferencas("Saiu", "saiu", removidos),
+            _html_lista_diferencas("Mudou", "mudou", conteudo),
         ]
     )
     if not secoes and (_eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo)):
@@ -1160,9 +1184,11 @@ def _linhas_diff_para_planilha(texto: str, tipo: str) -> dict[str, str]:
             from backend.app.services.comparador_arquivos import _descrever_mudanca
 
             if tipo == "entrou":
-                mudanca = "acrescentou"
+                mudanca = "acrescentou aba"
             elif tipo == "saiu":
-                mudanca = "removeu"
+                mudanca = "removeu aba"
+            elif "renomeou aba" in str(item.get("mudanca") or ""):
+                mudanca = "renomeou aba"
             else:
                 mudanca = _descrever_mudanca(
                     "" if antes in {"—", "em branco"} else antes,
@@ -1240,10 +1266,11 @@ def gerar_planilha_antes_depois(
             for c in alterados_txt
             if "novo arquivo observado" not in str(c).lower()
         ]
+        # Abas: Entrou → Saiu → Mudou (renomeações antes das células).
         blocos = (
             [("entrou", x) for x in incluidos]
-            + [("mudou", x) for x in alterados_txt]
             + [("saiu", x) for x in removidos]
+            + [("mudou", x) for x in alterados_txt]
         )
         if not blocos:
             ws.append(

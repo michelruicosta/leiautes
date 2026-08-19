@@ -319,6 +319,41 @@ def _comparar_xsd(anterior: Path, atual: Path) -> dict[str, Any]:
     }
 
 
+def _classificar_mudancas_abas(
+    abas_ant: list[str], abas_atual: list[str]
+) -> tuple[list[str], list[str], list[str], dict[str, str]]:
+    """Separa abas incluídas/removidas/renomeadas; mapa ant→atual para diff de células."""
+    set_ant = set(abas_ant)
+    set_atual = set(abas_atual)
+    iguais = set_ant & set_atual
+    ant_restante = set_ant - iguais
+    atual_restante = set_atual - iguais
+
+    ant_por_lower: dict[str, list[str]] = {}
+    for nome in ant_restante:
+        ant_por_lower.setdefault(nome.lower(), []).append(nome)
+    atual_por_lower: dict[str, list[str]] = {}
+    for nome in atual_restante:
+        atual_por_lower.setdefault(nome.lower(), []).append(nome)
+
+    renomeadas: list[str] = []
+    mapa: dict[str, str] = {a: a for a in iguais}
+
+    for chave in sorted(set(ant_por_lower) & set(atual_por_lower)):
+        ants = ant_por_lower[chave]
+        atuais = atual_por_lower[chave]
+        if len(ants) == 1 and len(atuais) == 1 and ants[0] != atuais[0]:
+            ant, novo = ants[0], atuais[0]
+            renomeadas.append(f'Aba renomeada: "{ant}" → "{novo}"')
+            mapa[ant] = novo
+            ant_restante.discard(ant)
+            atual_restante.discard(novo)
+
+    incluidos = [f"Aba incluída: {aba}" for aba in sorted(atual_restante)]
+    removidos = [f"Aba removida: {aba}" for aba in sorted(ant_restante)]
+    return incluidos, removidos, renomeadas, mapa
+
+
 def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
     try:
         import openpyxl  # type: ignore
@@ -331,19 +366,19 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
     # data_only=False: evita recalcular fórmulas (mais rápido e estável no servidor).
     wb_ant = openpyxl.load_workbook(anterior, data_only=False, read_only=False)
     wb_atual = openpyxl.load_workbook(atual, data_only=False, read_only=False)
-    abas_ant = set(wb_ant.sheetnames)
-    abas_atual = set(wb_atual.sheetnames)
 
-    incluidos = [f"Aba incluída: {aba}" for aba in sorted(abas_atual - abas_ant)]
-    removidos = [f"Aba removida: {aba}" for aba in sorted(abas_ant - abas_atual)]
-    alterados: list[str] = []
+    incluidos, removidos, renomeadas, mapa_abas = _classificar_mudancas_abas(
+        wb_ant.sheetnames, wb_atual.sheetnames
+    )
+    alterados: list[str] = list(renomeadas)
     limite_evidencias = 50
 
-    for aba in sorted(abas_ant & abas_atual):
+    for aba_ant, aba_atual in sorted(mapa_abas.items()):
         if len(alterados) >= limite_evidencias:
             break
-        ws_ant = wb_ant[aba]
-        ws_atual = wb_atual[aba]
+        ws_ant = wb_ant[aba_ant]
+        ws_atual = wb_atual[aba_atual]
+        rotulo_aba = aba_atual if aba_ant == aba_atual else f"{aba_ant}→{aba_atual}"
         # Compara por linhas (valores) em vez de célula a célula com .cell() —
         # muito mais rápido em planilhas grandes do Bacen.
         rows_ant = list(ws_ant.iter_rows(values_only=True))
@@ -366,7 +401,7 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
                 cabecalho = cabecalhos[col_idx] if col_idx < len(cabecalhos) else None
                 contexto = f", coluna {cabecalho}" if cabecalho and row_idx != 0 else ""
                 alterados.append(
-                    f"Aba {aba}, célula {coluna}{row_idx + 1}{contexto}: "
+                    f"Aba {rotulo_aba}, célula {coluna}{row_idx + 1}{contexto}: "
                     f'antes "{_formatar_valor_planilha(v_ant)}"; '
                     f'depois "{_formatar_valor_planilha(v_atual)}"'
                 )
@@ -402,15 +437,15 @@ def _comparar_xls(anterior: Path, atual: Path) -> dict[str, Any]:
 
     wb_ant = xlrd.open_workbook(str(anterior))
     wb_atual = xlrd.open_workbook(str(atual))
-    abas_ant = set(wb_ant.sheet_names())
-    abas_atual = set(wb_atual.sheet_names())
-    incluidos = [f"Aba incluída: {aba}" for aba in sorted(abas_atual - abas_ant)]
-    removidos = [f"Aba removida: {aba}" for aba in sorted(abas_ant - abas_atual)]
-    alterados: list[str] = []
+    incluidos, removidos, renomeadas, mapa_abas = _classificar_mudancas_abas(
+        wb_ant.sheet_names(), wb_atual.sheet_names()
+    )
+    alterados: list[str] = list(renomeadas)
 
-    for aba in sorted(abas_ant & abas_atual):
-        sh_ant = wb_ant.sheet_by_name(aba)
-        sh_atual = wb_atual.sheet_by_name(aba)
+    for aba_ant, aba_atual in sorted(mapa_abas.items()):
+        sh_ant = wb_ant.sheet_by_name(aba_ant)
+        sh_atual = wb_atual.sheet_by_name(aba_atual)
+        rotulo_aba = aba_atual if aba_ant == aba_atual else f"{aba_ant}→{aba_atual}"
         max_row = max(sh_ant.nrows, sh_atual.nrows)
         max_col = max(sh_ant.ncols, sh_atual.ncols)
         for row in range(max_row):
@@ -426,7 +461,7 @@ def _comparar_xls(anterior: Path, atual: Path) -> dict[str, Any]:
                     )
                     contexto = f", coluna {cabecalho}" if cabecalho else ""
                     alterados.append(
-                        f"Aba {aba}, célula {coluna}{row + 1}{contexto}: "
+                        f"Aba {rotulo_aba}, célula {coluna}{row + 1}{contexto}: "
                         f'antes "{_formatar_valor_planilha(v_ant)}"; '
                         f'depois "{_formatar_valor_planilha(v_atual)}"'
                     )
