@@ -145,15 +145,41 @@ def _descrever_mudanca(antes: str, depois: str) -> str:
     return "; ".join(partes)
 
 
+_ERROS_EXCEL_LEGIVEL = {
+    "#VALUE!": "erro de fórmula (#VALOR!)",
+    "#VALOR!": "erro de fórmula (#VALOR!)",
+    "#REF!": "erro de referência (#REF!)",
+    "#N/A": "valor indisponível (#N/D)",
+    "#N/D": "valor indisponível (#N/D)",
+    "#DIV/0!": "divisão por zero (#DIV/0!)",
+    "#DIV/0": "divisão por zero (#DIV/0!)",
+    "#NAME?": "nome inválido (#NOME?)",
+    "#NOME?": "nome inválido (#NOME?)",
+    "#NULL!": "interseção vazia (#NULO!)",
+    "#NUM!": "número inválido (#NÚM!)",
+}
+
+
 def _formatar_valor_planilha(valor: Any) -> str:
     if valor is None:
         return "em branco"
+    # openpyxl pode devolver objetos Error para células com falha de fórmula.
+    tipo = type(valor).__name__
+    if tipo == "Error" or (hasattr(valor, "value") and str(getattr(valor, "value", "")).startswith("#")):
+        bruto = str(getattr(valor, "value", valor)).strip().upper()
+    else:
+        bruto = str(valor).strip()
+    if bruto.upper() in _ERROS_EXCEL_LEGIVEL:
+        return _ERROS_EXCEL_LEGIVEL[bruto.upper()]
+    if bruto.startswith("#") and bruto.endswith("!"):
+        return f"erro de planilha ({bruto})"
+    if bruto.startswith("#"):
+        return f"erro de planilha ({bruto})"
     if isinstance(valor, datetime):
         return valor.strftime("%d/%m/%Y %H:%M")
     if isinstance(valor, date):
         return valor.strftime("%d/%m/%Y")
-    texto = str(valor).strip()
-    return texto if texto else "em branco"
+    return bruto if bruto else "em branco"
 
 
 def _comparar_linhas(
@@ -362,10 +388,10 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
 
     from openpyxl.utils import get_column_letter
 
-    # read_only=False: max_row/max_column refletem melhor a área usada;
-    # data_only=False: evita recalcular fórmulas (mais rápido e estável no servidor).
-    wb_ant = openpyxl.load_workbook(anterior, data_only=False, read_only=False)
-    wb_atual = openpyxl.load_workbook(atual, data_only=False, read_only=False)
+    # data_only=True: usa o valor que o Excel gravou ao salvar (rótulos/códigos),
+    # não a fórmula bruta — evita #VALOR! e strings de fórmula no Antes/Depois.
+    wb_ant = openpyxl.load_workbook(anterior, data_only=True, read_only=False)
+    wb_atual = openpyxl.load_workbook(atual, data_only=True, read_only=False)
 
     incluidos, removidos, renomeadas, mapa_abas = _classificar_mudancas_abas(
         wb_ant.sheetnames, wb_atual.sheetnames
@@ -395,15 +421,17 @@ def _comparar_xlsx(anterior: Path, atual: Path) -> dict[str, Any]:
             for col_idx in range(max_col):
                 v_ant = row_ant[col_idx] if col_idx < len(row_ant) else None
                 v_atual = row_atual[col_idx] if col_idx < len(row_atual) else None
-                if v_ant == v_atual:
+                v_ant_fmt = _formatar_valor_planilha(v_ant)
+                v_atual_fmt = _formatar_valor_planilha(v_atual)
+                if v_ant_fmt == v_atual_fmt:
                     continue
                 coluna = get_column_letter(col_idx + 1)
                 cabecalho = cabecalhos[col_idx] if col_idx < len(cabecalhos) else None
                 contexto = f", coluna {cabecalho}" if cabecalho and row_idx != 0 else ""
                 alterados.append(
                     f"Aba {rotulo_aba}, célula {coluna}{row_idx + 1}{contexto}: "
-                    f'antes "{_formatar_valor_planilha(v_ant)}"; '
-                    f'depois "{_formatar_valor_planilha(v_atual)}"'
+                    f'antes "{v_ant_fmt}"; '
+                    f'depois "{v_atual_fmt}"'
                 )
                 if len(alterados) >= limite_evidencias:
                     break
