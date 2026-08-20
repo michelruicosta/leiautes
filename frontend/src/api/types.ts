@@ -124,6 +124,14 @@ export type RoboExecutarResponse = {
   stderr_tail: string;
 };
 
+export type AgendaRobo = {
+  horarios: string[];
+  dias_semana: number[];
+  feriados: string[];
+  robo_ativo: boolean;
+  atualizado_em?: string | null;
+};
+
 export type UsuarioResumo = {
   id: number;
   email: string;

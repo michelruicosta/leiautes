@@ -186,7 +186,7 @@ def seed_configuracoes_padrao() -> None:
         "empresa.nome": "FINAUD TEC",
         "empresa.cor_marca": "#3333a8",
         "empresa.subtitulo": "Leiautes Bacen - Monitoramento",
-        "email.enviar_sem_alteracao": True,
+        "email.enviar_sem_alteracao": False,
         "email.anexar_alterados": True,
         "monitor.connect_timeout": 10,
         "monitor.read_timeout": 10,

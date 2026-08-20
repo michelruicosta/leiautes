@@ -150,6 +150,21 @@ class RoboExecutarResponse(BaseModel):
     stderr_tail: str = ""
 
 
+class AgendaRoboResponse(BaseModel):
+    horarios: list[str] = Field(default_factory=list)
+    dias_semana: list[int] = Field(default_factory=list)
+    feriados: list[str] = Field(default_factory=list)
+    robo_ativo: bool = True
+    atualizado_em: Optional[str] = None
+
+
+class AgendaRoboUpdateRequest(BaseModel):
+    horarios: Optional[list[str]] = None
+    dias_semana: Optional[list[int]] = None
+    feriados: Optional[list[str]] = None
+    robo_ativo: Optional[bool] = None
+
+
 class UsuarioResumo(BaseModel):
     id: int
     email: str

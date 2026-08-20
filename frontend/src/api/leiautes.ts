@@ -15,6 +15,7 @@ import type {
   UsuarioListaResponse,
   LogAuditoriaListaResponse,
   VersaoArquivoListaResponse,
+  AgendaRobo,
 } from "./types";
 
 export function obterDashboard() {
@@ -82,6 +83,14 @@ export function salvarConfiguracoes(configuracoes: Record<string, unknown>) {
 
 export function obterStatusRobo() {
   return apiGet<RoboStatusResponse>("/robo/status");
+}
+
+export function obterAgendaRobo() {
+  return apiGet<AgendaRobo>("/robo/agenda");
+}
+
+export function salvarAgendaRobo(payload: Partial<AgendaRobo>) {
+  return apiPut<AgendaRobo>("/robo/agenda", payload);
 }
 
 export function executarRoboSemEmail() {

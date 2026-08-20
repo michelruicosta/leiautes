@@ -4,6 +4,12 @@
 
 ## Em aberto
 
+### ✅ E-mail só com mudanças + agenda na tela (20/08)
+
+- Motor lê `email.enviar_sem_alteracao` e `email.anexar_alterados` da Configurações
+- Produção: `email.enviar_sem_alteracao=false` (e-mail só com alterações)
+- Agenda em **Robô → Agenda**; cron `* * * * * --checar-agenda`; garantia 17:30 permanece fixa
+
 ### 🟡 Histórico — botão Detalhes na tela vs planilha Exportar
 
 **Contexto:** Na aba Histórico (hoje tela Alterações), a coluna de ação foi renomeada para **Alterações** e o botão **Detalhes** (modal com evidências Entrou/Mudou/Saiu) permanece por enquanto.

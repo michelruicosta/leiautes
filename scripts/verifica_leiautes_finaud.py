@@ -142,7 +142,7 @@ MAX_ATTACHMENTS = 8
 MAX_SINGLE_ATTACH_SIZE = 4 * 1024 * 1024
 MAX_TOTAL_ATTACH_SIZE = 18 * 1024 * 1024
 
-SEND_EMAIL_WHEN_NO_CHANGES = True
+SEND_EMAIL_WHEN_NO_CHANGES = True  # fallback; tela: email.enviar_sem_alteracao
 
 
 def _as_bool(valor, default: bool = False) -> bool:
@@ -165,6 +165,22 @@ def _carregar_flags_monitor() -> tuple[bool, bool]:
     except Exception as e:
         logger.warning(f"Config do monitor indisponível; usando defaults. Motivo: {e}")
     return quiet, only_atual
+
+
+def _carregar_flags_email() -> tuple[bool, bool]:
+    """Lê email.enviar_sem_alteracao / email.anexar_alterados da tela Configurações."""
+    enviar_sem = SEND_EMAIL_WHEN_NO_CHANGES
+    anexar = ATTACH_CHANGED_FILES
+    try:
+        from persistencia.config_db import obter_configuracao
+
+        enviar_sem = _as_bool(
+            obter_configuracao("email.enviar_sem_alteracao", enviar_sem), enviar_sem
+        )
+        anexar = _as_bool(obter_configuracao("email.anexar_alterados", anexar), anexar)
+    except Exception as e:
+        logger.warning(f"Config de e-mail (flags) indisponível; usando defaults. Motivo: {e}")
+    return enviar_sem, anexar
 
 
 def _metadados_mudaram(info: dict, anterior: dict, use_partial_fp: bool = True) -> tuple[bool, list[str]]:
@@ -1630,6 +1646,12 @@ def main():
 
     emails_enviados = 0
     destinatarios = []
+    enviar_sem_alteracao, anexar_alterados = _carregar_flags_email()
+    logger.info(
+        "Flags e-mail: enviar_sem_alteracao=%s anexar_alterados=%s",
+        enviar_sem_alteracao,
+        anexar_alterados,
+    )
 
     if disable_email:
         logger.info("Envio de e-mail desativado por LEIAUTES_DISABLE_EMAIL=1.")
@@ -1637,7 +1659,7 @@ def main():
         logger.info(
             "Primeira baseline quieta (monitor.quiet_baseline=true): e-mail omitido."
         )
-    elif alterados or SEND_EMAIL_WHEN_NO_CHANGES:
+    elif alterados or enviar_sem_alteracao:
         email_cfg = load_email_config(CONFIG_PATH)
         destinatarios = email_cfg.get("to", [])
         if not destinatarios:
@@ -1697,35 +1719,44 @@ def main():
                     )
                 else:
                     logger.warning(
-                        "Não foi possível gerar planilha Antes/Depois para o e-mail."
+                        "Planilha Antes/Depois não gerada (openpyxl ou sem itens)."
                     )
-
-            # 2) Opcional: 1–2 originais do Bacen (secundários; o diff já está na planilha).
-            max_anexos_bacen = 2
+            # 2) Arquivos Bacen alterados (se flag da tela permitir).
             bacen_anexados = 0
-            for item in alterados:
-                if bacen_anexados >= max_anexos_bacen:
-                    break
-                url = item["url"]
-                content, maintype, subtype, motivo = baixar_para_anexo(session, url)
-                if content:
-                    if total_size + len(content) > MAX_TOTAL_ATTACH_SIZE:
-                        logger.warning(f"Anexo Bacen ignorado (limite total): {_filename_from_url(url)}")
-                        continue
-                    part = MIMEBase(maintype, subtype)
-                    part.set_payload(content)
-                    encoders.encode_base64(part)
-                    part.add_header(
-                        "Content-Disposition",
-                        "attachment",
-                        filename=_filename_from_url(url),
+            if alterados and anexar_alterados:
+                for item in alterados[:MAX_ATTACHMENTS]:
+                    url = item["url"]
+                    content, maintype, subtype, motivo = baixar_para_anexo(
+                        session, url
                     )
-                    msg.attach(part)
-                    total_size += len(content)
-                    anexados += 1
-                    bacen_anexados += 1
-                elif motivo:
-                    logger.warning(f"Não foi possível anexar {url} | Motivo: {motivo}")
+                    if content and maintype and subtype:
+                        if total_size + len(content) > MAX_TOTAL_ATTACH_SIZE:
+                            logger.warning(
+                                "Limite total de anexos atingido; pulando restantes."
+                            )
+                            break
+                        filename = _filename_from_url(url)
+                        part = MIMEBase(maintype, subtype)
+                        part.set_payload(content)
+                        encoders.encode_base64(part)
+                        part.add_header(
+                            "Content-Disposition",
+                            "attachment",
+                            filename=filename,
+                        )
+                        msg.attach(part)
+                        total_size += len(content)
+                        anexados += 1
+                        bacen_anexados += 1
+                    elif motivo:
+                        logger.warning(
+                            f"Não foi possível anexar {url} | Motivo: {motivo}"
+                        )
+            elif alterados and not anexar_alterados:
+                logger.info(
+                    "Anexos Bacen omitidos (email.anexar_alterados=false); "
+                    "planilha Antes/Depois mantida."
+                )
 
             try:
                 smtp_class = smtplib.SMTP_SSL if email_cfg["ssl"] else smtplib.SMTP
@@ -1739,6 +1770,10 @@ def main():
                 emails_enviados = 1
             except Exception as e:
                 logger.error(f"Erro ao enviar e-mail: {e}")
+    else:
+        logger.info(
+            "E-mail omitido: sem alterações e email.enviar_sem_alteracao=false."
+        )
 
     return {
         "links_detectados_por_data": links_detectados_por_data,
@@ -1764,6 +1799,36 @@ def _fmt_duracao(delta: timedelta) -> str:
 
 # ===== MAIN RUN =====
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Monitor de leiautes Bacen")
+    parser.add_argument(
+        "--checar-agenda",
+        action="store_true",
+        help="Só executa se horário/dia estiver na agenda do banco (cron frequente).",
+    )
+    parser.add_argument(
+        "--ignorar-agenda",
+        action="store_true",
+        help="Ignora checagem de agenda (execução manual / testes).",
+    )
+    args = parser.parse_args()
+
+    if args.checar_agenda and not args.ignorar_agenda:
+        try:
+            from persistencia.agenda_db import deve_executar_agora
+
+            pode, motivo = deve_executar_agora()
+            if not pode:
+                print(f"[agenda] Não executa: {motivo}")
+                raise SystemExit(0)
+            print(f"[agenda] Executa: {motivo}")
+        except SystemExit:
+            raise
+        except Exception as exc:
+            print(f"[agenda] Falha ao ler agenda ({exc}); não executa por segurança.")
+            raise SystemExit(0)
+
     # Cron/CLI: cria execução no banco se a API não passou LEIAUTES_EXECUCAO_ID.
     # Sem isso, versões/alterações (antes/depois) não são gravadas e o e-mail fica só com metadados.
     execucao_propria = False

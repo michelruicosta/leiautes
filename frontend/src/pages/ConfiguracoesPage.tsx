@@ -32,7 +32,7 @@ const DEFAULTS: ConfiguracoesMapa = {
   "email.copia": [],
   "email.smtp_servidor": "smtp.gmail.com",
   "email.smtp_porta": 465,
-  "email.enviar_sem_alteracao": true,
+  "email.enviar_sem_alteracao": false,
   "email.anexar_alterados": true,
   "monitor.connect_timeout": 10,
   "monitor.read_timeout": 10,
@@ -301,7 +301,8 @@ export default function ConfiguracoesPage() {
                     checked={boolValor(form["email.enviar_sem_alteracao"])}
                     onChange={(e) => setCampo("email.enviar_sem_alteracao", e.target.checked)}
                   />
-                  Enviar mesmo sem alteração
+                  Enviar e-mail mesmo sem alteração
+                    (desmarque para avisar só quando houver mudanças)
                 </label>
                 <label className="admin-dia-chip">
                   <input
