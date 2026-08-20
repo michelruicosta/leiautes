@@ -14,16 +14,16 @@
 
 **Não fazer agora:** Remover o modal ou a coluna.
 
+### ✅ Robô enxuto (20/08)
+
+Tela **Robô** reduzida a: executar + log (status sucesso/erro + motivo). Contagens de leiautes/arquivos/alterações/e-mails saíram da tabela — consulta de conteúdo em **Histórico e Versões**. Botão **Executar agora** continua sem e-mail (API de teste).
+
 ### ✅ Histórico e Versões — mapa implementado (20/08)
 
 Entregue no código:
 - Menu **Histórico e Versões** + abas Histórico | Versões de Arquivos
 - Exportar único (histórico completo); sem card de planilhas; filtros sem Status
-- API `/versoes` + download; badge **Fora do site** (vigência anterior à mais recente da família)
-
-### 🟡 Robô enxuto (mapa fechado — detalhar na implementação)
-
-**Robô** fica só com log de execução (sucesso/erro + motivo do erro). Consulta de conteúdo/diffs sai para **Histórico**; download de arquivos para **Versões**. Detalhe fino da UI do Robô ainda não foi desenhado item a item.
+- API `/versoes` + download; badge **Fora do site** via HEAD na URL Bacen (cache 12h)
 
 ---
 

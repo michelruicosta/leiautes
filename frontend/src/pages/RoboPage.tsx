@@ -13,7 +13,7 @@ import type {
 } from "../api/types";
 
 function formatarData(iso?: string | null): string {
-  if (!iso) return "-";
+  if (!iso) return "—";
   try {
     return new Date(iso).toLocaleString("pt-BR", { hour12: false });
   } catch {
@@ -34,6 +34,15 @@ function rotuloStatus(status: string): string {
     erro: "Erro",
   };
   return mapa[status] ?? status;
+}
+
+function textoErro(execucao: ExecucaoResumo): string {
+  if (execucao.status === "sucesso") return "—";
+  const msg = (execucao.erro || "").trim();
+  if (msg) return msg;
+  if (execucao.status === "erro") return "Falha sem detalhe registrado. Abra o log.";
+  if (execucao.status === "em_andamento") return "Em andamento…";
+  return "—";
 }
 
 export default function RoboPage() {
@@ -74,7 +83,7 @@ export default function RoboPage() {
     try {
       const resposta = await executarRoboSemEmail();
       setMensagem(
-        `Execução ${resposta.execucao_id} finalizada com status ${rotuloStatus(
+        `Execução #${resposta.execucao_id} finalizada: ${rotuloStatus(
           resposta.status,
         ).toLowerCase()}.`,
       );
@@ -98,12 +107,16 @@ export default function RoboPage() {
     }
   };
 
+  const ultima = status?.ultima_execucao ?? execucoes[0] ?? null;
+
   return (
     <div className="admin-page">
       <div className="page-cabecalho">
         <div>
           <h1 className="page-title">Robô</h1>
-          <p className="page-sub">Execução manual, status e histórico operacional.</p>
+          <p className="page-sub">
+            Executar o monitoramento e consultar o log (sucesso, erro e motivo).
+          </p>
         </div>
         <button
           type="button"
@@ -111,24 +124,31 @@ export default function RoboPage() {
           disabled={executando || !status?.script_existe}
           onClick={() => void executar()}
         >
-          {executando ? "Executando..." : "Executar sem e-mail"}
+          {executando ? "Executando..." : "Executar agora"}
         </button>
       </div>
 
       {erro && <p className="erro">{erro}</p>}
       {mensagem && <p className="login-sucesso">{mensagem}</p>}
 
-      <p className="admin-ajuda">
-        Por padrão, a execução manual do app roda com envio de e-mail desativado. Quando
-        liberado, o envio fica redirecionado para michel@finaud.com.br.
-      </p>
+      {ultima && (
+        <p className="admin-ajuda">
+          Última execução: <strong>#{ultima.id}</strong> ·{" "}
+          <strong className={classeStatus(ultima.status)}>
+            {rotuloStatus(ultima.status)}
+          </strong>
+          {ultima.status === "erro" && ultima.erro
+            ? ` — ${ultima.erro}`
+            : null}
+        </p>
+      )}
 
       <section className="card">
         <div className="tabela-cabecalho">
           <div>
-            <h2>Log de execução do robô</h2>
+            <h2>Log de execução</h2>
             <p className="meta">
-              Histórico das execuções do monitoramento Bacen, da mais recente para a mais antiga.
+              Consulta do que o robô detectou fica em Histórico e Versões.
             </p>
           </div>
           {carregando && <span className="meta">Carregando...</span>}
@@ -142,18 +162,14 @@ export default function RoboPage() {
                 <th>Início</th>
                 <th>Fim</th>
                 <th>Status</th>
-                <th>Leiautes</th>
-                <th>Arquivos</th>
-                <th>Alterações</th>
-                <th>E-mails</th>
-                <th>Observação</th>
-                <th>Ação</th>
+                <th>Erro / motivo</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {execucoes.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="meta">
+                  <td colSpan={6} className="meta">
                     Nenhuma execução registrada ainda.
                   </td>
                 </tr>
@@ -170,15 +186,11 @@ export default function RoboPage() {
                         {rotuloStatus(execucao.status)}
                       </strong>
                     </td>
-                    <td>{execucao.qtd_leiautes}</td>
-                    <td>{execucao.qtd_arquivos}</td>
-                    <td>{execucao.qtd_alteracoes}</td>
-                    <td>{execucao.emails_enviados}</td>
-                    <td className="resumo-cel">{execucao.erro ?? "-"}</td>
+                    <td className="resumo-cel">{textoErro(execucao)}</td>
                     <td>
                       <button
                         type="button"
-                        className="btn-secondary"
+                        className="btn-detalhes"
                         disabled={carregandoLog}
                         onClick={() => void abrirLog(execucao)}
                       >
@@ -207,9 +219,15 @@ export default function RoboPage() {
                 <p className="meta">
                   {formatarData(log.execucao.iniciado_em)} até{" "}
                   {formatarData(log.execucao.finalizado_em)} ·{" "}
-                  {rotuloStatus(log.execucao.status)}
+                  <strong className={classeStatus(log.execucao.status)}>
+                    {rotuloStatus(log.execucao.status)}
+                  </strong>
                 </p>
-                <p className="meta">{log.log_path ?? "Sem arquivo físico associado."}</p>
+                {log.execucao.erro && (
+                  <p className="erro" style={{ marginTop: "0.5rem" }}>
+                    {log.execucao.erro}
+                  </p>
+                )}
               </div>
               <button
                 type="button"
@@ -223,8 +241,8 @@ export default function RoboPage() {
             <div className="modal-log-body">
               {!log.disponivel && (
                 <p className="admin-ajuda">
-                  Esta execução não possui arquivo de log salvo. Abaixo está a observação
-                  registrada no histórico.
+                  Sem arquivo de log salvo. Exibindo a observação registrada no
+                  histórico.
                 </p>
               )}
               <pre className="log-output">{log.log_texto}</pre>
