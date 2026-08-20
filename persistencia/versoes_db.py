@@ -2,13 +2,23 @@
 """Listagem e download das versões de arquivos guardadas em storage."""
 from __future__ import annotations
 
+import urllib.error
+import urllib.request
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Optional
 
-from persistencia.arquivos_db import _competencia_yyyymm, _familia_nome_arquivo
+from persistencia.arquivos_db import _competencia_yyyymm
 from persistencia.db import conectar, init_db
 
 RAIZ = Path(__file__).resolve().parent.parent
+
+# Cache do HEAD no Bacen — evita bater no site a cada abertura da tela.
+_TTL_VERIFICACAO_URL = timedelta(hours=12)
+
+
+def _agora() -> str:
+    return datetime.now().isoformat(timespec="seconds")
 
 
 def _resolver_caminho(caminho: str | None) -> Path | None:
@@ -18,6 +28,71 @@ def _resolver_caminho(caminho: str | None) -> Path | None:
     if not path.is_absolute():
         path = RAIZ / path
     return path if path.exists() and path.is_file() else None
+
+
+def _ensure_colunas_url(conn: Any) -> None:
+    cols = {row[1] for row in conn.execute("PRAGMA table_info(arquivos_monitorados)")}
+    if "url_http_status" not in cols:
+        conn.execute(
+            "ALTER TABLE arquivos_monitorados ADD COLUMN url_http_status INTEGER"
+        )
+    if "url_verificado_em" not in cols:
+        conn.execute(
+            "ALTER TABLE arquivos_monitorados ADD COLUMN url_verificado_em TEXT"
+        )
+
+
+def _cache_url_fresco(verificado_em: str | None) -> bool:
+    if not verificado_em:
+        return False
+    try:
+        quando = datetime.fromisoformat(verificado_em)
+    except ValueError:
+        return False
+    return datetime.now() - quando < _TTL_VERIFICACAO_URL
+
+
+def _head_url_bacen(url: str, timeout: float = 12.0) -> int:
+    """Retorna código HTTP do HEAD (ou 0 se falhar sem código)."""
+    try:
+        req = urllib.request.Request(
+            url,
+            method="HEAD",
+            headers={"User-Agent": "leiautes_bacen/1.0 (+monitoramento)"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return int(resp.status)
+    except urllib.error.HTTPError as exc:
+        return int(exc.code or 0)
+    except Exception:
+        return 0
+
+
+def _url_fora_do_site(
+    conn: Any,
+    *,
+    arquivo_id: int,
+    url: str | None,
+    status_cache: int | None,
+    verificado_em: str | None,
+) -> bool:
+    """True se a URL do Bacen não responde OK — cópia local pode existir mesmo assim."""
+    if not url or not str(url).strip():
+        return True
+    if _cache_url_fresco(verificado_em) and status_cache is not None:
+        return int(status_cache) != 200
+
+    status = _head_url_bacen(str(url).strip())
+    agora = _agora()
+    conn.execute(
+        """
+        UPDATE arquivos_monitorados
+        SET url_http_status = ?, url_verificado_em = ?
+        WHERE id = ?
+        """,
+        (status, agora, arquivo_id),
+    )
+    return status != 200
 
 
 def listar_versoes(
@@ -52,6 +127,7 @@ def listar_versoes(
 
     sql_where = f"WHERE {' AND '.join(where)}"
     with conectar() as conn:
+        _ensure_colunas_url(conn)
         total = conn.execute(
             f"""
             SELECT COUNT(*) AS c
@@ -69,9 +145,12 @@ def listar_versoes(
                 v.id,
                 v.criado_em AS capturado_em,
                 v.caminho_arquivo,
+                ar.id AS arquivo_id,
                 ar.nome_arquivo AS arquivo_nome,
                 ar.tipo_arquivo AS arquivo_tipo,
                 ar.url AS url_bacen,
+                ar.url_http_status,
+                ar.url_verificado_em,
                 COALESCE(l.codigo, '') AS leiaute_codigo
             FROM versoes_arquivos v
             JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id
@@ -83,38 +162,25 @@ def listar_versoes(
             [*params, limit, offset],
         ).fetchall()
 
-        # Máxima vigência por família em todo o acervo (não só na página).
-        max_por_familia: dict[str, int] = {}
-        for row in conn.execute(
-            """
-            SELECT ar.nome_arquivo
-            FROM versoes_arquivos v
-            JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id
-            WHERE v.caminho_arquivo IS NOT NULL AND TRIM(v.caminho_arquivo) != ''
-            """
-        ).fetchall():
-            nome = row["nome_arquivo"] or ""
-            familia = _familia_nome_arquivo(nome)
-            comp = _competencia_yyyymm(nome)
-            if not familia or comp is None:
-                continue
-            atual = max_por_familia.get(familia)
-            if atual is None or comp > atual:
-                max_por_familia[familia] = comp
-
+        # Uma verificação por arquivo_id (várias versões do mesmo arquivo compartilham URL).
+        cache_fora: dict[int, bool] = {}
         itens: list[dict[str, Any]] = []
         for row in rows:
-            nome = row["arquivo_nome"] or ""
-            familia = _familia_nome_arquivo(nome)
-            comp = _competencia_yyyymm(nome)
-            vigencia = str(comp) if comp is not None else ""
-            max_fam = max_por_familia.get(familia) if familia else None
-            fora = bool(
-                comp is not None and max_fam is not None and comp < max_fam
-            )
             path = _resolver_caminho(row["caminho_arquivo"])
             if path is None:
                 continue
+            nome = row["arquivo_nome"] or ""
+            comp = _competencia_yyyymm(nome)
+            vigencia = str(comp) if comp is not None else ""
+            arquivo_id = int(row["arquivo_id"])
+            if arquivo_id not in cache_fora:
+                cache_fora[arquivo_id] = _url_fora_do_site(
+                    conn,
+                    arquivo_id=arquivo_id,
+                    url=row["url_bacen"],
+                    status_cache=row["url_http_status"],
+                    verificado_em=row["url_verificado_em"],
+                )
             itens.append(
                 {
                     "id": row["id"],
@@ -123,10 +189,10 @@ def listar_versoes(
                     "arquivo_nome": nome,
                     "arquivo_tipo": row["arquivo_tipo"] or "",
                     "vigencia": vigencia,
-                    "fora_do_site": fora,
+                    "fora_do_site": cache_fora[arquivo_id],
                 }
             )
-
+        conn.commit()
         return itens, int(total)
 
 

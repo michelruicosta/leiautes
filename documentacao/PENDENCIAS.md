@@ -79,5 +79,5 @@ Entregue no código:
 - Filtros Histórico: Buscar · Leiaute · Tipo (**sem** Status)
 - Coluna da lista Histórico: **Alterações** (antes “Ação”)
 - Colunas Versões: Capturado em · Leiaute · Arquivo · Vigência · Tipo · botão **Download** (sem tamanho)
-- Badge na coluna Arquivo quando a URL não está mais no Bacen mas a cópia local existe: rótulo **Fora do site** (incluir nesta versão da tela)
+- Badge **Fora do site**: validação por **HEAD na URL Bacen** (404 = fora), com cache 12h — **não** por vigência YYYYMM (corrigido 20/08: v1 202607 era 404 e 202508/202509 ainda 200)
 - Cabeçalho: título **Histórico e Versões**; subtítulo *“Consultar o que o robô detectou e baixar arquivos guardados.”*; abas Histórico | Versões de Arquivos; **Exportar** só na aba Histórico; aba padrão = Histórico; remover card “Planilhas disponíveis” e os dois botões antigos de Excel
