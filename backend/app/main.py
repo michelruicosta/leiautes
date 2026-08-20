@@ -18,6 +18,7 @@ from app.routers import (
     relatorios,
     robo,
     usuarios,
+    versoes,
 )
 from persistencia.db import init_db
 
@@ -66,6 +67,7 @@ app.include_router(robo.router)
 app.include_router(usuarios.router)
 app.include_router(email_gestor.router)
 app.include_router(relatorios.router)
+app.include_router(versoes.router)
 
 
 @app.on_event("startup")

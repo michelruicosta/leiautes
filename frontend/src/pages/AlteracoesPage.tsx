@@ -1,7 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { DiffEvidenceList } from "../components/DiffEvidence";
-import { baixarRelatorioAlteracoes, listarAlteracoes } from "../api/leiautes";
-import type { AlteracaoResumo } from "../api/types";
+import {
+  baixarRelatorioAlteracoes,
+  baixarVersaoArquivo,
+  listarAlteracoes,
+  listarVersoesArquivos,
+} from "../api/leiautes";
+import type { AlteracaoResumo, VersaoArquivoResumo } from "../api/types";
+
+type AbaHistorico = "historico" | "versoes";
 
 function formatarData(valor: string): string {
   const data = new Date(valor);
@@ -19,15 +26,21 @@ function statusClasse(status: string): string {
 }
 
 export default function AlteracoesPage() {
+  const [aba, setAba] = useState<AbaHistorico>("historico");
   const [alteracoes, setAlteracoes] = useState<AlteracaoResumo[]>([]);
+  const [versoes, setVersoes] = useState<VersaoArquivoResumo[]>([]);
   const [selecionada, setSelecionada] = useState<AlteracaoResumo | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [carregando, setCarregando] = useState(false);
+  const [carregandoVersoes, setCarregandoVersoes] = useState(false);
   const [filtroTexto, setFiltroTexto] = useState("");
   const [filtroLeiaute, setFiltroLeiaute] = useState("");
   const [filtroTipo, setFiltroTipo] = useState("");
-  const [filtroStatus, setFiltroStatus] = useState("");
-  const [baixando, setBaixando] = useState<"ultima" | "historico" | null>(null);
+  const [filtroTextoVersoes, setFiltroTextoVersoes] = useState("");
+  const [filtroLeiauteVersoes, setFiltroLeiauteVersoes] = useState("");
+  const [filtroTipoVersoes, setFiltroTipoVersoes] = useState("");
+  const [baixando, setBaixando] = useState(false);
+  const [baixandoVersaoId, setBaixandoVersaoId] = useState<number | null>(null);
 
   useEffect(() => {
     setCarregando(true);
@@ -40,49 +53,90 @@ export default function AlteracoesPage() {
       .finally(() => setCarregando(false));
   }, []);
 
+  useEffect(() => {
+    if (aba !== "versoes") return;
+    setCarregandoVersoes(true);
+    setErro(null);
+    listarVersoesArquivos()
+      .then((resp) => setVersoes(resp.versoes))
+      .catch(() => setErro("Não foi possível carregar as versões guardadas."))
+      .finally(() => setCarregandoVersoes(false));
+  }, [aba]);
+
   const vazia = alteracoes.length === 0;
   const resumoVazio = useMemo(
     () => ({
       id: 0,
       execucao_id: 0,
-      leiaute_codigo: "SCD-4111",
+      leiaute_codigo: "—",
       arquivo_nome: "Aguardando primeira alteração gravada",
-      arquivo_tipo: "PDF",
+      arquivo_tipo: "—",
       resumo_executivo:
-        "Quando o robô comparar uma versão nova com a anterior, o resumo aparecerá aqui.",
-      impacto_sugerido:
-        "Sem impacto calculado ainda. Execute o robô após a migração da comparação.",
+        "Quando o robô detectar uma mudança, o registro aparecerá aqui.",
+      impacto_sugerido: "—",
       status: "pendente",
       criado_em: "—",
-      itens_incluidos: ["Itens incluídos serão listados aqui."],
-      itens_removidos: ["Itens removidos serão listados aqui."],
-      itens_alterados: ["Itens alterados serão listados aqui."],
+      itens_incluidos: [] as string[],
+      itens_removidos: [] as string[],
+      itens_alterados: [] as string[],
     }),
     [],
   );
   const detalhe = selecionada;
-  const leiautes = Array.from(new Set(alteracoes.map((item) => item.leiaute_codigo).filter(Boolean)));
-  const tipos = Array.from(new Set(alteracoes.map((item) => item.arquivo_tipo).filter(Boolean)));
-  const status = Array.from(new Set(alteracoes.map((item) => item.status).filter(Boolean)));
+  const leiautes = Array.from(
+    new Set(alteracoes.map((item) => item.leiaute_codigo).filter(Boolean)),
+  );
+  const tipos = Array.from(
+    new Set(alteracoes.map((item) => item.arquivo_tipo).filter(Boolean)),
+  );
   const filtradas = alteracoes.filter((item) => {
-    const texto = `${item.leiaute_codigo} ${item.arquivo_nome} ${item.arquivo_tipo} ${item.resumo_executivo} ${item.itens_incluidos.join(" ")} ${item.itens_alterados.join(" ")} ${item.itens_removidos.join(" ")}`.toLowerCase();
+    const texto =
+      `${item.leiaute_codigo} ${item.arquivo_nome} ${item.arquivo_tipo} ${item.resumo_executivo} ${item.itens_incluidos.join(" ")} ${item.itens_alterados.join(" ")} ${item.itens_removidos.join(" ")}`.toLowerCase();
     return (
       (!filtroTexto || texto.includes(filtroTexto.toLowerCase())) &&
       (!filtroLeiaute || item.leiaute_codigo === filtroLeiaute) &&
-      (!filtroTipo || item.arquivo_tipo === filtroTipo) &&
-      (!filtroStatus || item.status === filtroStatus)
+      (!filtroTipo || item.arquivo_tipo === filtroTipo)
     );
   });
   const itensRelatorio = vazia ? [resumoVazio] : filtradas;
-  const baixarPlanilha = async (escopo: "ultima" | "historico") => {
+
+  const leiautesVersoes = Array.from(
+    new Set(versoes.map((item) => item.leiaute_codigo).filter(Boolean)),
+  );
+  const tiposVersoes = Array.from(
+    new Set(versoes.map((item) => item.arquivo_tipo).filter(Boolean)),
+  );
+  const versoesFiltradas = versoes.filter((item) => {
+    const texto =
+      `${item.leiaute_codigo} ${item.arquivo_nome} ${item.arquivo_tipo} ${item.vigencia}`.toLowerCase();
+    return (
+      (!filtroTextoVersoes || texto.includes(filtroTextoVersoes.toLowerCase())) &&
+      (!filtroLeiauteVersoes || item.leiaute_codigo === filtroLeiauteVersoes) &&
+      (!filtroTipoVersoes || item.arquivo_tipo === filtroTipoVersoes)
+    );
+  });
+
+  const exportarHistorico = async () => {
     setErro(null);
-    setBaixando(escopo);
+    setBaixando(true);
     try {
-      await baixarRelatorioAlteracoes(escopo);
+      await baixarRelatorioAlteracoes("historico");
     } catch {
-      setErro("Não foi possível baixar a planilha.");
+      setErro("Não foi possível exportar o histórico.");
     } finally {
-      setBaixando(null);
+      setBaixando(false);
+    }
+  };
+
+  const baixarVersao = async (item: VersaoArquivoResumo) => {
+    setErro(null);
+    setBaixandoVersaoId(item.id);
+    try {
+      await baixarVersaoArquivo(item.id, item.arquivo_nome);
+    } catch {
+      setErro("Não foi possível baixar o arquivo.");
+    } finally {
+      setBaixandoVersaoId(null);
     }
   };
 
@@ -90,136 +144,265 @@ export default function AlteracoesPage() {
     <div className="admin-page">
       <div className="page-cabecalho">
         <div>
-          <h1 className="page-title">Alterações</h1>
+          <h1 className="page-title">Histórico e Versões</h1>
           <p className="page-sub">
-            Histórico das diferenças entre a versão anterior e a versão atual.
+            Consultar o que o robô detectou e baixar arquivos guardados.
           </p>
         </div>
-        <div className="acoes-relatorio">
-          <button
-            className="btn-novo"
-            disabled={baixando !== null}
-            type="button"
-            onClick={() => baixarPlanilha("ultima")}
-          >
-            {baixando === "ultima" ? "Gerando..." : "Baixar relatório do envio"}
-          </button>
-          <button
-            className="btn-novo"
-            disabled={baixando !== null}
-            type="button"
-            onClick={() => baixarPlanilha("historico")}
-          >
-            {baixando === "historico" ? "Gerando..." : "Baixar histórico completo"}
-          </button>
-        </div>
+        {aba === "historico" && (
+          <div className="acoes-relatorio">
+            <button
+              className="btn-novo"
+              disabled={baixando}
+              type="button"
+              onClick={() => void exportarHistorico()}
+            >
+              {baixando ? "Gerando..." : "Exportar"}
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="admin-tabs config-abas" role="tablist">
+        <button
+          type="button"
+          role="tab"
+          className={aba === "historico" ? "ativo" : ""}
+          aria-selected={aba === "historico"}
+          onClick={() => setAba("historico")}
+        >
+          Histórico
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={aba === "versoes" ? "ativo" : ""}
+          aria-selected={aba === "versoes"}
+          onClick={() => setAba("versoes")}
+        >
+          Versões de Arquivos
+        </button>
       </div>
 
       {erro && <p className="erro">{erro}</p>}
-      {carregando && <p className="meta">Carregando...</p>}
-      {vazia && (
-        <p className="admin-ajuda">
-          Ainda não há alterações gravadas. A tela já está pronta para receber os
-          dados quando o motor de comparação for conectado.
-        </p>
+      {carregando && aba === "historico" && <p className="meta">Carregando...</p>}
+      {carregandoVersoes && aba === "versoes" && (
+        <p className="meta">Carregando versões...</p>
       )}
 
-      <section className="relatorio-excel-card">
-        <div>
-          <strong>Planilhas disponíveis</strong>
-          <p>
-            A planilha do envio consolida a última execução com mudança. O
-            histórico Excel é gerado na hora e reúne todas as alterações já
-            gravadas no app.
-          </p>
-        </div>
-        <span>Filtros, abas executivas, evidências e links Bacen</span>
-      </section>
+      {aba === "historico" && (
+        <>
+          {vazia && (
+            <p className="admin-ajuda">
+              Ainda não há alterações gravadas. Quando o robô detectar mudanças,
+              elas aparecerão nesta lista.
+            </p>
+          )}
 
-      <section className="relatorio-filtros">
-        <label>
-          Buscar
-          <input
-            value={filtroTexto}
-            onChange={(event) => setFiltroTexto(event.target.value)}
-            placeholder="Arquivo, campo, prazo, evidência..."
-          />
-        </label>
-        <label>
-          Leiaute
-          <select value={filtroLeiaute} onChange={(event) => setFiltroLeiaute(event.target.value)}>
-            <option value="">Todos</option>
-            {leiautes.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Tipo
-          <select value={filtroTipo} onChange={(event) => setFiltroTipo(event.target.value)}>
-            <option value="">Todos</option>
-            {tipos.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Status
-          <select value={filtroStatus} onChange={(event) => setFiltroStatus(event.target.value)}>
-            <option value="">Todos</option>
-            {status.map((item) => (
-              <option key={item} value={item}>{item}</option>
-            ))}
-          </select>
-        </label>
-      </section>
-
-      <div className="relatorio-layout relatorio-layout-lista relatorio-layout-sem-detalhe">
-        <section className="relatorio-lista">
-          <div className="relatorio-lista-head">
-            <strong>{itensRelatorio.length} registro(s)</strong>
-            <span className="meta">Use o botão Detalhes para abrir a evidência</span>
-          </div>
-          <div className="tabela-wrap">
-            <table className="tabela tabela-registros">
-              <thead>
-                <tr>
-                  <th>Data</th>
-                  <th>Leiaute</th>
-                  <th>Arquivo</th>
-                  <th>Tipo</th>
-                  <th>Resumo</th>
-                  <th>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {itensRelatorio.map((item) => (
-                  <tr
-                    key={item.id}
-                    className={detalhe?.id === item.id ? "linha-ativa" : ""}
-                  >
-                    <td>{formatarData(item.criado_em)}</td>
-                    <td><strong>{item.leiaute_codigo || "Sem leiaute"}</strong></td>
-                    <td>{item.arquivo_nome}</td>
-                    <td><span className="tag">{item.arquivo_tipo}</span></td>
-                    <td>{item.resumo_executivo}</td>
-                    <td>
-                      <button
-                        type="button"
-                        className="btn-detalhes"
-                        onClick={() => setSelecionada(item)}
-                      >
-                        Detalhes
-                      </button>
-                    </td>
-                  </tr>
+          <section className="relatorio-filtros">
+            <label>
+              Buscar
+              <input
+                value={filtroTexto}
+                onChange={(event) => setFiltroTexto(event.target.value)}
+                placeholder="Arquivo, leiaute, evidência..."
+              />
+            </label>
+            <label>
+              Leiaute
+              <select
+                value={filtroLeiaute}
+                onChange={(event) => setFiltroLeiaute(event.target.value)}
+              >
+                <option value="">Todos</option>
+                {leiautes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
                 ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
+              </select>
+            </label>
+            <label>
+              Tipo
+              <select
+                value={filtroTipo}
+                onChange={(event) => setFiltroTipo(event.target.value)}
+              >
+                <option value="">Todos</option>
+                {tipos.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
 
-      </div>
+          <div className="relatorio-layout relatorio-layout-lista relatorio-layout-sem-detalhe">
+            <section className="relatorio-lista">
+              <div className="relatorio-lista-head">
+                <strong>{itensRelatorio.length} registro(s)</strong>
+                <span className="meta">
+                  Use Alterações para ver as evidências na tela
+                </span>
+              </div>
+              <div className="tabela-wrap">
+                <table className="tabela tabela-registros">
+                  <thead>
+                    <tr>
+                      <th>Data</th>
+                      <th>Leiaute</th>
+                      <th>Arquivo</th>
+                      <th>Tipo</th>
+                      <th>Resumo</th>
+                      <th>Alterações</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {itensRelatorio.map((item) => (
+                      <tr
+                        key={item.id}
+                        className={detalhe?.id === item.id ? "linha-ativa" : ""}
+                      >
+                        <td>{formatarData(item.criado_em)}</td>
+                        <td>
+                          <strong>{item.leiaute_codigo || "Sem leiaute"}</strong>
+                        </td>
+                        <td>{item.arquivo_nome}</td>
+                        <td>
+                          <span className="tag">{item.arquivo_tipo}</span>
+                        </td>
+                        <td>{item.resumo_executivo}</td>
+                        <td>
+                          {!vazia && (
+                            <button
+                              type="button"
+                              className="btn-detalhes"
+                              onClick={() => setSelecionada(item)}
+                            >
+                              Detalhes
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
+
+      {aba === "versoes" && (
+        <>
+          <section className="relatorio-filtros">
+            <label>
+              Buscar
+              <input
+                value={filtroTextoVersoes}
+                onChange={(event) => setFiltroTextoVersoes(event.target.value)}
+                placeholder="Arquivo, leiaute, vigência..."
+              />
+            </label>
+            <label>
+              Leiaute
+              <select
+                value={filtroLeiauteVersoes}
+                onChange={(event) => setFiltroLeiauteVersoes(event.target.value)}
+              >
+                <option value="">Todos</option>
+                {leiautesVersoes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Tipo
+              <select
+                value={filtroTipoVersoes}
+                onChange={(event) => setFiltroTipoVersoes(event.target.value)}
+              >
+                <option value="">Todos</option>
+                {tiposVersoes.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </section>
+
+          <div className="relatorio-layout relatorio-layout-lista relatorio-layout-sem-detalhe">
+            <section className="relatorio-lista">
+              <div className="relatorio-lista-head">
+                <strong>{versoesFiltradas.length} arquivo(s)</strong>
+                <span className="meta">Download da cópia guardada no servidor</span>
+              </div>
+              <div className="tabela-wrap">
+                <table className="tabela tabela-registros">
+                  <thead>
+                    <tr>
+                      <th>Capturado em</th>
+                      <th>Leiaute</th>
+                      <th>Arquivo</th>
+                      <th>Vigência</th>
+                      <th>Tipo</th>
+                      <th />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {versoesFiltradas.length === 0 ? (
+                      <tr>
+                        <td colSpan={6} className="meta">
+                          Nenhum arquivo guardado encontrado.
+                        </td>
+                      </tr>
+                    ) : (
+                      versoesFiltradas.map((item) => (
+                        <tr key={item.id}>
+                          <td>{formatarData(item.capturado_em)}</td>
+                          <td>
+                            <strong>{item.leiaute_codigo || "Sem leiaute"}</strong>
+                          </td>
+                          <td>
+                            <span className="arquivo-com-badge">
+                              {item.arquivo_nome}
+                              {item.fora_do_site && (
+                                <span className="badge-fora-site" title="Não está mais no site do Bacen; a cópia local permanece disponível">
+                                  Fora do site
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td>{item.vigencia || "—"}</td>
+                          <td>
+                            <span className="tag">{item.arquivo_tipo}</span>
+                          </td>
+                          <td>
+                            <button
+                              type="button"
+                              className="btn-detalhes"
+                              disabled={baixandoVersaoId === item.id}
+                              onClick={() => void baixarVersao(item)}
+                            >
+                              {baixandoVersaoId === item.id
+                                ? "Baixando..."
+                                : "Download"}
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </div>
+        </>
+      )}
 
       {detalhe && (
         <div
@@ -238,11 +421,14 @@ export default function AlteracoesPage() {
               <div>
                 <h2 id="modal-alteracao-titulo">{detalhe.leiaute_codigo}</h2>
                 <p className="meta">
-                  {detalhe.arquivo_nome} · {detalhe.arquivo_tipo} · {formatarData(detalhe.criado_em)}
+                  {detalhe.arquivo_nome} · {detalhe.arquivo_tipo} ·{" "}
+                  {formatarData(detalhe.criado_em)}
                 </p>
               </div>
               <div className="modal-detalhe-acoes">
-                <span className={statusClasse(detalhe.status)}>{detalhe.status}</span>
+                <span className={statusClasse(detalhe.status)}>
+                  {detalhe.status}
+                </span>
                 <button
                   type="button"
                   className="modal-fechar"

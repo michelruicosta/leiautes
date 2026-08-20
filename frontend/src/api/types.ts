@@ -45,6 +45,23 @@ export type AlteracaoListaResponse = {
   alteracoes: AlteracaoResumo[];
 };
 
+export type VersaoArquivoResumo = {
+  id: number;
+  capturado_em: string;
+  leiaute_codigo: string;
+  arquivo_nome: string;
+  arquivo_tipo: string;
+  vigencia: string;
+  fora_do_site: boolean;
+};
+
+export type VersaoArquivoListaResponse = {
+  total: number;
+  limit: number;
+  offset: number;
+  versoes: VersaoArquivoResumo[];
+};
+
 export type DashboardResponse = {
   ultima_execucao?: ExecucaoResumo | null;
   qtd_leiautes: number;

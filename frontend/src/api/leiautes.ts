@@ -14,6 +14,7 @@ import type {
   UsuarioPayload,
   UsuarioListaResponse,
   LogAuditoriaListaResponse,
+  VersaoArquivoListaResponse,
 } from "./types";
 
 export function obterDashboard() {
@@ -44,12 +45,31 @@ export function urlRelatorioAlteracoes(escopo: "ultima" | "historico") {
   return apiUrl(`/relatorios/alteracoes.xlsx?escopo=${escopo}`);
 }
 
-export function baixarRelatorioAlteracoes(escopo: "ultima" | "historico") {
+export function baixarRelatorioAlteracoes(escopo: "ultima" | "historico" = "historico") {
   const fallback =
     escopo === "ultima"
       ? "relatorio_alteracoes_leiautes_envio.xlsx"
-      : "relatorio_alteracoes_leiautes_historico.xlsx";
+      : "historico_alteracoes_leiautes.xlsx";
   return apiDownload(`/relatorios/alteracoes.xlsx?escopo=${escopo}`, fallback);
+}
+
+export function listarVersoesArquivos(params?: {
+  leiaute_codigo?: string;
+  tipo?: string;
+  busca?: string;
+}) {
+  const q = new URLSearchParams();
+  if (params?.leiaute_codigo) q.set("leiaute_codigo", params.leiaute_codigo);
+  if (params?.tipo) q.set("tipo", params.tipo);
+  if (params?.busca) q.set("busca", params.busca);
+  const qs = q.toString();
+  return apiGet<VersaoArquivoListaResponse>(
+    `/versoes${qs ? `?${qs}` : ""}`,
+  );
+}
+
+export function baixarVersaoArquivo(id: number, nomeFallback: string) {
+  return apiDownload(`/versoes/${id}/download`, nomeFallback);
 }
 
 export function obterConfiguracoes() {

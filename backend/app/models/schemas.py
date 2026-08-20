@@ -92,6 +92,23 @@ class AlteracaoListaResponse(BaseModel):
     alteracoes: list[AlteracaoResumo]
 
 
+class VersaoArquivoResumo(BaseModel):
+    id: int
+    capturado_em: str
+    leiaute_codigo: str = ""
+    arquivo_nome: str
+    arquivo_tipo: str = ""
+    vigencia: str = ""
+    fora_do_site: bool = False
+
+
+class VersaoArquivoListaResponse(BaseModel):
+    total: int
+    limit: int = 100
+    offset: int = 0
+    versoes: list[VersaoArquivoResumo]
+
+
 class DashboardResponse(BaseModel):
     ultima_execucao: Optional[ExecucaoResumo] = None
     qtd_leiautes: int = 0

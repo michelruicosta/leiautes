@@ -1,5 +1,10 @@
 import type { AlteracaoResumo } from "../api/types";
 
+type Props = {
+  dataRef: string;
+  alteracoes: AlteracaoResumo[];
+};
+
 const BLUE = "#2e3192";
 const MAX_DIFFS = 5;
 

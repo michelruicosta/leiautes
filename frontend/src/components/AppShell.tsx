@@ -125,7 +125,7 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
         <nav className="painel-nav">
           {navItem("dashboard", "Dashboard", "📊")}
           {navItem("leiautes", "Leiautes", "📄")}
-          {navItem("alteracoes", "Alterações", "🔎")}
+          {navItem("alteracoes", "Histórico e Versões", "🔎")}
           {navItem("email", "E-mail do gestor", "✉️")}
           <div className="painel-nav-label">Administração</div>
           <div className="painel-nav-sub">

@@ -1491,6 +1491,26 @@ textarea {
   background: #f0f2ff;
 }
 
+.arquivo-com-badge {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.badge-fora-site {
+  display: inline-block;
+  padding: 0.12rem 0.45rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: #7a4a00;
+  background: #fff3d6;
+  border: 1px solid #f0d9a0;
+  white-space: nowrap;
+}
+
 .alteracoes-lista {
   display: flex;
   flex-direction: column;
