@@ -3,17 +3,30 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
 from io import BytesIO
-from typing import Any
 
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
+from openpyxl.worksheet.worksheet import Worksheet
 
 BLUE = "2E3192"
+BLUE_SOFT = "EEF0FA"
 TEXT = "1F2937"
+MUTED = "64748B"
 GRAY = "F8F9FA"
+GREEN_SOFT = "E8F7EE"
+YELLOW_SOFT = "FFF8E6"
+ROW_ALT = "F3F4F8"
+WHITE = "FFFFFF"
+BORDER = "E5E7EB"
+LINK = "1D4ED8"
+
+# Linhas fixas em todas as abas
+ROW_TITULO = 1
+ROW_EXPLICACAO = 2
+ROW_CABECALHO = 4
+ROW_DADOS = 5
 
 
 @dataclass
@@ -47,36 +60,76 @@ class DadosPlanilhaGestor:
     arquivos_aviso: list[ArquivoResumoPlanilha] = field(default_factory=list)
 
 
-def _estilo_cabecalho(ws, n_cols: int) -> None:
-    fill = PatternFill("solid", fgColor=BLUE)
-    font = Font(name="Arial", bold=True, color="FFFFFF", size=10)
-    for col in range(1, n_cols + 1):
-        cell = ws.cell(row=1, column=col)
-        cell.fill = fill
-        cell.font = font
-        cell.alignment = Alignment(vertical="center", wrap_text=True, horizontal="center")
+def _borda() -> Border:
+    lado = Side(style="thin", color=BORDER)
+    return Border(left=lado, right=lado, top=lado, bottom=lado)
 
 
-def _estilo_dados(ws) -> None:
-    border = Border(bottom=Side(style="thin", color="E5E7EB"))
-    for row in ws.iter_rows(min_row=2):
-        for cell in row:
-            cell.font = Font(name="Arial", size=10, color=TEXT)
-            cell.alignment = Alignment(vertical="top", wrap_text=True)
-            cell.border = border
+def _escrever_topo(ws: Worksheet, n_cols: int, titulo: str, explicacao: str) -> None:
+    ultima = get_column_letter(n_cols)
+    ws.merge_cells(f"A{ROW_TITULO}:{ultima}{ROW_TITULO}")
+    ws.merge_cells(f"A{ROW_EXPLICACAO}:{ultima}{ROW_EXPLICACAO}")
+
+    c1 = ws.cell(row=ROW_TITULO, column=1, value=titulo)
+    c1.font = Font(name="Arial", size=16, bold=True, color=BLUE)
+    c1.alignment = Alignment(vertical="center", wrap_text=True)
+    c1.fill = PatternFill("solid", fgColor=BLUE_SOFT)
+    ws.row_dimensions[ROW_TITULO].height = 30
+
+    c2 = ws.cell(row=ROW_EXPLICACAO, column=1, value=explicacao)
+    c2.font = Font(name="Arial", size=10, color=MUTED)
+    c2.alignment = Alignment(vertical="center", wrap_text=True)
+    c2.fill = PatternFill("solid", fgColor=GRAY)
+    ws.row_dimensions[ROW_EXPLICACAO].height = 48
+
+    ws.row_dimensions[3].height = 10
 
 
-def _larguras(ws, widths: dict[str, float]) -> None:
+def _escrever_cabecalho(ws: Worksheet, colunas: list[str]) -> None:
+    for col, nome in enumerate(colunas, start=1):
+        cell = ws.cell(row=ROW_CABECALHO, column=col, value=nome)
+        cell.fill = PatternFill("solid", fgColor=BLUE)
+        cell.font = Font(name="Arial", bold=True, color=WHITE, size=10)
+        cell.alignment = Alignment(vertical="center", horizontal="center", wrap_text=True)
+        cell.border = _borda()
+    ws.row_dimensions[ROW_CABECALHO].height = 38
+
+
+def _estilo_dado(cell, *, horizontal: str = "left", fill: str | None = None) -> None:
+    cell.font = Font(name="Arial", size=10, color=TEXT)
+    cell.alignment = Alignment(vertical="top", horizontal=horizontal, wrap_text=True)
+    cell.border = _borda()
+    if fill:
+        cell.fill = PatternFill("solid", fgColor=fill)
+
+
+def _link(cell) -> None:
+    if not cell.value:
+        return
+    cell.hyperlink = str(cell.value)
+    cell.font = Font(name="Arial", size=10, color=LINK, underline="single")
+    cell.alignment = Alignment(vertical="top", horizontal="left", wrap_text=True)
+    cell.border = _borda()
+
+
+def _larguras(ws: Worksheet, widths: dict[str, float]) -> None:
     for col, width in widths.items():
         ws.column_dimensions[col].width = width
 
 
-def _filtro_e_freeze(ws, n_cols: int) -> None:
-    if ws.max_row < 1:
-        return
+def _fechar_aba(ws: Worksheet, n_cols: int, altura_dados: int = 56) -> None:
     ultima = get_column_letter(n_cols)
-    ws.auto_filter.ref = f"A1:{ultima}{ws.max_row}"
-    ws.freeze_panes = "A2"
+    fim = max(ROW_CABECALHO, ws.max_row)
+    ws.auto_filter.ref = f"A{ROW_CABECALHO}:{ultima}{fim}"
+    ws.freeze_panes = f"A{ROW_DADOS}"
+    ws.sheet_view.showGridLines = False
+    for row_idx in range(ROW_DADOS, ws.max_row + 1):
+        ws.row_dimensions[row_idx].height = altura_dados
+
+
+def _escrever_linha(ws: Worksheet, row: int, valores: list) -> None:
+    for col, valor in enumerate(valores, start=1):
+        ws.cell(row=row, column=col, value=valor)
 
 
 def gerar_bytes_planilha_gestor(
@@ -85,17 +138,15 @@ def gerar_bytes_planilha_gestor(
     nome_arquivo: str,
 ) -> tuple[bytes, str]:
     """
-    Três abas intuitivas:
-    1) Resumo — um arquivo por linha
-    2) O que mudou — cada diferença
-    3) Só aviso — republicação sem mudança de conteúdo (se houver)
+    Três abas com título explicativo e formatação legível:
+    Resumo · O que mudou · Só aviso
     """
     wb = Workbook()
 
     # --- Resumo ---
-    ws_resumo = wb.active
-    ws_resumo.title = "Resumo"
-    cab_resumo = [
+    ws = wb.active
+    ws.title = "Resumo"
+    cols = [
         "Data",
         "Leiaute",
         "Arquivo",
@@ -104,47 +155,58 @@ def gerar_bytes_planilha_gestor(
         "Quantidade de mudanças",
         "Link Bacen",
     ]
-    ws_resumo.append(cab_resumo)
+    _escrever_topo(
+        ws,
+        len(cols),
+        "Resumo — visão geral dos arquivos",
+        (
+            "Aqui você vê um arquivo por linha. "
+            "Use a coluna “Precisa agir?” para saber o que revisar. "
+            "“Sim” = houve mudança de conteúdo. “Não” = o Bacen só republicou no site."
+        ),
+    )
+    _escrever_cabecalho(ws, cols)
+
+    row = ROW_DADOS
+    linhas_resumo: list[list] = []
     for arq in dados.arquivos_agir:
-        ws_resumo.append(
-            [
-                arq.data,
-                arq.leiaute,
-                arq.arquivo,
-                arq.situacao,
-                "Sim",
-                arq.qtd_mudancas,
-                arq.link,
-            ]
+        linhas_resumo.append(
+            [arq.data, arq.leiaute, arq.arquivo, arq.situacao, "Sim", arq.qtd_mudancas, arq.link]
         )
     for arq in dados.arquivos_aviso:
-        ws_resumo.append(
-            [
-                arq.data,
-                arq.leiaute,
-                arq.arquivo,
-                arq.situacao,
-                "Não",
-                0,
-                arq.link,
-            ]
+        linhas_resumo.append(
+            [arq.data, arq.leiaute, arq.arquivo, arq.situacao, "Não", 0, arq.link]
         )
-    _estilo_cabecalho(ws_resumo, len(cab_resumo))
-    _estilo_dados(ws_resumo)
-    _larguras(
-        ws_resumo,
-        {"A": 18, "B": 14, "C": 42, "D": 36, "E": 14, "F": 22, "G": 40},
-    )
-    _filtro_e_freeze(ws_resumo, len(cab_resumo))
-    for row in range(2, ws_resumo.max_row + 1):
-        cell = ws_resumo.cell(row=row, column=7)
-        if cell.value:
-            cell.hyperlink = str(cell.value)
-            cell.style = "Hyperlink"
+    if not linhas_resumo:
+        linhas_resumo.append(
+            ["", "", "", "Nenhuma mudança nesta exportação.", "", "", ""]
+        )
+
+    for i, valores in enumerate(linhas_resumo):
+        _escrever_linha(ws, row, valores)
+        zebra = ROW_ALT if i % 2 == 1 else None
+        for col in range(1, len(cols) + 1):
+            cell = ws.cell(row=row, column=col)
+            fill = zebra
+            horizontal = "left"
+            if col == 5:
+                horizontal = "center"
+                if cell.value == "Sim":
+                    fill = GREEN_SOFT
+                elif cell.value == "Não":
+                    fill = YELLOW_SOFT
+            elif col == 6:
+                horizontal = "center"
+            _estilo_dado(cell, horizontal=horizontal, fill=fill)
+        _link(ws.cell(row=row, column=7))
+        row += 1
+
+    _larguras(ws, {"A": 18, "B": 12, "C": 34, "D": 28, "E": 14, "F": 14, "G": 36})
+    _fechar_aba(ws, len(cols), altura_dados=56)
 
     # --- O que mudou ---
-    ws_det = wb.create_sheet("O que mudou")
-    cab_det = [
+    ws = wb.create_sheet("O que mudou")
+    cols = [
         "Data",
         "Leiaute",
         "Arquivo",
@@ -154,44 +216,84 @@ def gerar_bytes_planilha_gestor(
         "Depois",
         "O que fazer",
     ]
-    ws_det.append(cab_det)
-    for lin in dados.linhas_mudanca:
-        ws_det.append(
-            [
-                lin.data,
-                lin.leiaute,
-                lin.arquivo,
-                lin.onde,
-                lin.o_que_mudou,
-                lin.antes,
-                lin.depois,
-                lin.o_que_fazer,
-            ]
-        )
-    _estilo_cabecalho(ws_det, len(cab_det))
-    _estilo_dados(ws_det)
-    _larguras(
-        ws_det,
-        {
-            "A": 18,
-            "B": 14,
-            "C": 36,
-            "D": 28,
-            "E": 28,
-            "F": 40,
-            "G": 40,
-            "H": 44,
-        },
+    _escrever_topo(
+        ws,
+        len(cols),
+        "O que mudou — detalhe das diferenças",
+        (
+            "Cada linha é uma mudança. "
+            "Veja onde está (aba, célula ou página), o que mudou, o valor de antes e o de depois, "
+            "e o que fazer na rotina."
+        ),
     )
-    _filtro_e_freeze(ws_det, len(cab_det))
+    _escrever_cabecalho(ws, cols)
+
+    row = ROW_DADOS
+    linhas = list(dados.linhas_mudanca)
+    if not linhas:
+        _escrever_linha(
+            ws,
+            row,
+            ["", "", "", "", "Nenhuma diferença detalhada nesta exportação.", "", "", ""],
+        )
+        for col in range(1, len(cols) + 1):
+            _estilo_dado(ws.cell(row=row, column=col))
+    else:
+        for i, lin in enumerate(linhas):
+            _escrever_linha(
+                ws,
+                row,
+                [
+                    lin.data,
+                    lin.leiaute,
+                    lin.arquivo,
+                    lin.onde,
+                    lin.o_que_mudou,
+                    lin.antes,
+                    lin.depois,
+                    lin.o_que_fazer,
+                ],
+            )
+            fill = ROW_ALT if i % 2 == 1 else None
+            for col in range(1, len(cols) + 1):
+                _estilo_dado(ws.cell(row=row, column=col), fill=fill)
+            row += 1
+
+    _larguras(
+        ws,
+        {"A": 16, "B": 12, "C": 28, "D": 22, "E": 22, "F": 32, "G": 32, "H": 36},
+    )
+    _fechar_aba(ws, len(cols), altura_dados=68)
 
     # --- Só aviso ---
-    ws_aviso = wb.create_sheet("Só aviso")
-    cab_aviso = ["Data", "Leiaute", "Arquivo", "Observação", "Link Bacen"]
-    ws_aviso.append(cab_aviso)
-    if dados.arquivos_aviso:
-        for arq in dados.arquivos_aviso:
-            ws_aviso.append(
+    ws = wb.create_sheet("Só aviso")
+    cols = ["Data", "Leiaute", "Arquivo", "Observação", "Link Bacen"]
+    _escrever_topo(
+        ws,
+        len(cols),
+        "Só aviso — sem ação de conteúdo",
+        (
+            "Nestes arquivos o Bacen republicou no site, mas o texto, a célula ou a tabela "
+            "não mudaram. Em geral não exige ajuste de rotina — só fique ciente."
+        ),
+    )
+    _escrever_cabecalho(ws, cols)
+
+    row = ROW_DADOS
+    avisos = list(dados.arquivos_aviso)
+    if not avisos:
+        _escrever_linha(
+            ws,
+            row,
+            ["", "", "", "Nenhum arquivo só de aviso nesta exportação.", ""],
+        )
+        for col in range(1, len(cols) + 1):
+            _estilo_dado(ws.cell(row=row, column=col))
+    else:
+        for i, arq in enumerate(avisos):
+            _escrever_linha(
+                ws,
+                row,
                 [
                     arq.data,
                     arq.leiaute,
@@ -199,43 +301,17 @@ def gerar_bytes_planilha_gestor(
                     arq.observacao
                     or "O Bacen republicou o arquivo no site, sem mudança de conteúdo.",
                     arq.link,
-                ]
+                ],
             )
-    else:
-        ws_aviso.append(
-            [
-                "",
-                "",
-                "",
-                "Nenhum arquivo só de aviso nesta exportação.",
-                "",
-            ]
-        )
-    _estilo_cabecalho(ws_aviso, len(cab_aviso))
-    _estilo_dados(ws_aviso)
-    _larguras(ws_aviso, {"A": 18, "B": 14, "C": 42, "D": 56, "E": 40})
-    _filtro_e_freeze(ws_aviso, len(cab_aviso))
-    for row in range(2, ws_aviso.max_row + 1):
-        cell = ws_aviso.cell(row=row, column=5)
-        if cell.value:
-            cell.hyperlink = str(cell.value)
-            cell.style = "Hyperlink"
+            fill = ROW_ALT if i % 2 == 1 else None
+            for col in range(1, 5):
+                _estilo_dado(ws.cell(row=row, column=col), fill=fill)
+            _estilo_dado(ws.cell(row=row, column=5), fill=fill)
+            _link(ws.cell(row=row, column=5))
+            row += 1
 
-    # Nota no rodapé visual: aba Resumo com fundo cinza na linha vazia se nada
-    if ws_resumo.max_row == 1:
-        ws_resumo.append(
-            [
-                "",
-                "",
-                "",
-                "Nenhuma mudança nesta exportação.",
-                "",
-                "",
-                "",
-            ]
-        )
-        for cell in ws_resumo[2]:
-            cell.fill = PatternFill("solid", fgColor=GRAY)
+    _larguras(ws, {"A": 18, "B": 12, "C": 34, "D": 55, "E": 36})
+    _fechar_aba(ws, len(cols), altura_dados=56)
 
     buf = BytesIO()
     wb.save(buf)
