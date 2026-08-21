@@ -1,24 +1,27 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-20**
+Última atualização: **2026-08-21**
 
 ## Em aberto
+
+*(nenhuma urgente)*
+
+## Fechadas recentemente
+
+### ✅ Histórico — botão Detalhes mantido (21/08)
+
+**Decisão Michel:** manter o botão **Detalhes** (modal Entrou/Mudou/Saiu) **e** o **Exportar** Excel.
+
+- Detalhes = olhada rápida de **uma** linha, na tela  
+- Exportar = histórico completo para filtrar / guardar / encaminhar  
+
+Não remover nem simplificar agora. Revisar só se a operação pedir no uso real.
 
 ### ✅ E-mail só com mudanças + agenda na tela (20/08)
 
 - Motor lê `email.enviar_sem_alteracao` e `email.anexar_alterados` da Configurações
 - Produção: `email.enviar_sem_alteracao=false` (e-mail só com alterações)
 - Agenda em **Robô → Agenda**; cron `* * * * * --checar-agenda`; garantia 17:30 permanece fixa
-
-### 🟡 Histórico — botão Detalhes na tela vs planilha Exportar
-
-**Contexto:** Na aba Histórico (hoje tela Alterações), a coluna de ação foi renomeada para **Alterações** e o botão **Detalhes** (modal com evidências Entrou/Mudou/Saiu) permanece por enquanto.
-
-**Dúvida futura:** Ver as alterações na tela pode ser redundante quando o usuário já tem a planilha **Exportar** (histórico completo no mesmo espírito do e-mail). Avaliar se o modal Detalhes deve ser removido ou simplificado.
-
-**Decisão atual:** Manter Detalhes. Revisar depois da reforma Histórico / Versões de Arquivos.
-
-**Não fazer agora:** Remover o modal ou a coluna.
 
 ### ✅ Robô enxuto (20/08)
 
