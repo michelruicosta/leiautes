@@ -2,6 +2,7 @@
 """Planilha única do comunicado — linguagem simples (e-mail e Exportar)."""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from io import BytesIO
 
@@ -21,6 +22,7 @@ ROW_ALT = "F3F4F8"
 WHITE = "FFFFFF"
 BORDER = "E5E7EB"
 LINK = "1D4ED8"
+ROTULO_LINK = "Abrir no site do Bacen"
 
 # Linhas fixas em todas as abas
 ROW_TITULO = 1
@@ -80,7 +82,10 @@ def _escrever_topo(ws: Worksheet, n_cols: int, titulo: str, explicacao: str) -> 
     c2.font = Font(name="Arial", size=10, color=MUTED)
     c2.alignment = Alignment(vertical="center", wrap_text=True)
     c2.fill = PatternFill("solid", fgColor=GRAY)
-    ws.row_dimensions[ROW_EXPLICACAO].height = 48
+    # Largura aproximada da faixa mesclada para calcular altura da explicação.
+    largura_faixa = max(40.0, 12.0 * n_cols)
+    linhas_exp = _contar_linhas_visuais(explicacao, largura_faixa)
+    ws.row_dimensions[ROW_EXPLICACAO].height = max(36, min(72, 10 + linhas_exp * 14))
 
     ws.row_dimensions[3].height = 10
 
@@ -103,12 +108,16 @@ def _estilo_dado(cell, *, horizontal: str = "left", fill: str | None = None) -> 
         cell.fill = PatternFill("solid", fgColor=fill)
 
 
-def _link(cell) -> None:
-    if not cell.value:
+def _link(cell, url: str | None) -> None:
+    """Mostra texto curto clicável; a URL fica só no hiperlink (não quebra feio)."""
+    destino = str(url or "").strip()
+    if not destino:
+        cell.value = ""
         return
-    cell.hyperlink = str(cell.value)
+    cell.value = ROTULO_LINK
+    cell.hyperlink = destino
     cell.font = Font(name="Arial", size=10, color=LINK, underline="single")
-    cell.alignment = Alignment(vertical="top", horizontal="left", wrap_text=True)
+    cell.alignment = Alignment(vertical="center", horizontal="left", wrap_text=True)
     cell.border = _borda()
 
 
@@ -117,14 +126,50 @@ def _larguras(ws: Worksheet, widths: dict[str, float]) -> None:
         ws.column_dimensions[col].width = width
 
 
-def _fechar_aba(ws: Worksheet, n_cols: int, altura_dados: int = 56) -> None:
+def _contar_linhas_visuais(texto: object, largura_col: float) -> int:
+    """Estima quantas linhas o Excel precisa com wrap (openpyxl não autoajusta sozinho)."""
+    bruto = str(texto if texto is not None else "")
+    if not bruto:
+        return 1
+    # Largura da coluna no Excel ≈ caracteres da fonte Arial 10.
+    chars_por_linha = max(6, int(largura_col * 0.92))
+    total = 0
+    for trecho in bruto.replace("\r\n", "\n").split("\n"):
+        if trecho == "":
+            total += 1
+            continue
+        total += max(1, math.ceil(len(trecho) / chars_por_linha))
+    return max(1, total)
+
+
+def _ajustar_altura_linhas(
+    ws: Worksheet,
+    widths: dict[str, float],
+    *,
+    n_cols: int,
+    primeira: int = ROW_DADOS,
+    min_altura: float = 30,
+    max_altura: float = 140,
+    px_por_linha: float = 15,
+) -> None:
+    for row_idx in range(primeira, ws.max_row + 1):
+        max_linhas = 1
+        for col in range(1, n_cols + 1):
+            letra = get_column_letter(col)
+            largura = widths.get(letra, 12.0)
+            valor = ws.cell(row=row_idx, column=col).value
+            max_linhas = max(max_linhas, _contar_linhas_visuais(valor, largura))
+        altura = min(max_altura, max(min_altura, 8 + max_linhas * px_por_linha))
+        ws.row_dimensions[row_idx].height = altura
+
+
+def _fechar_aba(ws: Worksheet, n_cols: int, widths: dict[str, float]) -> None:
     ultima = get_column_letter(n_cols)
     fim = max(ROW_CABECALHO, ws.max_row)
     ws.auto_filter.ref = f"A{ROW_CABECALHO}:{ultima}{fim}"
     ws.freeze_panes = f"A{ROW_DADOS}"
     ws.sheet_view.showGridLines = False
-    for row_idx in range(ROW_DADOS, ws.max_row + 1):
-        ws.row_dimensions[row_idx].height = altura_dados
+    _ajustar_altura_linhas(ws, widths, n_cols=n_cols)
 
 
 def _escrever_linha(ws: Worksheet, row: int, valores: list) -> None:
@@ -183,7 +228,10 @@ def gerar_bytes_planilha_gestor(
         )
 
     for i, valores in enumerate(linhas_resumo):
-        _escrever_linha(ws, row, valores)
+        url = valores[6]
+        valores_visuais = list(valores)
+        valores_visuais[6] = ROTULO_LINK if url else ""
+        _escrever_linha(ws, row, valores_visuais)
         zebra = ROW_ALT if i % 2 == 1 else None
         for col in range(1, len(cols) + 1):
             cell = ws.cell(row=row, column=col)
@@ -198,11 +246,12 @@ def gerar_bytes_planilha_gestor(
             elif col == 6:
                 horizontal = "center"
             _estilo_dado(cell, horizontal=horizontal, fill=fill)
-        _link(ws.cell(row=row, column=7))
+        _link(ws.cell(row=row, column=7), url if url else None)
         row += 1
 
-    _larguras(ws, {"A": 18, "B": 12, "C": 34, "D": 28, "E": 14, "F": 14, "G": 36})
-    _fechar_aba(ws, len(cols), altura_dados=56)
+    widths_resumo = {"A": 18, "B": 12, "C": 34, "D": 28, "E": 14, "F": 14, "G": 24}
+    _larguras(ws, widths_resumo)
+    _fechar_aba(ws, len(cols), widths_resumo)
 
     # --- O que mudou ---
     ws = wb.create_sheet("O que mudou")
@@ -259,11 +308,18 @@ def gerar_bytes_planilha_gestor(
                 _estilo_dado(ws.cell(row=row, column=col), fill=fill)
             row += 1
 
-    _larguras(
-        ws,
-        {"A": 16, "B": 12, "C": 28, "D": 22, "E": 22, "F": 32, "G": 32, "H": 36},
-    )
-    _fechar_aba(ws, len(cols), altura_dados=68)
+    widths_det = {
+        "A": 16,
+        "B": 12,
+        "C": 28,
+        "D": 22,
+        "E": 22,
+        "F": 32,
+        "G": 32,
+        "H": 36,
+    }
+    _larguras(ws, widths_det)
+    _fechar_aba(ws, len(cols), widths_det)
 
     # --- Só aviso ---
     ws = wb.create_sheet("Só aviso")
@@ -300,18 +356,19 @@ def gerar_bytes_planilha_gestor(
                     arq.arquivo,
                     arq.observacao
                     or "O Bacen republicou o arquivo no site, sem mudança de conteúdo.",
-                    arq.link,
+                    ROTULO_LINK if arq.link else "",
                 ],
             )
             fill = ROW_ALT if i % 2 == 1 else None
             for col in range(1, 5):
                 _estilo_dado(ws.cell(row=row, column=col), fill=fill)
             _estilo_dado(ws.cell(row=row, column=5), fill=fill)
-            _link(ws.cell(row=row, column=5))
+            _link(ws.cell(row=row, column=5), arq.link)
             row += 1
 
-    _larguras(ws, {"A": 18, "B": 12, "C": 34, "D": 55, "E": 36})
-    _fechar_aba(ws, len(cols), altura_dados=56)
+    widths_aviso = {"A": 18, "B": 12, "C": 34, "D": 55, "E": 24}
+    _larguras(ws, widths_aviso)
+    _fechar_aba(ws, len(cols), widths_aviso)
 
     buf = BytesIO()
     wb.save(buf)
