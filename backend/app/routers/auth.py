@@ -23,9 +23,21 @@ from persistencia.auditoria_db import registrar_log
 from persistencia.usuarios_db import (
     atualizar_senha_usuario,
     buscar_usuario_por_email,
+    listar_permissoes_perfis,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+_ROTAS_ADMIN = [
+    "dashboard",
+    "leiautes",
+    "alteracoes",
+    "email-gestor",
+    "admin-robo",
+    "admin-configuracoes",
+    "admin-usuarios",
+    "admin-auditoria",
+]
 
 
 def _cookie_params() -> dict:
@@ -37,6 +49,12 @@ def _cookie_params() -> dict:
     return params
 
 
+def _rotas_do_perfil(perfil_codigo: str) -> list[str]:
+    if perfil_codigo == "administrador":
+        return list(_ROTAS_ADMIN)
+    return list(listar_permissoes_perfis().get(perfil_codigo) or [])
+
+
 def _usuario_auth(usuario: dict) -> UsuarioAuthResponse:
     return UsuarioAuthResponse(
         id=usuario["id"],
@@ -45,7 +63,7 @@ def _usuario_auth(usuario: dict) -> UsuarioAuthResponse:
         perfil_codigo=usuario["perfil_codigo"],
         cargo=usuario.get("cargo"),
         departamento=usuario.get("departamento"),
-        rotas_permitidas=[],
+        rotas_permitidas=_rotas_do_perfil(str(usuario.get("perfil_codigo") or "")),
     )
 
 
@@ -88,7 +106,11 @@ def login(body: LoginRequest, response: Response) -> LoginResponse:
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def logout(response: Response) -> None:
-    response.delete_cookie(key=config.AUTH_COOKIE_NAME, **_cookie_params())
+    params = _cookie_params()
+    response.delete_cookie(key=config.AUTH_COOKIE_NAME, **params)
+    # SSO: ao sair do app, encerra também a sessão do portal neste domínio
+    response.delete_cookie(key=config.PORTAL_COOKIE_NAME, **params)
+    response.delete_cookie(key=config.AUDITORIA_PORTAL_COOKIE_NAME, **params)
 
 
 @router.get("/me", response_model=UsuarioAuthResponse)

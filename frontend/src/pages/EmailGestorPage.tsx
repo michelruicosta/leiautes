@@ -77,7 +77,9 @@ export default function EmailGestorPage() {
           <strong>Assunto</strong>
           <span>{preview?.assunto ?? `Atualização em leiautes Bacen - ${dataRef}`}</span>
           <span className="meta">
-            Para: {preview?.destinatarios.join(", ") || "destinatários não configurados"}
+            Para:{" "}
+            {preview?.destinatarios.join(", ") ||
+              "nenhum usuário ativo com alerta ligado"}
           </span>
           {preview?.copia.length ? (
             <span className="meta">Cc: {preview.copia.join(", ")}</span>

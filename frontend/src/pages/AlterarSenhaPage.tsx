@@ -5,10 +5,10 @@ import CampoSenha from "../components/CampoSenha";
 import RequisitosSenha, { senhaAtendePolitica } from "../components/RequisitosSenha";
 
 type Props = {
-  onVoltar: () => void;
+  onVoltarPerfil: () => void;
 };
 
-export default function AlterarSenhaPage({ onVoltar }: Props) {
+export default function AlterarSenhaPage({ onVoltarPerfil }: Props) {
   const [senhaAtual, setSenhaAtual] = useState("");
   const [novaSenha, setNovaSenha] = useState("");
   const [confirmar, setConfirmar] = useState("");
@@ -16,21 +16,17 @@ export default function AlterarSenhaPage({ onVoltar }: Props) {
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
 
+  const senhasCoincidem = confirmar.length === 0 || novaSenha === confirmar;
   const podeSalvar = useMemo(() => {
     return (
       senhaAtual.trim().length > 0 &&
       senhaAtendePolitica(novaSenha) &&
       novaSenha === confirmar &&
       novaSenha !== senhaAtual &&
-      !enviando
+      !enviando &&
+      !sucesso
     );
-  }, [senhaAtual, novaSenha, confirmar, enviando]);
-
-  const feedbackConfirmar = useMemo(() => {
-    if (!confirmar) return null;
-    if (novaSenha === confirmar) return { ok: true, texto: "As senhas coincidem." };
-    return { ok: false, texto: "As senhas não coincidem." };
-  }, [novaSenha, confirmar]);
+  }, [senhaAtual, novaSenha, confirmar, enviando, sucesso]);
 
   const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -56,17 +52,17 @@ export default function AlterarSenhaPage({ onVoltar }: Props) {
   };
 
   return (
-    <div className="admin-page">
-      <button type="button" className="voltar" onClick={onVoltar}>
-        ← Voltar
-      </button>
-      <h1 className="page-title">Alterar senha</h1>
-      <p className="page-sub">Atualize sua senha de acesso ao sistema</p>
+    <div className="perfil-shell">
       <form
-        className="perfil-card alterar-senha-card"
+        className="perfil-card"
         onSubmit={(e) => void onSubmit(e)}
         noValidate
       >
+        <h1 className="login-titulo">Alterar senha</h1>
+        <p className="login-subtitulo">
+          Crie uma senha forte para proteger sua conta.
+        </p>
+
         <CampoSenha
           id="senha-atual"
           label="Senha atual"
@@ -93,16 +89,29 @@ export default function AlterarSenhaPage({ onVoltar }: Props) {
           onChange={setConfirmar}
           required
         />
-        {feedbackConfirmar && (
-          <p className={feedbackConfirmar.ok ? "senha-feedback ok" : "senha-feedback erro"}>
-            {feedbackConfirmar.texto}
-          </p>
+        {!senhasCoincidem && (
+          <p className="perfil-aviso">As senhas não coincidem.</p>
         )}
+
         {erro && <p className="login-erro">{erro}</p>}
         {sucesso && <p className="login-sucesso">{sucesso}</p>}
-        <button type="submit" className="btn-primary login-submit" disabled={!podeSalvar}>
-          {enviando ? "Salvando…" : "Salvar"}
-        </button>
+
+        <div className="perfil-acoes">
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onVoltarPerfil}
+          >
+            Voltar ao perfil
+          </button>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={!podeSalvar}
+          >
+            {enviando ? "Salvando…" : "Atualizar senha"}
+          </button>
+        </div>
       </form>
     </div>
   );

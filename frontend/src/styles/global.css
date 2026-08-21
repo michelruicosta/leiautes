@@ -214,6 +214,99 @@ textarea {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
 }
 
+.perfil-shell {
+  display: flex;
+  justify-content: center;
+  padding: 1.5rem 1rem 2.5rem;
+}
+
+.perfil-card-largo {
+  max-width: 520px;
+}
+
+.perfil-topo {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.perfil-avatar {
+  width: 4rem;
+  height: 4rem;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #3333a8, #1e1e72);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.perfil-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #3333a8;
+  background: #f0f0ff;
+  border: 1px solid #c8c8e8;
+  border-radius: 999px;
+  padding: 0.35rem 0.75rem;
+}
+
+.perfil-lista {
+  margin: 1.5rem 0;
+  display: grid;
+  gap: 0.85rem;
+}
+
+.perfil-lista dt {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #868e96;
+  margin-bottom: 0.2rem;
+}
+
+.perfil-lista dd {
+  margin: 0;
+  color: #212529;
+}
+
+.perfil-aviso {
+  margin: 0.35rem 0 1rem;
+  font-size: 0.82rem;
+  color: #c92a2a;
+}
+
+.perfil-acoes {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 0.5rem;
+}
+
+.login-titulo {
+  margin: 0 0 0.35rem;
+  font-size: 1.35rem;
+}
+
+.login-subtitulo {
+  margin: 0 0 1.5rem;
+  color: #495057;
+  font-size: 0.95rem;
+}
+
+.app-menu-link {
+  display: block;
+  text-decoration: none;
+  box-sizing: border-box;
+}
+
 .alterar-senha-card {
   max-width: 420px;
 }

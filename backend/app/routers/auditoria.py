@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import LogAuditoriaItem, LogAuditoriaListaResponse
 from persistencia.auditoria_db import listar_logs
 
-router = APIRouter(prefix="/auditoria", tags=["auditoria"])
+router = APIRouter(
+    prefix="/auditoria",
+    tags=["auditoria"],
+    dependencies=[Depends(exigir_rota("admin-auditoria"))],
+)
 
 
 @router.get("", response_model=LogAuditoriaListaResponse)

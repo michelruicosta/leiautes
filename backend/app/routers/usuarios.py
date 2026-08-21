@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import (
     PermissoesPerfilResponse,
     PermissoesPerfilUpdateRequest,
@@ -25,7 +26,11 @@ from persistencia.usuarios_db import (
 )
 from persistencia.auditoria_db import registrar_log
 
-router = APIRouter(prefix="/usuarios", tags=["usuarios"])
+router = APIRouter(
+    prefix="/usuarios",
+    tags=["usuarios"],
+    dependencies=[Depends(exigir_rota("admin-usuarios"))],
+)
 
 
 @router.get("", response_model=UsuarioListaResponse)

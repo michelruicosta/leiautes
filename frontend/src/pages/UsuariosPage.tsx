@@ -22,6 +22,7 @@ const USUARIO_VAZIO: UsuarioPayload = {
   cargo: "",
   departamento: "",
   ativo: true,
+  receber_email_alertas: true,
 };
 
 const ROTAS = [
@@ -32,6 +33,7 @@ const ROTAS = [
   ["admin-robo", "Robô", "Execução manual e agenda."],
   ["admin-configuracoes", "Configurações", "Parâmetros operacionais do sistema."],
   ["admin-usuarios", "Usuários e perfis", "Gestão de acessos."],
+  ["admin-auditoria", "Trilha de auditoria", "Registro de ações no sistema."],
 ] as const;
 
 function rotuloPerfil(perfil: string): string {
@@ -114,6 +116,7 @@ export default function UsuariosPage() {
       cargo: usuario.cargo ?? "",
       departamento: usuario.departamento ?? "",
       ativo: usuario.ativo,
+      receber_email_alertas: usuario.receber_email_alertas,
     });
     setDefinirSenhaApp(false);
     setSenhaUsuario("");
@@ -187,6 +190,7 @@ export default function UsuariosPage() {
           cargo: usuario.cargo,
           departamento: usuario.departamento,
           ativo: !usuario.ativo,
+          receber_email_alertas: usuario.receber_email_alertas,
         });
         setConfirmacao(null);
         setMsg(inativar ? "Usuário inativado." : "Usuário ativado.");
@@ -242,7 +246,9 @@ export default function UsuariosPage() {
       <p className="admin-ajuda">
         A estrutura segue o padrão do normativos_ia: o perfil controla quais telas
         aparecem no menu lateral. Sem senha local, o usuário fica liberado para entrar
-        pelo portal Finaud; com senha local, acessa este app diretamente.
+        pelo portal Finaud; com senha local, acessa este app diretamente. Na primeira
+        entrada pelo portal, o app cria o usuário como operador com alerta de e-mail
+        ligado — desmarque o flag só para quem não deve receber o disparo do robô.
       </p>
 
       <div className="admin-tabs config-abas" role="tablist">
@@ -274,13 +280,14 @@ export default function UsuariosPage() {
                 <th>Usuário</th>
                 <th>Perfil</th>
                 <th>Status</th>
+                <th>E-mail alerta</th>
                 <th>Ações</th>
               </tr>
             </thead>
             <tbody>
               {usuarios.length === 0 ? (
                 <tr>
-                  <td colSpan={4} className="meta">
+                  <td colSpan={5} className="meta">
                     Nenhum usuário cadastrado. Use o botão Novo usuário para iniciar.
                   </td>
                 </tr>
@@ -298,6 +305,11 @@ export default function UsuariosPage() {
                     </td>
                     <td className={usuario.ativo ? "status-ok" : "status-erro"}>
                       {usuario.ativo ? "Ativo" : "Inativo"}
+                    </td>
+                    <td>
+                      {usuario.receber_email_alertas && usuario.ativo
+                        ? "Sim"
+                        : "Não"}
                     </td>
                     <td>
                       <div className="acoes-linha">
@@ -481,6 +493,22 @@ export default function UsuariosPage() {
                   onChange={setSenhaUsuario}
                 />
               )}
+              <label className="admin-dia-chip">
+                <input
+                  type="checkbox"
+                  checked={formUsuario.receber_email_alertas}
+                  onChange={(e) =>
+                    setFormUsuario({
+                      ...formUsuario,
+                      receber_email_alertas: e.target.checked,
+                    })
+                  }
+                />
+                Receber e-mail de alertas
+              </label>
+              <p className="meta">
+                Só usuários ativos com este flag entram no disparo automático do robô.
+              </p>
               <label className="admin-dia-chip">
                 <input
                   type="checkbox"

@@ -10,7 +10,23 @@ export type RotaPainel =
   | "configuracoes"
   | "usuarios"
   | "auditoria"
+  | "perfil"
   | "alterar-senha";
+
+/** Código da matriz de permissões → rota do painel. */
+const ROTA_PARA_PERMISSAO: Record<
+  Exclude<RotaPainel, "alterar-senha" | "perfil">,
+  string
+> = {
+  dashboard: "dashboard",
+  leiautes: "leiautes",
+  alteracoes: "alteracoes",
+  email: "email-gestor",
+  robo: "admin-robo",
+  configuracoes: "admin-configuracoes",
+  usuarios: "admin-usuarios",
+  auditoria: "admin-auditoria",
+};
 
 type Props = {
   rota: RotaPainel;
@@ -18,20 +34,13 @@ type Props = {
   children: ReactNode;
 };
 
-function iniciaisUsuario(nome: string, email: string): string {
-  const partes = nome.trim().split(/\s+/).filter(Boolean);
-  if (partes.length >= 2) {
-    return `${partes[0][0] ?? ""}${partes[partes.length - 1][0] ?? ""}`.toUpperCase();
-  }
-  if (nome.trim().length >= 2) return nome.trim().slice(0, 2).toUpperCase();
-  return email.slice(0, 2).toUpperCase();
-}
+const URL_PORTAL_APPS = "https://finaudapps.com.br";
 
 function MenuUsuario({
-  onAlterarSenha,
+  onPerfil,
   onSair,
 }: {
-  onAlterarSenha: () => void;
+  onPerfil: () => void;
   onSair: () => void;
 }) {
   const { usuario } = useAuth();
@@ -57,35 +66,41 @@ function MenuUsuario({
   };
 
   return (
-    <div className="app-menu user-menu-painel" ref={menuRef}>
+    <div className="app-menu" ref={menuRef}>
       <button
         type="button"
-        className="app-menu-trigger user-menu-trigger"
+        className="app-menu-trigger"
         aria-haspopup="menu"
         aria-expanded={menuAberto}
         onClick={() => setMenuAberto((v) => !v)}
       >
-        <span className="user-avatar" aria-hidden>
-          {iniciaisUsuario(usuario.nome, usuario.email)}
-        </span>
-        <span className="user-menu-email">
-          {usuario.email}
-          <span className="app-menu-chevron" aria-hidden>
-            {" "}
-            ▾
-          </span>
+        {usuario.nome}
+        <span className="app-menu-chevron" aria-hidden>
+          ▾
         </span>
       </button>
       {menuAberto && (
         <ul className="app-menu-list" role="menu">
           <li role="none">
+            <a
+              role="menuitem"
+              className="app-menu-item app-menu-link"
+              href={URL_PORTAL_APPS}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setMenuAberto(false)}
+            >
+              Portal de apps ↗
+            </a>
+          </li>
+          <li role="none">
             <button
               type="button"
               role="menuitem"
               className="app-menu-item"
-              onClick={() => escolher(onAlterarSenha)}
+              onClick={() => escolher(onPerfil)}
             >
-              Alterar senha
+              Perfil
             </button>
           </li>
           <li role="none">
@@ -93,7 +108,7 @@ function MenuUsuario({
               type="button"
               role="menuitem"
               className="app-menu-item app-menu-item-perigo"
-              onClick={() => escolher(() => void onSair())}
+              onClick={() => escolher(onSair)}
             >
               Sair
             </button>
@@ -104,19 +119,38 @@ function MenuUsuario({
   );
 }
 
-export default function AppShell({ rota, onNavegar, children }: Props) {
-  const { sair } = useAuth();
+export function podeAcessarRota(
+  rota: RotaPainel,
+  rotasPermitidas: string[] | undefined,
+): boolean {
+  if (rota === "alterar-senha" || rota === "perfil") return true;
+  const codigo = ROTA_PARA_PERMISSAO[rota];
+  return (rotasPermitidas ?? []).includes(codigo);
+}
 
-  const navItem = (destino: RotaPainel, label: string, icone?: string) => (
-    <button
-      type="button"
-      className={`painel-nav-item ${rota === destino ? "ativo" : ""}`}
-      onClick={() => onNavegar(destino)}
-    >
-      {icone && <span className="painel-nav-ico">{icone}</span>}
-      {label}
-    </button>
-  );
+export default function AppShell({ rota, onNavegar, children }: Props) {
+  const { usuario, sair } = useAuth();
+  const permitidas = usuario?.rotas_permitidas ?? [];
+
+  const navItem = (destino: RotaPainel, label: string, icone?: string) => {
+    if (!podeAcessarRota(destino, permitidas)) return null;
+    return (
+      <button
+        type="button"
+        className={`painel-nav-item ${rota === destino ? "ativo" : ""}`}
+        onClick={() => onNavegar(destino)}
+      >
+        {icone && <span className="painel-nav-ico">{icone}</span>}
+        {label}
+      </button>
+    );
+  };
+
+  const temAdmin =
+    podeAcessarRota("robo", permitidas) ||
+    podeAcessarRota("configuracoes", permitidas) ||
+    podeAcessarRota("usuarios", permitidas) ||
+    podeAcessarRota("auditoria", permitidas);
 
   return (
     <div className="painel-layout">
@@ -127,19 +161,23 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
           {navItem("leiautes", "Leiautes", "📄")}
           {navItem("alteracoes", "Histórico e Versões", "🔎")}
           {navItem("email", "E-mail do gestor", "✉️")}
-          <div className="painel-nav-label">Administração</div>
-          <div className="painel-nav-sub">
-            {navItem("robo", "Robô")}
-            {navItem("configuracoes", "Configurações")}
-            {navItem("usuarios", "Usuários e perfis")}
-            {navItem("auditoria", "Trilha de auditoria")}
-          </div>
+          {temAdmin && (
+            <>
+              <div className="painel-nav-label">Administração</div>
+              <div className="painel-nav-sub">
+                {navItem("robo", "Robô")}
+                {navItem("configuracoes", "Configurações")}
+                {navItem("usuarios", "Usuários e perfis")}
+                {navItem("auditoria", "Trilha de auditoria")}
+              </div>
+            </>
+          )}
         </nav>
       </aside>
       <div className="painel-main-wrap">
         <header className="painel-topbar">
           <MenuUsuario
-            onAlterarSenha={() => onNavegar("alterar-senha")}
+            onPerfil={() => onNavegar("perfil")}
             onSair={() => void sair()}
           />
         </header>

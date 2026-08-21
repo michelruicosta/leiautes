@@ -1,5 +1,5 @@
-import { useState } from "react";
-import AppShell, { type RotaPainel } from "./components/AppShell";
+import { useEffect, useState } from "react";
+import AppShell, { podeAcessarRota, type RotaPainel } from "./components/AppShell";
 import AlteracoesPage from "./pages/AlteracoesPage";
 import AlterarSenhaPage from "./pages/AlterarSenhaPage";
 import AuditoriaPage from "./pages/AuditoriaPage";
@@ -8,6 +8,7 @@ import DashboardPage from "./pages/DashboardPage";
 import EmailGestorPage from "./pages/EmailGestorPage";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
+import PerfilPage from "./pages/PerfilPage";
 import RoboPage from "./pages/RoboPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import { useAuth } from "./context/AuthContext";
@@ -15,6 +16,13 @@ import { useAuth } from "./context/AuthContext";
 export default function App() {
   const { usuario, carregando } = useAuth();
   const [rota, setRota] = useState<RotaPainel>("dashboard");
+
+  useEffect(() => {
+    if (!usuario) return;
+    if (!podeAcessarRota(rota, usuario.rotas_permitidas)) {
+      setRota("dashboard");
+    }
+  }, [usuario, rota]);
 
   if (carregando) {
     return (
@@ -28,29 +36,42 @@ export default function App() {
     return <LoginPage />;
   }
 
+  const rotaEfetiva = podeAcessarRota(rota, usuario.rotas_permitidas)
+    ? rota
+    : "dashboard";
+
   const pagina =
-    rota === "dashboard" ? (
-      <DashboardPage onExecutarRobo={() => setRota("robo")} />
-    ) : rota === "leiautes" ? (
+    rotaEfetiva === "dashboard" ? (
+      <DashboardPage
+        onExecutarRobo={() => {
+          if (podeAcessarRota("robo", usuario.rotas_permitidas)) setRota("robo");
+        }}
+      />
+    ) : rotaEfetiva === "leiautes" ? (
       <LeiautesPage />
-    ) : rota === "robo" ? (
+    ) : rotaEfetiva === "robo" ? (
       <RoboPage />
-    ) : rota === "alteracoes" ? (
+    ) : rotaEfetiva === "alteracoes" ? (
       <AlteracoesPage />
-    ) : rota === "email" ? (
+    ) : rotaEfetiva === "email" ? (
       <EmailGestorPage />
-    ) : rota === "configuracoes" ? (
+    ) : rotaEfetiva === "configuracoes" ? (
       <ConfiguracoesPage />
-    ) : rota === "auditoria" ? (
+    ) : rotaEfetiva === "auditoria" ? (
       <AuditoriaPage />
-    ) : rota === "alterar-senha" ? (
-      <AlterarSenhaPage onVoltar={() => setRota("dashboard")} />
+    ) : rotaEfetiva === "perfil" ? (
+      <PerfilPage
+        onAlterarSenha={() => setRota("alterar-senha")}
+        onVoltarHome={() => setRota("dashboard")}
+      />
+    ) : rotaEfetiva === "alterar-senha" ? (
+      <AlterarSenhaPage onVoltarPerfil={() => setRota("perfil")} />
     ) : (
       <UsuariosPage />
     );
 
   return (
-    <AppShell rota={rota} onNavegar={setRota}>
+    <AppShell rota={rotaEfetiva} onNavegar={setRota}>
       {pagina}
     </AppShell>
   );

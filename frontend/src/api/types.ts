@@ -140,6 +140,7 @@ export type UsuarioResumo = {
   cargo?: string | null;
   departamento?: string | null;
   ativo: boolean;
+  receber_email_alertas: boolean;
 };
 
 export type UsuarioPayload = {
@@ -151,6 +152,7 @@ export type UsuarioPayload = {
   cargo?: string | null;
   departamento?: string | null;
   ativo: boolean;
+  receber_email_alertas: boolean;
 };
 
 export type UsuarioListaResponse = {

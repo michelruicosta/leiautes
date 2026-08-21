@@ -173,6 +173,7 @@ class UsuarioResumo(BaseModel):
     cargo: Optional[str] = None
     departamento: Optional[str] = None
     ativo: bool = True
+    receber_email_alertas: bool = False
 
 
 class UsuarioListaResponse(BaseModel):
@@ -188,6 +189,7 @@ class UsuarioCreateRequest(BaseModel):
     cargo: Optional[str] = Field(default=None, max_length=80)
     departamento: Optional[str] = Field(default=None, max_length=80)
     ativo: bool = True
+    receber_email_alertas: bool = True
 
 
 class UsuarioUpdateRequest(BaseModel):
@@ -201,6 +203,7 @@ class UsuarioUpdateRequest(BaseModel):
     cargo: Optional[str] = Field(default=None, max_length=80)
     departamento: Optional[str] = Field(default=None, max_length=80)
     ativo: Optional[bool] = None
+    receber_email_alertas: Optional[bool] = None
 
 
 class PermissoesPerfilResponse(BaseModel):

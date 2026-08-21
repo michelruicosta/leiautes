@@ -1,13 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import ConfiguracoesResponse, ConfiguracoesUpdateRequest
 from persistencia.auditoria_db import registrar_log
 from persistencia.config_db import listar_configuracoes, salvar_configuracoes
 
-router = APIRouter(prefix="/configuracoes", tags=["configuracoes"])
+router = APIRouter(
+    prefix="/configuracoes",
+    tags=["configuracoes"],
+    dependencies=[Depends(exigir_rota("admin-configuracoes"))],
+)
 
 
 @router.get("", response_model=ConfiguracoesResponse)

@@ -3,17 +3,19 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import AlteracaoResumo, EmailGestorPreviewResponse
 from persistencia.alteracoes_db import listar_alteracoes
 from persistencia.config_db import listar_configuracoes
+from persistencia.usuarios_db import listar_emails_alerta
 
-router = APIRouter(prefix="/email-gestor", tags=["email-gestor"])
-
-
-def _lista(valor) -> list[str]:
-    return valor if isinstance(valor, list) else []
+router = APIRouter(
+    prefix="/email-gestor",
+    tags=["email-gestor"],
+    dependencies=[Depends(exigir_rota("email-gestor"))],
+)
 
 
 @router.get("/preview", response_model=EmailGestorPreviewResponse)
@@ -38,8 +40,8 @@ def preview_email() -> EmailGestorPreviewResponse:
         )
     return EmailGestorPreviewResponse(
         assunto=assunto,
-        destinatarios=_lista(cfg.get("email.destinatarios")),
-        copia=_lista(cfg.get("email.copia")),
+        destinatarios=listar_emails_alerta(),
+        copia=[],
         resumo=resumo,
         alteracoes=alteracoes,
         anexos=[item.arquivo_nome for item in alteracoes],

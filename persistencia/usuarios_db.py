@@ -25,7 +25,14 @@ def _parse_lista(valor: str | None) -> list[str]:
 def _row_usuario(row) -> dict:
     data = dict(row)
     data["ativo"] = bool(data.get("ativo"))
+    data["receber_email_alertas"] = bool(data.get("receber_email_alertas"))
     return data
+
+
+_CAMPOS_USUARIO = (
+    "id, email, nome, perfil_codigo, cargo, departamento, ativo, "
+    "receber_email_alertas, criado_em, atualizado_em"
+)
 
 
 def buscar_usuario_por_email(email: str) -> Optional[dict]:
@@ -34,7 +41,8 @@ def buscar_usuario_por_email(email: str) -> Optional[dict]:
         row = conn.execute(
             """
             SELECT id, email, nome, perfil_codigo, senha_hash, cargo,
-                   departamento, ativo, criado_em, atualizado_em
+                   departamento, ativo, receber_email_alertas,
+                   criado_em, atualizado_em
             FROM usuarios
             WHERE lower(email) = lower(?)
             """,
@@ -49,7 +57,8 @@ def buscar_usuario_por_id(usuario_id: int) -> Optional[dict]:
         row = conn.execute(
             """
             SELECT id, email, nome, perfil_codigo, senha_hash, cargo,
-                   departamento, ativo, criado_em, atualizado_em
+                   departamento, ativo, receber_email_alertas,
+                   criado_em, atualizado_em
             FROM usuarios
             WHERE id = ?
             """,
@@ -63,9 +72,8 @@ def listar_usuarios() -> tuple[list[dict], int]:
     with conectar() as conn:
         total = conn.execute("SELECT COUNT(*) AS c FROM usuarios").fetchone()["c"]
         rows = conn.execute(
-            """
-            SELECT id, email, nome, perfil_codigo, cargo, departamento, ativo,
-                   criado_em, atualizado_em
+            f"""
+            SELECT {_CAMPOS_USUARIO}
             FROM usuarios
             ORDER BY nome COLLATE NOCASE
             """
@@ -77,15 +85,38 @@ def obter_usuario(usuario_id: int) -> Optional[dict]:
     init_db()
     with conectar() as conn:
         row = conn.execute(
-            """
-            SELECT id, email, nome, perfil_codigo, cargo, departamento, ativo,
-                   criado_em, atualizado_em
+            f"""
+            SELECT {_CAMPOS_USUARIO}
             FROM usuarios
             WHERE id = ?
             """,
             (usuario_id,),
         ).fetchone()
     return _row_usuario(row) if row else None
+
+
+def listar_emails_alerta() -> list[str]:
+    """E-mails de usuários ativos com flag de alerta ligado (ordem estável)."""
+    init_db()
+    with conectar() as conn:
+        rows = conn.execute(
+            """
+            SELECT email
+            FROM usuarios
+            WHERE ativo = 1 AND receber_email_alertas = 1
+            ORDER BY email COLLATE NOCASE
+            """
+        ).fetchall()
+    vistos: set[str] = set()
+    saida: list[str] = []
+    for row in rows:
+        email = str(row["email"] or "").strip()
+        chave = email.lower()
+        if not email or "@" not in email or chave in vistos:
+            continue
+        vistos.add(chave)
+        saida.append(email)
+    return saida
 
 
 def criar_usuario(data: dict) -> int:
@@ -96,8 +127,8 @@ def criar_usuario(data: dict) -> int:
             """
             INSERT INTO usuarios (
                 email, nome, perfil_codigo, senha_hash, cargo, departamento,
-                ativo, criado_em, atualizado_em
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ativo, receber_email_alertas, criado_em, atualizado_em
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 data["email"],
@@ -107,6 +138,7 @@ def criar_usuario(data: dict) -> int:
                 data.get("cargo"),
                 data.get("departamento"),
                 1 if data.get("ativo", True) else 0,
+                1 if data.get("receber_email_alertas", True) else 0,
                 agora,
                 agora,
             ),
@@ -132,13 +164,14 @@ def atualizar_usuario(usuario_id: int, data: dict) -> Optional[dict]:
     atual = obter_usuario(usuario_id)
     if not atual:
         return None
-    novo = {**atual, **{k: v for k, v in data.items() if v is not None}}
+    novo = {**atual, **data}
     with conectar() as conn:
         conn.execute(
             """
             UPDATE usuarios
             SET email = ?, nome = ?, perfil_codigo = ?, cargo = ?,
-                departamento = ?, ativo = ?, atualizado_em = ?
+                departamento = ?, ativo = ?, receber_email_alertas = ?,
+                atualizado_em = ?
             WHERE id = ?
             """,
             (
@@ -148,6 +181,7 @@ def atualizar_usuario(usuario_id: int, data: dict) -> Optional[dict]:
                 novo.get("cargo"),
                 novo.get("departamento"),
                 1 if novo.get("ativo", True) else 0,
+                1 if novo.get("receber_email_alertas", False) else 0,
                 _agora(),
                 usuario_id,
             ),

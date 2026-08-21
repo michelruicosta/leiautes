@@ -1,0 +1,25 @@
+---
+description: Padrão visual UI — reutilizar componentes existentes antes de inventar layout
+alwaysApply: true
+---
+
+# Padrão UI — Grupo Finaud
+
+**Documentação completa:** no repo Auditoria IA → `documentacao/padrao_ui_finaud.md` (quando o repo estiver aberto).
+
+**Antes de criar tela, botão ou menu novo:** buscar no projeto se já existe modelo igual ou parecido. **Não** inventar layout paralelo.
+
+## Menu usuário — regra
+
+- Topo: botão branco com nome + chevron `▾`
+- Dropdown: lista branca com sombra — **Sair** em vermelho (`app-menu-item-perigo`)
+- **Sair (apps com portal):** encerra sessão do app e do portal; redireciona para `https://finaudapps.com.br` (nunca deixar na tela de login do app). Constante/`VITE_PORTAL_URL`.
+- **Perfil:** igual Auditoria — menu Portal de apps · Perfil · Sair; card com iniciais, organização, Voltar / Alterar senha.
+- **Administração** no menu: só administrador
+
+## Ao implementar
+
+1. Grep/read modelo existente
+2. Copiar estrutura + classes
+3. Só adaptar textos/rotas
+4. **Se não houver modelo:** avisar Michel e propor antes de criar

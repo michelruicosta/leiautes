@@ -28,8 +28,6 @@ const DEFAULTS: ConfiguracoesMapa = {
   "empresa.subtitulo": "Leiautes Bacen - Monitoramento",
   "email.remetente": "",
   "email.assunto": "Atualização em leiautes Bacen - {data}",
-  "email.destinatarios": [],
-  "email.copia": [],
   "email.smtp_servidor": "smtp.gmail.com",
   "email.smtp_porta": 465,
   "email.enviar_sem_alteracao": false,
@@ -154,7 +152,7 @@ export default function ConfiguracoesPage() {
           <div>
             <h1 className="page-title">Configurações</h1>
             <p className="page-sub">
-              Parâmetros do robô, e-mail, comparação e caminhos operacionais.
+              E-mail, monitoramento, comparação e caminhos usados pelo robô.
             </p>
           </div>
           <button type="submit" className="btn-novo" disabled={salvando}>
@@ -239,7 +237,8 @@ export default function ConfiguracoesPage() {
           {aba === "email" && (
             <>
               <p className="admin-ajuda">
-                Conta, destinatários e comportamento do envio automático.
+                Canal de envio (SMTP, assunto e comportamento). Destinatários
+                ficam em Usuários e perfis, no flag &quot;Receber e-mail de alertas&quot;.
               </p>
               <div className="config-dupla">
                 <div className="field">
@@ -278,22 +277,6 @@ export default function ConfiguracoesPage() {
                   />
                 </div>
               </div>
-              <label className="field">
-                <span className="field-label">Destinatários principais</span>
-                <textarea
-                  className="field-input admin-textarea"
-                  value={textoLista(form["email.destinatarios"])}
-                  onChange={(e) => setCampo("email.destinatarios", listaTexto(e.target.value))}
-                />
-              </label>
-              <label className="field">
-                <span className="field-label">Cópia opcional</span>
-                <textarea
-                  className="field-input admin-textarea"
-                  value={textoLista(form["email.copia"])}
-                  onChange={(e) => setCampo("email.copia", listaTexto(e.target.value))}
-                />
-              </label>
               <div className="admin-dias">
                 <label className="admin-dia-chip">
                   <input

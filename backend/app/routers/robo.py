@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import (
     AgendaRoboResponse,
     AgendaRoboUpdateRequest,
@@ -16,7 +17,11 @@ from persistencia.agenda_db import atualizar_config_agenda, obter_config_agenda
 from persistencia.auditoria_db import registrar_log
 from persistencia.execucoes_db import obter_ultima_execucao
 
-router = APIRouter(prefix="/robo", tags=["robo"])
+router = APIRouter(
+    prefix="/robo",
+    tags=["robo"],
+    dependencies=[Depends(exigir_rota("admin-robo"))],
+)
 
 
 @router.get("/status", response_model=RoboStatusResponse)

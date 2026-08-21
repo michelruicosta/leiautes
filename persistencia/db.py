@@ -59,6 +59,7 @@ def init_db() -> None:
                 cargo TEXT,
                 departamento TEXT,
                 ativo INTEGER NOT NULL DEFAULT 1,
+                receber_email_alertas INTEGER NOT NULL DEFAULT 0,
                 criado_em TEXT NOT NULL,
                 atualizado_em TEXT NOT NULL
             );
@@ -176,9 +177,95 @@ def init_db() -> None:
                 ON arquivos_monitorados(leiaute_id);
             """
         )
+    _garantir_coluna_receber_email_alertas()
     seed_configuracoes_padrao()
     seed_perfis_padrao()
     seed_leiautes_padrao()
+    _migrar_destinatarios_config_para_usuarios()
+
+
+def _garantir_coluna_receber_email_alertas() -> None:
+    with _connect() as conn:
+        cols = {row[1] for row in conn.execute("PRAGMA table_info(usuarios)").fetchall()}
+        if "receber_email_alertas" not in cols:
+            conn.execute(
+                "ALTER TABLE usuarios ADD COLUMN receber_email_alertas INTEGER NOT NULL DEFAULT 0"
+            )
+
+
+def _migrar_destinatarios_config_para_usuarios() -> None:
+    """Uma vez: e-mails em email.destinatarios/copia → flag nos usuários cadastrados."""
+    agora = _agora()
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT valor FROM configuracoes WHERE chave = ?",
+            ("email.destinatarios_migrados_para_usuarios",),
+        ).fetchone()
+        if row is not None:
+            try:
+                if json.loads(row["valor"]) is True:
+                    return
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        emails: set[str] = set()
+        for chave in ("email.destinatarios", "email.copia"):
+            cfg = conn.execute(
+                "SELECT valor FROM configuracoes WHERE chave = ?",
+                (chave,),
+            ).fetchone()
+            if not cfg:
+                continue
+            try:
+                valor = json.loads(cfg["valor"])
+            except (json.JSONDecodeError, TypeError):
+                valor = cfg["valor"]
+            if isinstance(valor, list):
+                for item in valor:
+                    if isinstance(item, str) and "@" in item:
+                        emails.add(item.strip().lower())
+            elif isinstance(valor, str):
+                for parte in valor.replace(";", ",").split(","):
+                    parte = parte.strip()
+                    if "@" in parte:
+                        emails.add(parte.lower())
+
+        json_path = RAIZ / "config" / "config_email.json"
+        if json_path.is_file():
+            try:
+                raw = json.loads(json_path.read_text(encoding="utf-8"))
+                to = raw.get("to") or raw.get("destinatarios") or []
+                if isinstance(to, str):
+                    to = [x.strip() for x in to.replace(";", ",").split(",") if x.strip()]
+                for item in to:
+                    if isinstance(item, str) and "@" in item:
+                        emails.add(item.strip().lower())
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
+
+        for email in emails:
+            conn.execute(
+                """
+                UPDATE usuarios
+                SET receber_email_alertas = 1
+                WHERE lower(email) = ? AND ativo = 1
+                """,
+                (email,),
+            )
+        conn.execute(
+            """
+            INSERT INTO configuracoes (chave, valor, atualizado_em)
+            VALUES (?, ?, ?)
+            ON CONFLICT(chave) DO UPDATE SET
+                valor = excluded.valor,
+                atualizado_em = excluded.atualizado_em
+            """,
+            (
+                "email.destinatarios_migrados_para_usuarios",
+                json.dumps(True),
+                agora,
+            ),
+        )
 
 
 def seed_configuracoes_padrao() -> None:
@@ -283,6 +370,7 @@ def seed_perfis_padrao() -> None:
             "admin-robo",
             "admin-configuracoes",
             "admin-usuarios",
+            "admin-auditoria",
         ],
     }
     agora = _agora()

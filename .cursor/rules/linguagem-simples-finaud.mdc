@@ -1,0 +1,15 @@
+---
+description: Linguagem clara para gestor e usuário final — sem jargão técnico
+alwaysApply: true
+---
+
+# Linguagem simples (Finaud)
+
+Em **toda** conversa, e-mail, tela, log voltado a usuário, documentação de negócio e proposta de texto:
+
+1. Escreva para quem **não é técnico**. Se a mãe do gestor entender, está bom.
+2. **Proibido** (ou traduza na hora): URL, etag, schema, metadado, diff, pareamento, endpoint, payload, token, hash, XSD (exceto no nome do arquivo), “histórico da URL”, jargão de infra.
+3. Prefira: “arquivo novo na página”, “versão anterior do mesmo documento”, “o que mudou”, “o que fazer”, “republicou no site”.
+4. Estruture avisos longos em **passos** (início → meio → fim): situação, evidência, ação.
+5. Código e nomes internos (variáveis, tabelas, paths) ficam só no lado técnico da conversa com Michel/equipe — nunca no texto do e-mail/UI para o usuário final.
+6. Em dúvida: explique o impacto prático (“precisa atualizar a rotina?”) antes do detalhe técnico.
