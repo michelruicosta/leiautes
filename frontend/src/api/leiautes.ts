@@ -2,7 +2,6 @@ import { apiDelete, apiDownload, apiGet, apiPost, apiPut, apiUrl } from "./clien
 import type {
   ConfiguracoesResponse,
   DashboardResponse,
-  EmailGestorPreviewResponse,
   ExecucaoListaResponse,
   ExecucaoLogResponse,
   AlteracaoListaResponse,
@@ -106,10 +105,6 @@ export function listarExecucoes(limit = 50, offset = 0) {
 
 export function obterLogExecucao(execucaoId: number) {
   return apiGet<ExecucaoLogResponse>(`/execucoes/${execucaoId}/log`);
-}
-
-export function obterPreviewEmailGestor() {
-  return apiGet<EmailGestorPreviewResponse>("/email-gestor/preview");
 }
 
 export function listarUsuarios() {

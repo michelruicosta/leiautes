@@ -11,7 +11,6 @@ from app.routers import (
     auditoria,
     configuracoes,
     dashboard,
-    email_gestor,
     execucoes,
     health,
     leiautes,
@@ -65,7 +64,6 @@ app.include_router(execucoes.router)
 app.include_router(configuracoes.router)
 app.include_router(robo.router)
 app.include_router(usuarios.router)
-app.include_router(email_gestor.router)
 app.include_router(relatorios.router)
 app.include_router(versoes.router)
 

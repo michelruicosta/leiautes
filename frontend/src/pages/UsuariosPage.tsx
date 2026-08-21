@@ -29,9 +29,8 @@ const ROTAS = [
   ["dashboard", "Dashboard", "Visão geral do monitoramento."],
   ["leiautes", "Leiautes", "Cadastro das páginas Bacen monitoradas."],
   ["alteracoes", "Histórico e Versões", "Histórico do monitoramento e arquivos guardados."],
-  ["email-gestor", "E-mail do gestor", "Prévia e envio dos comunicados."],
   ["admin-robo", "Robô", "Execução manual e agenda."],
-  ["admin-configuracoes", "Configurações", "Parâmetros operacionais do sistema."],
+  ["admin-configuracoes", "Configurações", "Parâmetros e modelo do e-mail do robô."],
   ["admin-usuarios", "Usuários e perfis", "Gestão de acessos."],
   ["admin-auditoria", "Trilha de auditoria", "Registro de ações no sistema."],
 ] as const;

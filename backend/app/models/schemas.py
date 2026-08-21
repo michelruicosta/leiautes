@@ -228,15 +228,6 @@ class LogAuditoriaListaResponse(BaseModel):
     registros: list[LogAuditoriaItem]
 
 
-class EmailGestorPreviewResponse(BaseModel):
-    assunto: str
-    destinatarios: list[str] = Field(default_factory=list)
-    copia: list[str] = Field(default_factory=list)
-    resumo: str
-    alteracoes: list[AlteracaoResumo] = Field(default_factory=list)
-    anexos: list[str] = Field(default_factory=list)
-
-
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3, max_length=200)
     senha: str = Field(min_length=1, max_length=200)

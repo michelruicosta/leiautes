@@ -361,12 +361,11 @@ def seed_leiautes_padrao() -> None:
 def seed_perfis_padrao() -> None:
     permissoes = {
         "operador": ["dashboard", "leiautes", "alteracoes", "admin-robo"],
-        "gestor": ["dashboard", "leiautes", "alteracoes", "email-gestor"],
+        "gestor": ["dashboard", "leiautes", "alteracoes"],
         "administrador": [
             "dashboard",
             "leiautes",
             "alteracoes",
-            "email-gestor",
             "admin-robo",
             "admin-configuracoes",
             "admin-usuarios",
@@ -384,6 +383,26 @@ def seed_perfis_padrao() -> None:
                 """,
                 (perfil, _json(rotas), agora),
             )
+        # Remove rota antiga "E-mail do gestor" (modelo ficou em Configurações).
+        for row in conn.execute(
+            "SELECT perfil_codigo, rotas_permitidas FROM perfis_permissoes"
+        ):
+            try:
+                atuais = json.loads(row["rotas_permitidas"] or "[]")
+            except json.JSONDecodeError:
+                atuais = []
+            if not isinstance(atuais, list):
+                atuais = []
+            limpas = [r for r in atuais if r != "email-gestor"]
+            if limpas != atuais:
+                conn.execute(
+                    """
+                    UPDATE perfis_permissoes
+                    SET rotas_permitidas = ?, atualizado_em = ?
+                    WHERE perfil_codigo = ?
+                    """,
+                    (_json(limpas), agora, row["perfil_codigo"]),
+                )
 
 
 def iniciar_execucao(log_path: Optional[str] = None) -> int:

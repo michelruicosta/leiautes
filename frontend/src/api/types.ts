@@ -177,12 +177,3 @@ export type LogAuditoriaListaResponse = {
   total: number;
   registros: LogAuditoria[];
 };
-
-export type EmailGestorPreviewResponse = {
-  assunto: string;
-  destinatarios: string[];
-  copia: string[];
-  resumo: string;
-  alteracoes: AlteracaoResumo[];
-  anexos: string[];
-};

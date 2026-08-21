@@ -5,7 +5,6 @@ export type RotaPainel =
   | "dashboard"
   | "leiautes"
   | "alteracoes"
-  | "email"
   | "robo"
   | "configuracoes"
   | "usuarios"
@@ -21,7 +20,6 @@ const ROTA_PARA_PERMISSAO: Record<
   dashboard: "dashboard",
   leiautes: "leiautes",
   alteracoes: "alteracoes",
-  email: "email-gestor",
   robo: "admin-robo",
   configuracoes: "admin-configuracoes",
   usuarios: "admin-usuarios",
@@ -160,7 +158,6 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
           {navItem("dashboard", "Dashboard", "📊")}
           {navItem("leiautes", "Leiautes", "📄")}
           {navItem("alteracoes", "Histórico e Versões", "🔎")}
-          {navItem("email", "E-mail do gestor", "✉️")}
           {temAdmin && (
             <>
               <div className="painel-nav-label">Administração</div>

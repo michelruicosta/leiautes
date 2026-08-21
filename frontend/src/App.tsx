@@ -5,7 +5,6 @@ import AlterarSenhaPage from "./pages/AlterarSenhaPage";
 import AuditoriaPage from "./pages/AuditoriaPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
-import EmailGestorPage from "./pages/EmailGestorPage";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
 import PerfilPage from "./pages/PerfilPage";
@@ -42,19 +41,13 @@ export default function App() {
 
   const pagina =
     rotaEfetiva === "dashboard" ? (
-      <DashboardPage
-        onExecutarRobo={() => {
-          if (podeAcessarRota("robo", usuario.rotas_permitidas)) setRota("robo");
-        }}
-      />
+      <DashboardPage />
     ) : rotaEfetiva === "leiautes" ? (
       <LeiautesPage />
     ) : rotaEfetiva === "robo" ? (
       <RoboPage />
     ) : rotaEfetiva === "alteracoes" ? (
       <AlteracoesPage />
-    ) : rotaEfetiva === "email" ? (
-      <EmailGestorPage />
     ) : rotaEfetiva === "configuracoes" ? (
       <ConfiguracoesPage />
     ) : rotaEfetiva === "auditoria" ? (

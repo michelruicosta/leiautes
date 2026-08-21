@@ -8,6 +8,19 @@
 
 ## Fechadas recentemente
 
+### ✅ Modelo do e-mail em Configurações (21/08)
+
+**Decisão Michel:** a tela **E-mail do gestor** (prévia paralela) **saiu**.
+
+- Modelo do comunicado: **Configurações → Modelo do e-mail** (assunto, SMTP, anexos, quando enviar)
+- Destinatários: **Usuários e perfis** → flag receber alertas
+- Corpo em 3 passos: montado pelo **robô** com as mudanças detectadas
+- Não manter dois templates (tela vs envio real)
+
+### ✅ Dashboard sem Executar robô (21/08)
+
+Botão **Executar robô** removido do Dashboard — execução só na tela **Robô**.
+
 ### ✅ Histórico — botão Detalhes mantido (21/08)
 
 **Decisão Michel:** manter o botão **Detalhes** (modal Entrou/Mudou/Saiu) **e** o **Exportar** Excel.

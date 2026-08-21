@@ -129,7 +129,6 @@ def _rotas_permitidas(usuario: dict) -> set[str]:
             "dashboard",
             "leiautes",
             "alteracoes",
-            "email-gestor",
             "admin-robo",
             "admin-configuracoes",
             "admin-usuarios",

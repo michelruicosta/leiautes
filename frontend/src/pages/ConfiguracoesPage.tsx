@@ -15,7 +15,7 @@ type AbaConfig =
 
 const ABAS: { id: AbaConfig; label: string }[] = [
   { id: "empresa", label: "Empresa" },
-  { id: "email", label: "E-mail" },
+  { id: "email", label: "Modelo do e-mail" },
   { id: "monitoramento", label: "Monitoramento" },
   { id: "anexos", label: "Anexos" },
   { id: "comparacao", label: "Comparação" },
@@ -152,7 +152,7 @@ export default function ConfiguracoesPage() {
           <div>
             <h1 className="page-title">Configurações</h1>
             <p className="page-sub">
-              E-mail, monitoramento, comparação e caminhos usados pelo robô.
+              Modelo do e-mail do robô, monitoramento, comparação e caminhos.
             </p>
           </div>
           <button type="submit" className="btn-novo" disabled={salvando}>
@@ -237,8 +237,11 @@ export default function ConfiguracoesPage() {
           {aba === "email" && (
             <>
               <p className="admin-ajuda">
-                Canal de envio (SMTP, assunto e comportamento). Destinatários
-                ficam em Usuários e perfis, no flag &quot;Receber e-mail de alertas&quot;.
+                Aqui você monta o modelo do comunicado que o robô envia.
+                Assunto, remetente, SMTP e se anexa arquivos. Destinatários
+                ficam em Usuários e perfis (&quot;Receber e-mail de alertas&quot;).
+                O corpo em 3 passos (situação, diferenças, ação) é montado
+                automaticamente com as mudanças detectadas.
               </p>
               <div className="config-dupla">
                 <div className="field">
@@ -256,6 +259,7 @@ export default function ConfiguracoesPage() {
                     value={String(form["email.assunto"] ?? "")}
                     onChange={(e) => setCampo("email.assunto", e.target.value)}
                   />
+                  <p className="meta">Use {"{data}"} para a data do dia.</p>
                 </div>
               </div>
               <div className="config-dupla">
@@ -293,7 +297,7 @@ export default function ConfiguracoesPage() {
                     checked={boolValor(form["email.anexar_alterados"])}
                     onChange={(e) => setCampo("email.anexar_alterados", e.target.checked)}
                   />
-                  Anexar arquivos alterados
+                  Anexar planilha / arquivos alterados
                 </label>
               </div>
             </>
