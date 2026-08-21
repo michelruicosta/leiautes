@@ -140,8 +140,8 @@ def check_classificacao_email() -> None:
 
     html = m.montar_corpo_email_alteracoes(alterados, detalhes)
     for trecho in (
-        "Precisa agir",
-        "Não precisa agir",
+        "Arquivos para revisar",
+        "Só aviso",
         "O que fazer",
         "O que mudou",
         "Antes_Depois_leiautes",
@@ -157,21 +157,28 @@ def check_classificacao_email() -> None:
         raise RuntimeError("gerar_planilha_antes_depois retornou vazio")
     content_xlsx, nome_xlsx = planilha
     if "Antes_Depois_leiautes" not in nome_xlsx or not content_xlsx:
-        raise RuntimeError(f"anexo Antes/Depois inválido: {nome_xlsx!r} ({len(content_xlsx)} bytes)")
+        raise RuntimeError(f"anexo planilha inválido: {nome_xlsx!r} ({len(content_xlsx)} bytes)")
 
     from io import BytesIO
 
     from openpyxl import load_workbook
 
     wb = load_workbook(BytesIO(content_xlsx), read_only=True, data_only=True)
-    ws = wb.active
+    nomes = set(wb.sheetnames)
+    for aba in ("Resumo", "O que mudou", "Só aviso"):
+        if aba not in nomes:
+            raise RuntimeError(f"Planilha sem aba esperada: {aba!r} (tem {nomes})")
     celulas = " ".join(
-        str(c) for row in ws.iter_rows(values_only=True) for c in row if c is not None
+        str(c)
+        for ws in wb.worksheets
+        for row in ws.iter_rows(values_only=True)
+        for c in row
+        if c is not None
     )
     wb.close()
-    for trecho in ("removeu aba", "acrescentou aba"):
+    for trecho in ("removeu aba", "acrescentou aba", "Precisa agir?"):
         if trecho not in celulas:
-            raise RuntimeError(f"Planilha Antes/Depois sem trecho esperado: {trecho!r}")
+            raise RuntimeError(f"Planilha sem trecho esperado: {trecho!r}")
 
 
 def check_diff_pdf_se_disponivel() -> None:

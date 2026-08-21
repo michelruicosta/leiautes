@@ -444,188 +444,160 @@ def _metric_cell(cell: Cell, fill: str) -> None:
     )
 
 
-def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, str]:
-    escopo = "ultima" if escopo == "ultima" else "historico"
-    alteracoes, titulo = _buscar_alteracoes(escopo)
-    wb = Workbook()
-    ws_resumo = wb.active
-    ws_resumo.title = "Resumo executivo"
-    ws_mudancas = wb.create_sheet("Mudanças")
-    ws_arquivo = wb.create_sheet("Por arquivo")
-    ws_anexos = wb.create_sheet("Anexos")
-    ws_criterios = wb.create_sheet("Critérios")
+def _eh_evidencia_tecnica_texto(texto: str) -> bool:
+    t = (texto or "").lower()
+    if "novo arquivo observado" in t or "arquivo novo" in t:
+        return False
+    chaves = (
+        "etag",
+        "last_modified",
+        "content_length",
+        "final_url",
+        "partial_fp",
+        "metadados",
+        "versão anterior não arquivada",
+        "versao anterior nao arquivada",
+        "alteracao detectada por metadados",
+        "alteração detectada por metadados",
+    )
+    return any(k in t for k in chaves)
 
-    linhas_mudancas: list[list[Any]] = []
-    cont_tipo = Counter()
-    cont_arquivo = Counter()
-    data_arquivo: dict[tuple[str, str, str], str] = {}
+
+def _alteracao_so_aviso(alt: dict[str, Any]) -> bool:
+    """Republicação sem mudança de conteúdo — mesma ideia do e-mail."""
+    resumo = str(alt.get("resumo_executivo") or "")
+    if "novo arquivo" in resumo.lower() or "versão pareada" in resumo.lower():
+        return False
+    inc = _itens_reais(alt.get("itens_incluidos") or [])
+    rem = _itens_reais(alt.get("itens_removidos") or [])
+    alt_itens = _itens_reais(alt.get("itens_alterados") or [])
+    conteudo_alt = [x for x in alt_itens if not _eh_evidencia_tecnica_texto(str(x))]
+    if inc or rem or conteudo_alt:
+        return False
+    todos = list(inc) + list(rem) + list(alt_itens) + [resumo]
+    return bool(todos) and all(_eh_evidencia_tecnica_texto(str(x)) for x in todos if str(x).strip())
+
+
+def _codigo_situacao(resumo: str) -> str:
+    if resumo.startswith("[Versão pareada"):
+        return "versao_pareada"
+    if resumo.startswith("[Sem anterior]"):
+        return "sem_anterior"
+    if resumo.startswith("[Mesmo arquivo]"):
+        return "mesmo_arquivo"
+    return "desconhecido"
+
+
+def _o_que_mudou_de_parsed(parsed: dict[str, str], tipo: str) -> str:
+    mudanca = str(parsed.get("mudanca") or "").strip()
+    if mudanca:
+        return mudanca
+    local = str(parsed.get("local") or "").lower()
+    if "aba" in local and tipo == "Entrou":
+        return "acrescentou aba"
+    if "aba" in local and tipo == "Saiu":
+        return "removeu aba"
+    if tipo == "Entrou":
+        return "conteúdo novo"
+    if tipo == "Saiu":
+        return "conteúdo removido"
+    return "texto alterado"
+
+
+def gerar_relatorio_alteracoes_xlsx(escopo: str = "historico") -> tuple[bytes, str]:
+    """Exportar do Histórico — mesma planilha do anexo do e-mail (linguagem simples)."""
+    from persistencia.planilha_gestor import (
+        ArquivoResumoPlanilha,
+        DadosPlanilhaGestor,
+        LinhaMudancaPlanilha,
+        gerar_bytes_planilha_gestor,
+        rotulo_situacao,
+    )
+
+    escopo = "ultima" if escopo == "ultima" else "historico"
+    alteracoes, _titulo = _buscar_alteracoes(escopo)
+    dados = DadosPlanilhaGestor()
     cache_pdf: dict[str, list[list[tuple[int, str]]]] = {}
+
     for alt in alteracoes:
+        data = _fmt_data(alt.get("last_modified")) or _fmt_data(alt.get("criado_em"))
+        leiaute = str(alt.get("leiaute_codigo") or "")
+        arquivo = str(alt.get("nome_arquivo") or "")
+        link = str(alt.get("final_url") or alt.get("url") or "")
+        o_que_fazer = str(alt.get("impacto_sugerido") or "Revisar o arquivo no site do Bacen.")
+        resumo = str(alt.get("resumo_executivo") or "")
+
+        if _alteracao_so_aviso(alt):
+            dados.arquivos_aviso.append(
+                ArquivoResumoPlanilha(
+                    data=data,
+                    leiaute=leiaute,
+                    arquivo=arquivo,
+                    situacao=rotulo_situacao("aviso"),
+                    precisa_agir=False,
+                    qtd_mudancas=0,
+                    link=link,
+                    observacao=(
+                        "O Bacen republicou o arquivo no site, sem mudança de "
+                        "texto, célula ou tabela."
+                    ),
+                )
+            )
+            continue
+
+        linhas_arquivo: list[LinhaMudancaPlanilha] = []
         for tipo, itens in [
             ("Entrou", alt["itens_incluidos"]),
-            ("Mudou", alt["itens_alterados"]),
             ("Saiu", alt["itens_removidos"]),
+            ("Mudou", alt["itens_alterados"]),
         ]:
-            itens_validos = _itens_reais(itens)
-            cont_tipo[tipo] += len(itens_validos)
+            itens_validos = [
+                x
+                for x in _itens_reais(itens)
+                if not _eh_evidencia_tecnica_texto(str(x))
+            ]
             for parsed in _linhas_evidencia_agrupadas(itens_validos, tipo):
                 parsed = _enriquecer_contexto_pdf(parsed, tipo, alt, cache_pdf)
-                linhas_mudancas.append(
-                    [
-                        alt["execucao_id"],
-                        _fmt_data(alt.get("last_modified")),
-                        _fmt_data(alt["criado_em"]),
-                        alt["leiaute_codigo"],
-                        alt["nome_arquivo"],
-                        alt["tipo_arquivo"],
-                        tipo,
-                        parsed["local"],
-                        parsed["antes"],
-                        parsed["depois"],
-                        alt["impacto_sugerido"],
-                        alt["status"],
-                        alt["final_url"] or alt["url"],
-                    ]
+                linhas_arquivo.append(
+                    LinhaMudancaPlanilha(
+                        data=data,
+                        leiaute=leiaute,
+                        arquivo=arquivo,
+                        onde=str(parsed.get("local") or "—"),
+                        o_que_mudou=_o_que_mudou_de_parsed(parsed, tipo),
+                        antes=str(parsed.get("antes") or "—") or "—",
+                        depois=str(parsed.get("depois") or "—") or "—",
+                        o_que_fazer=o_que_fazer,
+                    )
                 )
-        chave_arquivo = (alt["leiaute_codigo"], alt["nome_arquivo"], alt["tipo_arquivo"])
-        cont_arquivo[chave_arquivo] += (
-            len(_itens_reais(alt["itens_incluidos"]))
-            + len(_itens_reais(alt["itens_alterados"]))
-            + len(_itens_reais(alt["itens_removidos"]))
+
+        if not linhas_arquivo:
+            linhas_arquivo.append(
+                LinhaMudancaPlanilha(
+                    data=data,
+                    leiaute=leiaute,
+                    arquivo=arquivo,
+                    onde="—",
+                    o_que_mudou="Arquivo novo ou atualizado sem detalhe de células",
+                    antes="—",
+                    depois="—",
+                    o_que_fazer=o_que_fazer,
+                )
+            )
+
+        dados.arquivos_agir.append(
+            ArquivoResumoPlanilha(
+                data=data,
+                leiaute=leiaute,
+                arquivo=arquivo,
+                situacao=rotulo_situacao(_codigo_situacao(resumo)),
+                precisa_agir=True,
+                qtd_mudancas=len(linhas_arquivo),
+                link=link,
+            )
         )
-        data_arquivo[chave_arquivo] = _fmt_data(alt.get("last_modified"))
+        dados.linhas_mudanca.extend(linhas_arquivo)
 
-    _titulo(
-        ws_resumo,
-        titulo,
-        f"Exportado em {datetime.now().strftime('%d/%m/%Y %H:%M')} | Data Bacen exibida nas abas do relatório",
-    )
-    for label_cell, value_cell, label, value, fill in [
-        ("A4", "B4", "Arquivos", len(alteracoes), GRAY),
-        ("C4", "D4", "Entrou", cont_tipo["Entrou"], GREEN),
-        ("E4", "F4", "Mudou", cont_tipo["Mudou"], YELLOW),
-        ("G4", "H4", "Saiu", cont_tipo["Saiu"], RED),
-    ]:
-        ws_resumo[label_cell] = label
-        ws_resumo[value_cell] = value
-        ws_resumo[label_cell].font = Font(name="Arial", bold=True, color=BLUE)
-        ws_resumo[label_cell].alignment = Alignment(horizontal="center", vertical="center")
-        _metric_cell(ws_resumo[value_cell], fill)
-    ws_resumo.row_dimensions[3].height = 14
-
-    _append(ws_resumo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Total de evidências"], fill=BLUE, bold=True)
-    resumo_header_row = ws_resumo.max_row
-    for cell in ws_resumo[resumo_header_row]:
-        cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    for (leiaute, arquivo, tipo), total in cont_arquivo.most_common(12):
-        _append(ws_resumo, [data_arquivo.get((leiaute, arquivo, tipo), ""), leiaute, arquivo, tipo, total])
-    _autofiltro(ws_resumo, resumo_header_row, 5)
-    _ajustar(ws_resumo, {"A": 18, "B": 18, "C": 58, "D": 12, "E": 18, "F": 12, "G": 12, "H": 12})
-
-    cab = [
-        "Execução",
-        "Data Bacen",
-        "Data execução",
-        "Leiaute",
-        "Arquivo",
-        "Tipo arquivo",
-        "Tipo mudança",
-        "Local / evidência",
-        "Antes",
-        "Depois",
-        "Impacto sugerido",
-        "Status",
-        "Link Bacen",
-    ]
-    _append(ws_mudancas, cab, fill=BLUE, bold=True)
-    for cell in ws_mudancas[1]:
-        cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    for linha in linhas_mudancas:
-        fill = GREEN if linha[6] == "Entrou" else YELLOW if linha[6] == "Mudou" else RED
-        _append(ws_mudancas, linha)
-        _aplicar_cor_linha(ws_mudancas, fill)
-        link_cell = ws_mudancas.cell(row=ws_mudancas.max_row, column=13)
-        if link_cell.value:
-            link_cell.hyperlink = str(link_cell.value)
-            link_cell.style = "Hyperlink"
-    _autofiltro(ws_mudancas, 1, len(cab))
-    _ajustar(ws_mudancas, {"A": 10, "B": 18, "C": 18, "D": 14, "E": 54, "F": 12, "G": 14, "H": 44, "I": 72, "J": 72, "K": 40, "L": 14, "M": 32})
-    _altura_dados(ws_mudancas, 96)
-
-    _append(ws_arquivo, ["Data Bacen", "Leiaute", "Arquivo", "Tipo", "Entrou", "Mudou", "Saiu", "Resumo", "Impacto"], fill=BLUE, bold=True)
-    for cell in ws_arquivo[1]:
-        cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    for alt in alteracoes:
-        _append(
-            ws_arquivo,
-            [
-                _fmt_data(alt.get("last_modified")),
-                alt["leiaute_codigo"],
-                alt["nome_arquivo"],
-                alt["tipo_arquivo"],
-                len(_itens_reais(alt["itens_incluidos"])),
-                len(_itens_reais(alt["itens_alterados"])),
-                len(_itens_reais(alt["itens_removidos"])),
-                alt["resumo_executivo"],
-                alt["impacto_sugerido"],
-            ],
-        )
-    _autofiltro(ws_arquivo, 1, 9)
-    _ajustar(ws_arquivo, {"A": 18, "B": 14, "C": 52, "D": 12, "E": 10, "F": 10, "G": 10, "H": 42, "I": 42})
-    _altura_dados(ws_arquivo, 52)
-
-    _append(
-        ws_anexos,
-        ["Execução", "Data Bacen", "Leiaute", "Arquivo", "Tipo", "Versão anterior", "Versão atual", "Tamanho anterior", "Tamanho atual", "Link Bacen"],
-        fill=BLUE,
-        bold=True,
-    )
-    for cell in ws_anexos[1]:
-        cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    for alt in alteracoes:
-        _append(
-            ws_anexos,
-            [
-                alt["execucao_id"],
-                _fmt_data(alt.get("last_modified")),
-                alt["leiaute_codigo"],
-                alt["nome_arquivo"],
-                alt["tipo_arquivo"],
-                alt["versao_anterior"] or "",
-                alt["versao_atual"] or "",
-                alt["tamanho_anterior"] or "",
-                alt["tamanho_atual"] or "",
-                alt["final_url"] or alt["url"],
-            ],
-        )
-        link_cell = ws_anexos.cell(row=ws_anexos.max_row, column=10)
-        if link_cell.value:
-            link_cell.hyperlink = str(link_cell.value)
-            link_cell.style = "Hyperlink"
-    _autofiltro(ws_anexos, 1, 10)
-    _ajustar(ws_anexos, {"A": 10, "B": 18, "C": 14, "D": 48, "E": 10, "F": 48, "G": 48, "H": 16, "I": 16, "J": 42})
-
-    for idx, linha in enumerate(
-        [
-            ["Campo", "Valor"],
-            ["Escopo", "Última execução com alteração" if escopo == "ultima" else "Histórico completo"],
-            ["Exportação", datetime.now().strftime("%d/%m/%Y %H:%M")],
-            ["Data Bacen", "Campo baseado no Last-Modified/metadado do arquivo monitorado quando disponível."],
-            ["Fonte", "Banco SQLite do aplicativo Leiautes"],
-            ["Tipos de evidência", "Entrou, Mudou, Saiu"],
-            ["Observação", "A planilha histórica é gerada sob demanda e reflete os dados gravados até o momento."],
-        ],
-        start=1,
-    ):
-        _append(ws_criterios, linha, fill=BLUE if idx == 1 else None, bold=idx == 1)
-        if idx == 1:
-            for cell in ws_criterios[idx]:
-                cell.font = Font(name="Arial", bold=True, color="FFFFFF")
-    _autofiltro(ws_criterios, 1, 2)
-    _ajustar(ws_criterios, {"A": 24, "B": 90})
-
-    buffer = BytesIO()
-    wb.save(buffer)
     sufixo = "envio" if escopo == "ultima" else "historico"
-    nome = f"relatorio_alteracoes_leiautes_{sufixo}_{datetime.now().strftime('%d%m%Y_%H%M')}.xlsx"
-    return buffer.getvalue(), nome
+    nome = f"mudancas_leiautes_{sufixo}_{datetime.now().strftime('%d%m%Y_%H%M')}.xlsx"
+    return gerar_bytes_planilha_gestor(dados, nome_arquivo=nome)

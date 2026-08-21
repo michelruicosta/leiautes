@@ -1623,51 +1623,50 @@ def gerar_planilha_antes_depois(
     alterados: list[dict],
     detalhes_por_url: dict,
 ) -> tuple[bytes, str] | None:
-    """Planilha anexa com TODAS as linhas Antes/Depois + O que fazer (itens que precisam agir)."""
+    """Anexo do e-mail: mesma planilha intuitiva do Exportar (Resumo / O que mudou / Só aviso)."""
     try:
-        from openpyxl import Workbook
-        from openpyxl.styles import Alignment, Font, PatternFill
+        from persistencia.planilha_gestor import (
+            ArquivoResumoPlanilha,
+            DadosPlanilhaGestor,
+            LinhaMudancaPlanilha,
+            gerar_bytes_planilha_gestor,
+            rotulo_situacao,
+        )
     except Exception as exc:
-        logger.warning("openpyxl indisponível para anexo Antes/Depois: %s", exc)
+        logger.warning("Planilha gestor indisponível: %s", exc)
         return None
 
-    precisa: list[tuple[dict, dict]] = []
+    dados = DadosPlanilhaGestor()
+    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+
     for item in alterados:
         det = detalhes_por_url.get(item["url"]) or {}
-        if not _detalhe_so_tecnico(det, item.get("evidencia") or ""):
-            precisa.append((item, det))
-    if not precisa:
-        return None
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Antes_Depois"
-    cab = [
-        "Leiaute",
-        "Arquivo",
-        "Tipo de comparação",
-        "Tipo",
-        "Onde",
-        "O que mudou",
-        "Antes",
-        "Depois",
-        "O que fazer",
-        "Link Bacen",
-    ]
-    ws.append(cab)
-    header_fill = PatternFill("solid", fgColor="2E3192")
-    header_font = Font(name="Arial", bold=True, color="FFFFFF")
-    for cell in ws[1]:
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(vertical="center", wrap_text=True)
-
-    for item, det in precisa:
-        o_que_fazer = _texto_o_que_fazer(item, det)
-        _cod_cmp, rotulo_cmp = _tipo_comparacao_rotulo(det)
+        evidencia = item.get("evidencia") or ""
         codigo = str(det.get("leiaute_codigo") or "").strip()
         nome = str(det.get("nome_arquivo") or _filename_from_url(item["url"]))
         url = item["url"]
+        data = agora
+        cod_cmp, _rotulo = _tipo_comparacao_rotulo(det)
+
+        if _detalhe_so_tecnico(det, evidencia):
+            dados.arquivos_aviso.append(
+                ArquivoResumoPlanilha(
+                    data=data,
+                    leiaute=codigo,
+                    arquivo=nome,
+                    situacao=rotulo_situacao("aviso"),
+                    precisa_agir=False,
+                    qtd_mudancas=0,
+                    link=url,
+                    observacao=(
+                        "O Bacen republicou o arquivo no site, sem mudança de "
+                        "texto, célula ou tabela."
+                    ),
+                )
+            )
+            continue
+
+        o_que_fazer = _texto_o_que_fazer(item, det)
         incluidos = [
             i
             for i in (det.get("itens_incluidos") or [])
@@ -1682,68 +1681,57 @@ def gerar_planilha_antes_depois(
             for c in alterados_txt
             if "novo arquivo observado" not in str(c).lower()
         ]
-        # Abas: Entrou → Saiu → Mudou (renomeações antes das células).
         blocos = (
             [("entrou", x) for x in incluidos]
             + [("saiu", x) for x in removidos]
             + [("mudou", x) for x in alterados_txt]
         )
+        qtd = len(blocos) if blocos else 1
+        dados.arquivos_agir.append(
+            ArquivoResumoPlanilha(
+                data=data,
+                leiaute=codigo,
+                arquivo=nome,
+                situacao=rotulo_situacao(cod_cmp),
+                precisa_agir=True,
+                qtd_mudancas=qtd,
+                link=url,
+            )
+        )
         if not blocos:
-            ws.append(
-                [
-                    codigo,
-                    nome,
-                    rotulo_cmp,
-                    "Arquivo novo",
-                    "—",
-                    "arquivo novo sem diff",
-                    "—",
-                    "—",
-                    o_que_fazer,
-                    url,
-                ]
+            dados.linhas_mudanca.append(
+                LinhaMudancaPlanilha(
+                    data=data,
+                    leiaute=codigo,
+                    arquivo=nome,
+                    onde="—",
+                    o_que_mudou="Arquivo novo ou atualizado sem detalhe de células",
+                    antes="—",
+                    depois="—",
+                    o_que_fazer=o_que_fazer,
+                )
             )
             continue
         for tipo, texto in blocos:
             linha = _linhas_diff_para_planilha(str(texto), tipo)
-            ws.append(
-                [
-                    codigo,
-                    nome,
-                    rotulo_cmp,
-                    linha["tipo"],
-                    linha["onde"],
-                    linha["mudanca"],
-                    linha["antes"],
-                    linha["depois"],
-                    o_que_fazer,
-                    url,
-                ]
+            dados.linhas_mudanca.append(
+                LinhaMudancaPlanilha(
+                    data=data,
+                    leiaute=codigo,
+                    arquivo=nome,
+                    onde=linha["onde"],
+                    o_que_mudou=linha["mudanca"],
+                    antes=linha["antes"],
+                    depois=linha["depois"],
+                    o_que_fazer=o_que_fazer,
+                )
             )
 
-    widths = {
-        "A": 12,
-        "B": 42,
-        "C": 36,
-        "D": 14,
-        "E": 36,
-        "F": 28,
-        "G": 40,
-        "H": 40,
-        "I": 48,
-        "J": 28,
-    }
-    for col, width in widths.items():
-        ws.column_dimensions[col].width = width
-    ws.auto_filter.ref = f"A1:J{ws.max_row}"
-    ws.freeze_panes = "A2"
+    if not dados.arquivos_agir and not dados.arquivos_aviso:
+        return None
 
-    from io import BytesIO
-
-    buf = BytesIO()
-    wb.save(buf)
     nome = f"{ANEXO_ANTES_DEPOIS_PREFIXO}_{datetime.now().strftime('%Y%m%d_%H%M')}.xlsx"
-    return buf.getvalue(), nome
+    return gerar_bytes_planilha_gestor(dados, nome_arquivo=nome)
 
 
 def montar_corpo_email_alteracoes(
@@ -1792,7 +1780,8 @@ def montar_corpo_email_alteracoes(
       <p class="desc">
         Cada arquivo abaixo está em 3 passos: situação, diferenças e ação.
         A lista completa também está na planilha em anexo
-        <strong>{ANEXO_ANTES_DEPOIS_PREFIXO}_….xlsx</strong>.
+        <strong>{ANEXO_ANTES_DEPOIS_PREFIXO}_….xlsx</strong>
+        (abas Resumo, O que mudou e Só aviso).
       </p>
       {detalhes}
     """
