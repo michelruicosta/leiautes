@@ -16,8 +16,8 @@ export HOME="$APP_DIR"
 export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$APP_DIR/runtime/browsers}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$APP_DIR/runtime/cache}"
 export LEIAUTES_DISABLE_STATUS_TAIL="${LEIAUTES_DISABLE_STATUS_TAIL:-1}"
-# Fase paralela: redireciona destinatários do config_email.json só para Michel
-export LEIAUTES_EMAIL_TEST_TO="${LEIAUTES_EMAIL_TEST_TO:-michel@finaud.com.br}"
+# Destinatários vêm dos usuários com flag "Receber e-mail de alertas".
+# Não force LEIAUTES_EMAIL_TEST_TO aqui.
 
 if [ -f "$APP_DIR/.env" ]; then
   set -a

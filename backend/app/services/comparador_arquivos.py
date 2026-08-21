@@ -489,6 +489,35 @@ def _comparar_xsd(anterior: Path, atual: Path) -> dict[str, Any]:
                 f"linha atual {novo[chave].get('linha') or '?'}; antes "
                 f"({ant[chave]['assinatura']}); depois ({novo[chave]['assinatura']})"
             )
+    # Estrutura idêntica, mas bytes/texto diferentes (versão, comentários, etc.)
+    if not incluidos and not removidos and not alterados:
+        hash_ant = hashlib.sha256(anterior.read_bytes()).hexdigest()
+        hash_novo = hashlib.sha256(atual.read_bytes()).hexdigest()
+        if hash_ant != hash_novo:
+            diff_txt = _comparar_texto(anterior, atual)
+            if (
+                (diff_txt.get("itens_incluidos") or [])
+                or (diff_txt.get("itens_removidos") or [])
+                or (diff_txt.get("itens_alterados") or [])
+            ):
+                return {
+                    "resumo_executivo": (
+                        "Estrutura de campos do XSD equivalente; há diferenças de "
+                        "texto/formatação entre as versões."
+                    ),
+                    "impacto_sugerido": (
+                        "Conferir se a mudança de texto (versão, anotações) afeta "
+                        "validação ou publicação."
+                    ),
+                    "itens_incluidos": list(diff_txt.get("itens_incluidos") or [])[:40],
+                    "itens_removidos": list(diff_txt.get("itens_removidos") or [])[:40],
+                    "itens_alterados": list(diff_txt.get("itens_alterados") or [])[:80],
+                }
+            alterados.append(
+                f'Arquivo XSD: mudanca "conteúdo textual/metadado sem mudança de campos"; '
+                f'antes "{anterior.name} ({anterior.stat().st_size} bytes)"; '
+                f'depois "{atual.name} ({atual.stat().st_size} bytes)"'
+            )
     return {
         "resumo_executivo": _resumo(incluidos, removidos, alterados),
         "impacto_sugerido": "Revisar campos, tipos e obrigatoriedade alterados no schema.",

@@ -83,8 +83,8 @@ def executar_robo_atual(
     execucao_id = iniciar_execucao(log_path=None)
     log_path = _preparar_log(execucao_id)
     env["LEIAUTES_EXECUCAO_ID"] = str(execucao_id)
-    env.setdefault("LEIAUTES_EMAIL_TEST_TO", "michel@finaud.com.br")
     env.setdefault("LEIAUTES_DISABLE_STATUS_TAIL", "1")
+    # Destinatários: usuários ativos com flag (sem redirecionar via LEIAUTES_EMAIL_TEST_TO).
     if not enviar_email:
         env["LEIAUTES_DISABLE_EMAIL"] = "1"
     if modo_teste:

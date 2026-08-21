@@ -71,8 +71,8 @@ def _buscar_caminho_versao_parente(
     leiaute_id: Optional[int],
     excluir_arquivo_id: Optional[int] = None,
     conn: Any = None,
-) -> Optional[tuple[str, str]]:
-    """Retorna (caminho_arquivo, nome_anterior) da versão 'irmã' mais próxima no histórico."""
+) -> Optional[tuple[str, str, int]]:
+    """Retorna (caminho_arquivo, nome_anterior, versao_id) da versão 'irmã' mais próxima."""
     familia = _familia_nome_arquivo(nome_arquivo)
     if not familia or len(familia) < 8:
         return None
@@ -94,8 +94,8 @@ def _buscar_caminho_versao_parente(
         params.append(excluir_arquivo_id)
     sql += " ORDER BY ar.atualizado_em DESC, v.id DESC LIMIT 120"
 
-    def _candidatos(rows) -> Optional[tuple[str, str]]:
-        melhores: list[tuple[tuple, str, str]] = []
+    def _candidatos(rows) -> Optional[tuple[str, str, int]]:
+        melhores: list[tuple[tuple, str, str, int]] = []
         for row in rows:
             nome_ant = row["nome_arquivo"] or ""
             if _familia_nome_arquivo(nome_ant) != familia:
@@ -120,12 +120,12 @@ def _buscar_caminho_versao_parente(
                     chave = (1, 0, -int(row["versao_id"] or 0))
             else:
                 chave = (3, 0, -int(row["versao_id"] or 0))
-            melhores.append((chave, str(caminho), nome_ant))
+            melhores.append((chave, str(caminho), nome_ant, int(row["versao_id"])))
         if not melhores:
             return None
         melhores.sort(key=lambda x: x[0])
-        _, caminho, nome_ant = melhores[0]
-        return caminho, nome_ant
+        _, caminho, nome_ant, versao_id = melhores[0]
+        return caminho, nome_ant, versao_id
 
     if conn is not None:
         rows = conn.execute(sql, params).fetchall()
@@ -328,7 +328,9 @@ def registrar_arquivo_observado(
             if gerar_evidencia and execucao_id is not None:
                 comparacao = None
                 nome_anterior_parente = None
+                tipo_comparacao = "mesmo_arquivo"
                 if not caminho_anterior:
+                    tipo_comparacao = "sem_anterior"
                     parente = _buscar_caminho_versao_parente(
                         nome_arquivo=nome_arquivo,
                         leiaute_id=leiaute_id,
@@ -344,7 +346,9 @@ def registrar_arquivo_observado(
                             conn=conn,
                         )
                     if parente:
-                        caminho_anterior, nome_anterior_parente = parente
+                        caminho_anterior, nome_anterior_parente, versao_parente_id = parente
+                        versao_anterior_id = versao_parente_id
+                        tipo_comparacao = "versao_pareada"
                 if comparar_arquivos and caminho_anterior and caminho_arquivo:
                     try:
                         comparacao = comparar_arquivos(
@@ -378,56 +382,80 @@ def registrar_arquivo_observado(
                     and "nenhuma diferenca" not in resumo_cmp.lower()
                 )
 
+                def _com_rotulo(texto: str) -> str:
+                    if tipo_comparacao == "versao_pareada" and nome_anterior_parente:
+                        return (
+                            f"[Versão pareada · antes: {nome_anterior_parente}] {texto}"
+                        )
+                    if tipo_comparacao == "sem_anterior":
+                        return f"[Sem anterior] {texto}"
+                    return f"[Mesmo arquivo] {texto}"
+
                 if tem_diff_conteudo and comparacao:
-                    resumo = resumo_cmp
-                    if novo_arquivo and nome_anterior_parente:
-                        resumo = (
-                            f"Arquivo novo na página (substitui {nome_anterior_parente}). "
-                            + resumo
+                    if tipo_comparacao == "versao_pareada" and nome_anterior_parente:
+                        resumo = _com_rotulo(
+                            f"Arquivo novo na página comparado com {nome_anterior_parente}. "
+                            + resumo_cmp
                         )
                     elif novo_arquivo:
-                        resumo = "Arquivo novo na página. " + resumo
+                        resumo = _com_rotulo("Arquivo novo na página. " + resumo_cmp)
+                    else:
+                        resumo = _com_rotulo(resumo_cmp)
                     impacto = comparacao.get("impacto_sugerido") or (
                         "Revisar as diferenças Antes/Depois e o arquivo anexo."
                     )
                     incluidos = list(comparacao.get("itens_incluidos") or [])
                     removidos = list(comparacao.get("itens_removidos") or [])
                     alterados = list(comparacao.get("itens_alterados") or [])
+                    if tipo_comparacao == "versao_pareada" and nome_anterior_parente:
+                        alterados = [
+                            (
+                                f'Comparação: mudanca "versão pareada (URLs diferentes)"; '
+                                f'antes "{nome_anterior_parente}"; '
+                                f'depois "{nome_arquivo}"'
+                            )
+                        ] + alterados
                 elif novo_arquivo:
                     if nome_anterior_parente:
-                        resumo = (
-                            f"Arquivo novo na página do Bacen (substitui/sucede "
-                            f"{nome_anterior_parente}). Diff automático não saiu "
-                            "neste alerta — reprocessar comparação."
+                        resumo = _com_rotulo(
+                            f"Arquivo novo na página comparado com {nome_anterior_parente}. "
+                            "Diff de conteúdo não apontou diferenças relevantes."
                         )
+                        impacto = (
+                            "Conferir se a nova versão muda algo além do nome/metadado; "
+                            "a estrutura comparada não mostrou alteração material."
+                        )
+                        incluidos = [
+                            f"Novo arquivo na página (pareado com {nome_anterior_parente})."
+                        ]
+                        removidos = []
+                        alterados = [
+                            (
+                                f'Comparação: mudanca "versão pareada sem diff material"; '
+                                f'antes "{nome_anterior_parente}"; '
+                                f'depois "{nome_arquivo}"'
+                            )
+                        ]
                     else:
-                        resumo = (
+                        resumo = _com_rotulo(
                             "Arquivo novo na página do Bacen. "
-                            "Sem versão anterior no histórico para montar Antes/Depois."
+                            "Não há versão anterior da série no histórico para montar Antes/Depois."
                         )
-                    impacto = (
-                        "Aguardar Antes/Depois automático (não comparar na mão). "
-                        "Se persistir, reprocessar o diff no servidor."
-                    )
-                    incluidos = [
-                        "Novo arquivo na página"
-                        + (
-                            f" (antes: {nome_anterior_parente})"
-                            if nome_anterior_parente
-                            else ""
+                        impacto = (
+                            "Não há com o que comparar automaticamente ainda. "
+                            "Na próxima versão da série o robô poderá parear."
                         )
-                        + "."
-                    ]
-                    removidos = []
-                    alterados = []
+                        incluidos = ["Novo arquivo na página."]
+                        removidos = []
+                        alterados = []
                 elif evidencia:
-                    resumo = f"Alteracao detectada por metadados: {evidencia}"
+                    resumo = _com_rotulo(f"Alteracao detectada por metadados: {evidencia}")
                     impacto = "Revisar o arquivo alterado e avaliar impacto operacional."
                     incluidos = []
                     removidos = []
                     alterados = [evidencia]
                 else:
-                    resumo = "Alteracao detectada por metadados do arquivo."
+                    resumo = _com_rotulo("Alteracao detectada por metadados do arquivo.")
                     impacto = "Revisar o arquivo alterado e avaliar impacto operacional."
                     incluidos = []
                     removidos = []

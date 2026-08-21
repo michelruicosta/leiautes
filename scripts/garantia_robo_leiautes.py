@@ -101,8 +101,8 @@ def check_classificacao_email() -> None:
     if "data de publicação" not in frase and "tamanho" not in frase and "etag" not in frase:
         raise RuntimeError(f"descrição técnica fraca: {frase!r}")
 
-    # HTML misto
-    url_acao = "https://example.local/novo.pdf"
+    # HTML misto (conteúdo + técnico) e abas incluída/removida (planilha Antes/Depois)
+    url_acao = "https://example.local/novo.xlsx"
     url_tech = "https://example.local/tech.pdf"
     alterados = [
         {"url": url_acao, "evidencia": "novo arquivo observado"},
@@ -110,11 +110,15 @@ def check_classificacao_email() -> None:
     ]
     detalhes = {
         url_acao: {
-            "nome_arquivo": "novo.pdf",
+            "nome_arquivo": "novo.xlsx",
+            "tipo_arquivo": "xlsx",
             "leiaute_codigo": "DLO-2061",
             "resumo_executivo": "Arquivo novo na página.",
-            "itens_incluidos": ["Novo arquivo na página."],
-            "itens_removidos": [],
+            "itens_incluidos": [
+                "Novo arquivo na página.",
+                "Aba incluída: FolhaNova",
+            ],
+            "itens_removidos": ["Aba removida: FolhaAntiga"],
             "itens_alterados": [
                 'Página 1: mudanca "acrescentou \\"(AR1)\\""; antes "x"; depois "x (AR1)"'
             ],
@@ -128,6 +132,12 @@ def check_classificacao_email() -> None:
             "itens_alterados": ["etag mudou; last_modified mudou"],
         },
     }
+    # Parser de abas (e-mail Entrou/Saiu + planilha O que mudou)
+    if m._parse_evidencia_item("Aba incluída: FolhaNova").get("mudanca") != "acrescentou aba":
+        raise RuntimeError("parse Aba incluída não gerou 'acrescentou aba'")
+    if m._parse_evidencia_item("Aba removida: FolhaAntiga").get("mudanca") != "removeu aba":
+        raise RuntimeError("parse Aba removida não gerou 'removeu aba'")
+
     html = m.montar_corpo_email_alteracoes(alterados, detalhes)
     for trecho in (
         "Precisa agir",
@@ -135,8 +145,9 @@ def check_classificacao_email() -> None:
         "O que fazer",
         "O que mudou",
         "Antes_Depois_leiautes",
-        "removeu aba",
-        "acrescentou aba",
+        "FolhaNova",
+        "FolhaAntiga",
+        "acrescentou",
     ):
         if trecho not in html:
             raise RuntimeError(f"HTML do e-mail sem trecho esperado: {trecho!r}")
@@ -147,6 +158,20 @@ def check_classificacao_email() -> None:
     content_xlsx, nome_xlsx = planilha
     if "Antes_Depois_leiautes" not in nome_xlsx or not content_xlsx:
         raise RuntimeError(f"anexo Antes/Depois inválido: {nome_xlsx!r} ({len(content_xlsx)} bytes)")
+
+    from io import BytesIO
+
+    from openpyxl import load_workbook
+
+    wb = load_workbook(BytesIO(content_xlsx), read_only=True, data_only=True)
+    ws = wb.active
+    celulas = " ".join(
+        str(c) for row in ws.iter_rows(values_only=True) for c in row if c is not None
+    )
+    wb.close()
+    for trecho in ("removeu aba", "acrescentou aba"):
+        if trecho not in celulas:
+            raise RuntimeError(f"Planilha Antes/Depois sem trecho esperado: {trecho!r}")
 
 
 def check_diff_pdf_se_disponivel() -> None:
@@ -193,7 +218,11 @@ def _enviar_alerta(falhas: list[str]) -> None:
     import verifica_leiautes_finaud as m
 
     cfg = m.load_email_config(m.CONFIG_PATH)
-    dest = cfg.get("to") or ["michel@finaud.com.br"]
+    dest = list(cfg.get("to") or [])
+    if not dest:
+        raise RuntimeError(
+            "Nenhum destinatário: usuários ativos com 'Receber e-mail de alertas'."
+        )
     hoje = datetime.now().strftime("%d/%m/%Y %H:%M")
     lista = "".join(f"<li>{html_mod.escape(f)}</li>" for f in falhas)
     corpo = f"""
@@ -222,7 +251,6 @@ def _enviar_alerta(falhas: list[str]) -> None:
 
 
 def main() -> int:
-    os.environ.setdefault("LEIAUTES_EMAIL_TEST_TO", "michel@finaud.com.br")
     os.environ.setdefault("LEIAUTES_DISABLE_STATUS_TAIL", "1")
     _log("=== INÍCIO garantia robô leiautes ===")
     falhas: list[str] = []
