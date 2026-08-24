@@ -206,6 +206,15 @@ urls = [
     "https://www.bcb.gov.br/estabilidadefinanceira/leiautedoc2062",
     "https://www.bcb.gov.br/estabilidadefinanceira/leiaute_drl2160",
     "https://www.bcb.gov.br/estabilidadefinanceira/leiautedocumentoscrd",  # 4111 - SCD
+    "https://www.bcb.gov.br/estabilidadefinanceira/leiaute-documento-2030",
+    "https://www.bcb.gov.br/estabilidadefinanceira/mcc",
+]
+
+# Página MCC não expõe XSD no HTML — URLs fixas no site do Bacen.
+ANEXOS_FIXOS_MCC = [
+    "https://www.bcb.gov.br/content/estabilidadefinanceira/mcc/AMCCComum.xsd",
+    "https://www.bcb.gov.br/content/estabilidadefinanceira/mcc/AMCC001.xsd",
+    "https://www.bcb.gov.br/content/estabilidadefinanceira/mcc/AMCC002.xsd",
 ]
 
 # ====== DATA DE REFERÊNCIA ======
@@ -420,6 +429,10 @@ def extrair_anexos_4111(page):
 
 def _categoria_da_pagina(page_url: str) -> str:
     u = (page_url or "").lower()
+    if "/mcc/" in u or u.endswith("/amcccomum.xsd") or u.endswith("/amcc001.xsd") or u.endswith("/amcc002.xsd"):
+        return "MCC"
+    if "leiaute-documento-2030" in u or "drsac2030" in u:
+        return "DRSAC-2030"
     if "leiautedocumentoscrd" in u or "scrd" in u:
         return "4111 - SCD"
     if "ddr2011" in u or "documentoDDR".lower() in u:
@@ -432,7 +445,18 @@ def _categoria_da_pagina(page_url: str) -> str:
         return "DLI-2062"
     if "drl2160" in u or "2160" in u:
         return "DRL-2160"
+    if u.rstrip("/").endswith("/mcc"):
+        return "MCC"
     return "Sem categoria"
+
+
+def _mesclar_anexos_mcc(anexos: list[str], categorias: dict[str, str], categoria: str) -> tuple[list[str], dict[str, str]]:
+    """Garante XSDs do MCC mesmo quando a página Angular não lista links."""
+    for link in ANEXOS_FIXOS_MCC:
+        if link not in anexos:
+            anexos.append(link)
+        categorias[link] = categoria
+    return anexos, categorias
 
 
 def _filtrar_urls_anexos(candidatos: list[str]) -> list[str]:
@@ -527,6 +551,8 @@ def extrair_datas_categorias_e_anexos(url):
             browser.close()
             return [], anexos_4111, categorias_4111
 
+        pagina_mcc = url.lower().rstrip("/").endswith("/mcc")
+
         datas = []
         try:
             for cell in page.query_selector_all("td"):
@@ -545,7 +571,7 @@ def extrair_datas_categorias_e_anexos(url):
         browser.close()
 
         anexos = _filtrar_urls_anexos(hrefs)
-        if not anexos:
+        if not anexos and not pagina_mcc:
             logger.warning(
                 "Scrape sem anexos úteis em %s (possível página Angular incompleta).",
                 url,
@@ -553,6 +579,8 @@ def extrair_datas_categorias_e_anexos(url):
         else:
             logger.info("Scrape %s: %s anexo(s) após filtro.", url, len(anexos))
         categoria_por_url = {u: categoria_pagina for u in anexos}
+        if pagina_mcc:
+            anexos, categoria_por_url = _mesclar_anexos_mcc(anexos, categoria_por_url, categoria_pagina)
         return datas, anexos, categoria_por_url
 
 
@@ -1944,6 +1972,8 @@ def nome_doc_por_url(url):
     if "2062" in url: return "DOC 2062"
     if "2160" in url: return "DRL 2160"
     if "4111" in url: return "4111 - SCD"
+    if "2030" in url or "DRSAC" in url.upper(): return "DRSAC 2030"
+    if "/mcc" in url.lower() or "AMCC" in url.upper(): return "MCC"
     return "Desconhecido"
 
 
@@ -2334,7 +2364,8 @@ if __name__ == "__main__":
             "2160": "DRL",
             "2060": "DRM",
             "4111": "SCD",
-        
+            "2030": "DRSAC",
+            "MCC": "MCC",
         }
         
         paginas_formatadas = []
@@ -2344,7 +2375,11 @@ if __name__ == "__main__":
                 if codigo in url.upper():
                     if sigla == "SCD":
                         paginas_formatadas.append(f"{sigla} - 4111")
-                    if codigo == "DRM":
+                    elif sigla == "DRSAC":
+                        paginas_formatadas.append(f"{sigla} - 2030")
+                    elif sigla == "MCC":
+                        paginas_formatadas.append("MCC")
+                    elif codigo == "DRM":
                         paginas_formatadas.append("DRM - 2060")
                     else:
                         paginas_formatadas.append(f"{sigla} - {codigo}")

@@ -343,6 +343,20 @@ def seed_leiautes_padrao() -> None:
             "https://www.bcb.gov.br/estabilidadefinanceira/leiautedocumentoscrd",
             ["pdf", "xsd"],
         ),
+        (
+            "DRSAC-2030",
+            "DRSAC - Documento 2030",
+            "DRSAC",
+            "https://www.bcb.gov.br/estabilidadefinanceira/leiaute-documento-2030",
+            ["pdf", "xsd", "zip", "xls", "xlsx"],
+        ),
+        (
+            "MCC",
+            "MCC - Mapa de Composição de Capital",
+            "MCC",
+            "https://www.bcb.gov.br/estabilidadefinanceira/mcc",
+            ["pdf", "xsd", "xls", "xlsx", "xml", "zip"],
+        ),
     ]
     agora = _agora()
     with _connect() as conn:

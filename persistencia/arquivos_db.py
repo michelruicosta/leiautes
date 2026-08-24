@@ -167,21 +167,27 @@ def _buscar_leiaute_id(categoria: Optional[str], url: str) -> Optional[int]:
         ("DLO", "2061"),
         ("DLI", "2062"),
         ("DRL", "2160"),
+        ("DRSAC", "2030"),
+        ("MCC", "MCC"),
     ]
-    codigo_like: Optional[str] = None
+    codigo_sql: Optional[str] = None
+    codigo_param: tuple[Any, ...] = ()
     for sigla, numero in pistas:
         if sigla in termo or numero in termo or numero in url:
-            codigo_like = f"{sigla}-%"
+            if sigla == numero:
+                # MCC: codigo no banco é "MCC" (sem sufixo numérico).
+                codigo_sql = "SELECT id FROM leiautes_monitorados WHERE codigo = ? LIMIT 1"
+                codigo_param = (sigla,)
+            else:
+                codigo_sql = "SELECT id FROM leiautes_monitorados WHERE codigo LIKE ? LIMIT 1"
+                codigo_param = (f"{sigla}-%",)
             break
 
-    if not codigo_like:
+    if not codigo_sql:
         return None
 
     with conectar() as conn:
-        row = conn.execute(
-            "SELECT id FROM leiautes_monitorados WHERE codigo LIKE ? LIMIT 1",
-            (codigo_like,),
-        ).fetchone()
+        row = conn.execute(codigo_sql, codigo_param).fetchone()
     return int(row["id"]) if row else None
 
 
