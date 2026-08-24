@@ -1,12 +1,26 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-21**
+Última atualização: **2026-08-24**
 
 ## Em aberto
 
 *(nenhuma urgente)*
 
 ## Fechadas recentemente
+
+### ✅ Monitoramento MCC + DRSAC 2030 (24/08)
+
+- Robô passa a visitar as páginas **MCC** e **DRSAC 2030** no site do Bacen
+- MCC: 3 XSDs fixos (página Angular não lista links) + PDF e planilha da página
+- DRSAC: PDFs, xlsx, zip e `Leiaute-DRSAC.xsd`
+- Seed no banco + vínculo correto do leiaute **MCC** (código sem sufixo numérico)
+- Validado em produção: tela **Leiautes** (8 leiautes) e primeira baseline em **Alterações**
+- Commit `350df20` em `codex/app-leiautes-bacen`
+
+### ✅ Planilha unificada do gestor (24/08)
+
+- Uma planilha para e-mail e **Exportar**: abas **Resumo**, **O que mudou**, **Só aviso**
+- Formatação: título por aba, wrap, altura automática, Sim/Não colorido, link **Abrir no site do Bacen**
 
 ### ✅ Modelo do e-mail em Configurações (21/08)
 
