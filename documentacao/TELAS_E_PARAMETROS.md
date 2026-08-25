@@ -18,7 +18,7 @@ Conteudos:
 - nome da empresa;
 - subtitulo do sistema.
 
-### Dashboard
+### Monitoramento
 
 Conteudos:
 
@@ -30,7 +30,7 @@ Conteudos:
 - ultimas alteracoes;
 - avisos operacionais.
 
-### Leiautes
+### Cadastro de Leiautes
 
 Conteudos:
 
@@ -139,8 +139,8 @@ Perfis iniciais:
 
 Permissoes previstas:
 
-- Dashboard;
-- Leiautes;
+- Monitoramento;
+- Cadastro de Leiautes;
 - Alteracoes;
 - E-mail do gestor;
 - Robo;

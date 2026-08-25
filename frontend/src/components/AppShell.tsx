@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth } from "../context/AuthContext";
+import {
+  useTheme,
+  type PreferenciaTema,
+} from "../context/ThemeContext";
 
 export type RotaPainel =
   | "dashboard"
@@ -34,6 +38,11 @@ type Props = {
 
 const URL_PORTAL_APPS = "https://finaudapps.com.br";
 
+const OPCOES_TEMA: { id: PreferenciaTema; rotulo: string; dica: string }[] = [
+  { id: "claro", rotulo: "Claro", dica: "Fundo claro" },
+  { id: "escuro", rotulo: "Escuro", dica: "Fundo escuro" },
+];
+
 function MenuUsuario({
   onPerfil,
   onSair,
@@ -42,6 +51,7 @@ function MenuUsuario({
   onSair: () => void;
 }) {
   const { usuario } = useAuth();
+  const { preferencia, setPreferencia } = useTheme();
   const [menuAberto, setMenuAberto] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -63,6 +73,13 @@ function MenuUsuario({
     acao();
   };
 
+  const iniciais = usuario.nome
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+
   return (
     <div className="app-menu" ref={menuRef}>
       <button
@@ -78,40 +95,64 @@ function MenuUsuario({
         </span>
       </button>
       {menuAberto && (
-        <ul className="app-menu-list" role="menu">
-          <li role="none">
-            <a
-              role="menuitem"
-              className="app-menu-item app-menu-link"
-              href={URL_PORTAL_APPS}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={() => setMenuAberto(false)}
-            >
-              Portal de apps ↗
-            </a>
-          </li>
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="app-menu-item"
-              onClick={() => escolher(onPerfil)}
-            >
-              Perfil
-            </button>
-          </li>
-          <li role="none">
-            <button
-              type="button"
-              role="menuitem"
-              className="app-menu-item app-menu-item-perigo"
-              onClick={() => escolher(onSair)}
-            >
-              Sair
-            </button>
-          </li>
-        </ul>
+        <div className="app-menu-list" role="menu">
+          <div className="app-menu-info">
+            <div className="user-avatar" aria-hidden>
+              {iniciais || "?"}
+            </div>
+            <div className="app-menu-info-textos">
+              <div className="app-menu-info-nome">{usuario.nome}</div>
+              {usuario.email ? (
+                <div className="app-menu-info-email">{usuario.email}</div>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="app-menu-section">
+            <div className="app-menu-section-title">Aparência</div>
+            <div className="app-theme-opts" role="group" aria-label="Aparência">
+              {OPCOES_TEMA.map((op) => (
+                <button
+                  key={op.id}
+                  type="button"
+                  className={`app-theme-btn${preferencia === op.id ? " ativo" : ""}`}
+                  aria-pressed={preferencia === op.id}
+                  title={op.dica}
+                  onClick={() => setPreferencia(op.id)}
+                >
+                  {op.rotulo}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <a
+            role="menuitem"
+            className="app-menu-item app-menu-link"
+            href={URL_PORTAL_APPS}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => setMenuAberto(false)}
+          >
+            Portal de apps ↗
+          </a>
+          <button
+            type="button"
+            role="menuitem"
+            className="app-menu-item"
+            onClick={() => escolher(onPerfil)}
+          >
+            Perfil
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            className="app-menu-item app-menu-item-perigo"
+            onClick={() => escolher(onSair)}
+          >
+            Sair
+          </button>
+        </div>
       )}
     </div>
   );
@@ -130,19 +171,60 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
   const { usuario, sair } = useAuth();
   const permitidas = usuario?.rotas_permitidas ?? [];
 
-  const navItem = (destino: RotaPainel, label: string, icone?: string) => {
+  const [operacaoAberta, setOperacaoAberta] = useState(false);
+  const [adminAberta, setAdminAberta] = useState(false);
+  const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
+
+  const navItem = (destino: RotaPainel, label: string, icone: string) => {
     if (!podeAcessarRota(destino, permitidas)) return null;
     return (
       <button
         type="button"
         className={`painel-nav-item ${rota === destino ? "ativo" : ""}`}
         onClick={() => onNavegar(destino)}
+        title={label}
+        aria-label={label}
       >
-        {icone && <span className="painel-nav-ico">{icone}</span>}
-        {label}
+        <span className="painel-nav-ico" aria-hidden>
+          {icone}
+        </span>
+        <span className="painel-nav-texto">{label}</span>
       </button>
     );
   };
+
+  const grupoNav = (
+    id: string,
+    titulo: string,
+    aberto: boolean,
+    onToggle: () => void,
+    itens: ReactNode,
+  ) => (
+    <div className="painel-nav-grupo">
+      <button
+        type="button"
+        className="painel-nav-label painel-nav-label-btn"
+        aria-expanded={aberto}
+        aria-controls={id}
+        onClick={onToggle}
+      >
+        <span className="painel-nav-label-texto">{titulo}</span>
+        <span className="painel-nav-label-chevron" aria-hidden>
+          {aberto ? "▾" : "▸"}
+        </span>
+      </button>
+      {aberto && (
+        <div className="painel-nav-sub" id={id}>
+          {itens}
+        </div>
+      )}
+    </div>
+  );
+
+  const temOperacao =
+    podeAcessarRota("dashboard", permitidas) ||
+    podeAcessarRota("leiautes", permitidas) ||
+    podeAcessarRota("alteracoes", permitidas);
 
   const temAdmin =
     podeAcessarRota("robo", permitidas) ||
@@ -150,23 +232,69 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
     podeAcessarRota("usuarios", permitidas) ||
     podeAcessarRota("auditoria", permitidas);
 
+  const itensOperacao = (
+    <>
+      {navItem("dashboard", "Monitoramento", "📊")}
+      {navItem("leiautes", "Cadastro de Leiautes", "📄")}
+      {navItem("alteracoes", "Histórico e Versões", "🔎")}
+    </>
+  );
+
+  const itensAdmin = (
+    <>
+      {navItem("robo", "Robô", "🤖")}
+      {navItem("configuracoes", "Configurações", "⚙️")}
+      {navItem("usuarios", "Usuários e perfis", "👤")}
+      {navItem("auditoria", "Trilha de auditoria", "📋")}
+    </>
+  );
+
   return (
-    <div className="painel-layout">
+    <div
+      className={`painel-layout${sidebarRecolhida ? " painel-sidebar-recolhida" : ""}`}
+    >
       <aside className="painel-sidebar">
-        <div className="painel-sidebar-logo">leiautes_bacen</div>
+        <div className="painel-sidebar-topo">
+          <div className="painel-sidebar-logo" title="Leiautes Bacen">
+            <span className="painel-sidebar-logo-full">Leiautes Bacen</span>
+            <span className="painel-sidebar-logo-curto" aria-hidden>
+              LB
+            </span>
+          </div>
+          <button
+            type="button"
+            className="painel-sidebar-toggle"
+            onClick={() => setSidebarRecolhida((v) => !v)}
+            title={sidebarRecolhida ? "Expandir menu" : "Recolher menu"}
+            aria-label={sidebarRecolhida ? "Expandir menu" : "Recolher menu"}
+          >
+            {sidebarRecolhida ? "»" : "«"}
+          </button>
+        </div>
         <nav className="painel-nav">
-          {navItem("dashboard", "Dashboard", "📊")}
-          {navItem("leiautes", "Leiautes", "📄")}
-          {navItem("alteracoes", "Histórico e Versões", "🔎")}
-          {temAdmin && (
+          {sidebarRecolhida ? (
             <>
-              <div className="painel-nav-label">Administração</div>
-              <div className="painel-nav-sub">
-                {navItem("robo", "Robô")}
-                {navItem("configuracoes", "Configurações")}
-                {navItem("usuarios", "Usuários e perfis")}
-                {navItem("auditoria", "Trilha de auditoria")}
-              </div>
+              {itensOperacao}
+              {temAdmin && itensAdmin}
+            </>
+          ) : (
+            <>
+              {temOperacao &&
+                grupoNav(
+                  "nav-operacao",
+                  "Operação",
+                  operacaoAberta,
+                  () => setOperacaoAberta((v) => !v),
+                  itensOperacao,
+                )}
+              {temAdmin &&
+                grupoNav(
+                  "nav-admin",
+                  "Administração",
+                  adminAberta,
+                  () => setAdminAberta((v) => !v),
+                  itensAdmin,
+                )}
             </>
           )}
         </nav>
@@ -179,7 +307,7 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
           />
         </header>
         <main className="painel-content">{children}</main>
-        <footer className="painel-footer">© 2026 — leiautes_bacen</footer>
+        <footer className="painel-footer">© 2026 — Leiautes Bacen</footer>
       </div>
     </div>
   );

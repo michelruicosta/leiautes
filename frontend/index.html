@@ -3,7 +3,21 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>leiautes_bacen</title>
+    <title>Leiautes Bacen</title>
+    <script>
+      (function () {
+        try {
+          var p = localStorage.getItem("leiautes_theme");
+          var tema = p === "escuro" ? "escuro" : "claro";
+          if (p === "sistema") {
+            tema = window.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "escuro"
+              : "claro";
+          }
+          document.documentElement.setAttribute("data-theme", tema);
+        } catch (e) {}
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

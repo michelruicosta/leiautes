@@ -9,7 +9,7 @@ const POR_PAGINA = 10;
 
 const PAGINAS = [
   "Todas",
-  "Leiautes",
+  "Cadastro de Leiautes",
   "Usuários e perfis",
   "Robô",
   "Configurações",
@@ -170,7 +170,7 @@ export default function AuditoriaPage() {
           <h1 className="page-title">Trilha de auditoria</h1>
           <p className="page-sub">Quem fez o quê, quando e em qual tela.</p>
         </div>
-        <button type="button" className="btn-secondary" onClick={exportarCsv}>
+        <button type="button" className="btn-novo" onClick={exportarCsv}>
           ⬇ Exportar CSV
         </button>
       </div>

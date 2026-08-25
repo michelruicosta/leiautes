@@ -45,7 +45,7 @@ def criar(payload: LeiauteCreateRequest) -> LeiauteResumo:
     if not item:
         raise HTTPException(status_code=500, detail="Falha ao criar leiaute")
     registrar_log(
-        pagina="Leiautes",
+        pagina="Cadastro de Leiautes",
         acao="Criação",
         detalhe=f"Leiaute {item['codigo']} criado.",
     )
@@ -64,7 +64,7 @@ def atualizar(leiaute_id: int, payload: LeiauteUpdateRequest) -> LeiauteResumo:
     elif antes and not antes["ativo"] and item["ativo"]:
         acao = "Ativação"
     registrar_log(
-        pagina="Leiautes",
+        pagina="Cadastro de Leiautes",
         acao=acao,
         detalhe=f"Leiaute {item['codigo']} atualizado.",
     )
@@ -86,7 +86,7 @@ def excluir(leiaute_id: int) -> None:
             ),
         )
     registrar_log(
-        pagina="Leiautes",
+        pagina="Cadastro de Leiautes",
         acao="Exclusão",
         detalhe=f"Leiaute {item['codigo']} excluído permanentemente.",
     )

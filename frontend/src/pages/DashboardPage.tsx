@@ -48,8 +48,8 @@ export default function DashboardPage() {
     <div className="admin-page">
       <div className="page-cabecalho">
         <div>
-          <h1 className="page-title">Dashboard</h1>
-          <p className="page-sub">Visão executiva do monitoramento de leiautes Bacen.</p>
+          <h1 className="page-title">Monitoramento</h1>
+          <p className="page-sub">Visão da última rodada e do que mudou nos leiautes Bacen.</p>
         </div>
       </div>
 

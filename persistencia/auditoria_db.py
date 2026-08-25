@@ -49,8 +49,13 @@ def listar_logs(
         where.append("date(criado_em) <= date(?)")
         params.append(data_ate)
     if pagina:
-        where.append("pagina = ?")
-        params.append(pagina)
+        if pagina == "Cadastro de Leiautes":
+            # Nome atual + nomes antigos na trilha (Leiautes / Páginas Bacen).
+            where.append("pagina IN (?, ?, ?)")
+            params.extend(["Cadastro de Leiautes", "Páginas Bacen", "Leiautes"])
+        else:
+            where.append("pagina = ?")
+            params.append(pagina)
     if acao:
         where.append("acao = ?")
         params.append(acao)

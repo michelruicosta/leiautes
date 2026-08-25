@@ -160,8 +160,8 @@ export default function LeiautesPage() {
     <div className="admin-page">
       <div className="page-cabecalho">
         <div>
-          <h1 className="page-title">Leiautes</h1>
-          <p className="page-sub">Páginas Bacen e tipos de arquivo monitorados.</p>
+          <h1 className="page-title">Cadastro de Leiautes</h1>
+          <p className="page-sub">Leiautes do Bacen e tipos de arquivo que o robô acompanha.</p>
         </div>
         <button type="button" className="btn-novo" onClick={abrirNovo}>
           + Novo leiaute

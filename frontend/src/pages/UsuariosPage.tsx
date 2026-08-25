@@ -26,8 +26,8 @@ const USUARIO_VAZIO: UsuarioPayload = {
 };
 
 const ROTAS = [
-  ["dashboard", "Dashboard", "Visão geral do monitoramento."],
-  ["leiautes", "Leiautes", "Cadastro das páginas Bacen monitoradas."],
+  ["dashboard", "Monitoramento", "Visão da última rodada e do que mudou."],
+  ["leiautes", "Cadastro de Leiautes", "Cadastro dos leiautes Bacen monitorados."],
   ["alteracoes", "Histórico e Versões", "Histórico do monitoramento e arquivos guardados."],
   ["admin-robo", "Robô", "Execução manual e agenda."],
   ["admin-configuracoes", "Configurações", "Parâmetros e modelo do e-mail do robô."],
