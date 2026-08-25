@@ -2,10 +2,30 @@ import { type FormEvent, useState } from "react";
 import { recuperarSenhaAuth } from "../api/auth";
 import { ApiError } from "../api/client";
 import CampoSenha from "../components/CampoSenha";
-import MarcaOrganizacao from "../components/MarcaOrganizacao";
 import { useAuth } from "../context/AuthContext";
 
+const URL_PORTAL_APPS =
+  (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
+  "https://finaudapps.com.br";
+
 type Modo = "login" | "recuperar";
+
+function CabecalhoLoginLeiautes() {
+  return (
+    <div className="login-finaud-topo">
+      <div className="login-finaud-ico" aria-hidden>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7">
+          <path d="M7 3h7l5 5v13H7z" />
+          <path d="M14 3v5h5" />
+          <path d="M10 12h6M10 16h6" />
+        </svg>
+      </div>
+      <p className="login-finaud-kicker">Grupo Finaud</p>
+      <h1 className="login-finaud-titulo">Leiautes Bacen</h1>
+      <p className="login-finaud-sub">Monitoramento</p>
+    </div>
+  );
+}
 
 export default function LoginPage() {
   const { entrar } = useAuth();
@@ -15,13 +35,6 @@ export default function LoginPage() {
   const [erro, setErro] = useState<string | null>(null);
   const [sucesso, setSucesso] = useState<string | null>(null);
   const [enviando, setEnviando] = useState(false);
-
-  const cabecalho = (
-    <MarcaOrganizacao
-      nome="FINAUD TEC"
-      subtitulo="Leiautes Bacen · Monitoramento"
-    />
-  );
 
   const onLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,14 +75,14 @@ export default function LoginPage() {
 
   if (modo === "recuperar") {
     return (
-      <div className="login-shell login-shell-marca">
+      <div className="login-shell login-shell-finaud">
         <form
-          className="login-card login-card-marca"
+          className="login-card login-card-finaud"
           onSubmit={(e) => void onRecuperar(e)}
         >
-          {cabecalho}
-          <h2 className="login-titulo-secundario">Recuperar acesso</h2>
-          <p className="login-subtitulo-recuperar">
+          <CabecalhoLoginLeiautes />
+          <h2 className="login-titulo login-titulo-finaud">Recuperar acesso</h2>
+          <p className="login-subtitulo login-subtitulo-recuperar">
             Informe seu e-mail corporativo. Se a conta estiver ativa, enviamos
             uma senha temporária.
           </p>
@@ -114,18 +127,24 @@ export default function LoginPage() {
                 setSucesso(null);
               }}
             >
-              ← Voltar ao login
+              Voltar ao login
             </button>
           </p>
+          <a className="login-portal-link" href={URL_PORTAL_APPS}>
+            Portal de apps
+          </a>
         </form>
       </div>
     );
   }
 
   return (
-    <div className="login-shell login-shell-marca">
-      <form className="login-card login-card-marca" onSubmit={(e) => void onLogin(e)}>
-        {cabecalho}
+    <div className="login-shell login-shell-finaud">
+      <form
+        className="login-card login-card-finaud"
+        onSubmit={(e) => void onLogin(e)}
+      >
+        <CabecalhoLoginLeiautes />
 
         <div className="field">
           <label className="field-label" htmlFor="login-email">
@@ -153,7 +172,11 @@ export default function LoginPage() {
 
         {erro && <p className="login-erro">{erro}</p>}
 
-        <button type="submit" className="btn-primary login-submit" disabled={enviando}>
+        <button
+          type="submit"
+          className="btn-primary login-submit"
+          disabled={enviando}
+        >
           {enviando ? "Entrando…" : "Entrar"}
         </button>
 
@@ -170,6 +193,9 @@ export default function LoginPage() {
             Esqueceu a senha?
           </button>
         </p>
+        <a className="login-portal-link" href={URL_PORTAL_APPS}>
+          Portal de apps
+        </a>
       </form>
     </div>
   );

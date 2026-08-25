@@ -36,7 +36,9 @@ type Props = {
   children: ReactNode;
 };
 
-const URL_PORTAL_APPS = "https://finaudapps.com.br";
+const URL_PORTAL_APPS =
+  (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
+  "https://finaudapps.com.br";
 
 const OPCOES_TEMA: { id: PreferenciaTema; rotulo: string; dica: string }[] = [
   { id: "claro", rotulo: "Claro", dica: "Fundo claro" },
@@ -134,7 +136,7 @@ function MenuUsuario({
             rel="noopener noreferrer"
             onClick={() => setMenuAberto(false)}
           >
-            Portal de apps ↗
+            Portal de apps
           </a>
           <button
             type="button"

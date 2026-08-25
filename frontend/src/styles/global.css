@@ -1,9 +1,14 @@
 :root {
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: Outfit, "Segoe UI", system-ui, sans-serif;
   line-height: 1.5;
   color: var(--text);
   background: var(--bg);
-  --marca-cor: #3333a8;
+  --ui-navy: #001c5b;
+  --ui-ink: #0b142c;
+  --ui-lima: #b4d84a;
+  --ui-lima-hover: #a3d133;
+  --ui-lima-ink: #0c1408;
+  --marca-cor: #001c5b;
   --bg: #f0f2f5;
   --surface: #ffffff;
   --surface-2: #f8f9fa;
@@ -24,12 +29,12 @@
   --accent-border: #c8c8e8;
   --sel-text: #ffffff;
   --on-dark: #ffffff;
-  --sidebar-bg: #1e2a3b;
-  --sidebar-hover: #263449;
-  --sidebar-active: #2d3f5c;
-  --sidebar-text: #e2e8f0;
-  --sidebar-muted: #94a3b8;
-  --sidebar-item: #cbd5e1;
+  --sidebar-bg: #ffffff;
+  --sidebar-hover: #f3f5f8;
+  --sidebar-active: rgba(163, 209, 51, 0.14);
+  --sidebar-text: #1c2b4a;
+  --sidebar-muted: #6b7a9a;
+  --sidebar-item: #334155;
   --danger: #c92a2a;
   --danger-strong: #b4233a;
   --danger-bg: #fff5f5;
@@ -55,7 +60,7 @@
 }
 
 [data-theme="claro"] {
-  --marca-cor: #3333a8;
+  --marca-cor: #001c5b;
   --bg: #f7f8fa;
   --surface: #ffffff;
   --surface-2: #f8f9fa;
@@ -76,9 +81,12 @@
   --accent-border: #c8c8e8;
   --sel-text: #ffffff;
   --on-dark: #ffffff;
-  --sidebar-bg: #1e2a3b;
-  --sidebar-hover: #263449;
-  --sidebar-active: #2d3f5c;
+  --sidebar-bg: #ffffff;
+  --sidebar-hover: #f3f5f8;
+  --sidebar-active: rgba(163, 209, 51, 0.14);
+  --sidebar-text: #1c2b4a;
+  --sidebar-muted: #6b7a9a;
+  --sidebar-item: #334155;
   --danger: #c92a2a;
   --danger-strong: #b4233a;
   --danger-bg: #fff5f5;
@@ -120,12 +128,12 @@
   --accent-border: #3b82f6;
   --sel-text: #ffffff;
   --on-dark: #ffffff;
-  --sidebar-bg: #0f172a;
-  --sidebar-hover: #1a2535;
-  --sidebar-active: #1e293b;
-  --sidebar-text: #e2e8f0;
-  --sidebar-muted: #94a3b8;
-  --sidebar-item: #cbd5e1;
+  --sidebar-bg: #060b18;
+  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-active: rgba(163, 209, 51, 0.12);
+  --sidebar-text: #f4f6fb;
+  --sidebar-muted: rgba(244, 246, 251, 0.42);
+  --sidebar-item: rgba(244, 246, 251, 0.72);
   --danger: #f87171;
   --danger-strong: #f87171;
   --danger-bg: #3b0a0a;
@@ -215,14 +223,30 @@ textarea {
 }
 
 .btn-primary,
-.btn-novo {
+.btn-novo,
+.btn-secondary {
   padding: 0.55rem 1.1rem;
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid transparent;
-  background: var(--marca-cor);
-  color: var(--sel-text);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
   font-weight: 700;
+}
+
+.btn-primary:hover:not(:disabled),
+.btn-novo:hover:not(:disabled),
+.btn-secondary:hover:not(:disabled) {
+  background: var(--ui-lima-hover);
+}
+
+.btn-primary:disabled,
+.btn-novo:disabled,
+.btn-secondary:disabled {
+  background: color-mix(in srgb, var(--ui-lima) 55%, #ccc);
+  color: var(--ui-lima-ink);
+  cursor: default;
+  opacity: 1;
 }
 
 .btn-link {
@@ -247,6 +271,31 @@ textarea {
   background: var(--marca-cor);
 }
 
+.login-shell-finaud {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  background: #060b18;
+  font-family: Outfit, "Segoe UI", system-ui, sans-serif;
+  color: #f4f6fb;
+}
+
+.login-shell-finaud::before {
+  content: "";
+  position: absolute;
+  inset: -20%;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 70% 58% at 90% -4%, rgba(163, 209, 51, 0.58), transparent 56%),
+    radial-gradient(ellipse 62% 68% at -4% 104%, rgba(0, 28, 91, 0.95), transparent 52%),
+    radial-gradient(ellipse 50% 46% at 52% 42%, rgba(77, 122, 212, 0.28), transparent 62%);
+  pointer-events: none;
+}
+
+.login-shell-finaud .meta {
+  color: rgba(244, 246, 251, 0.58);
+}
+
 .login-card {
   width: 100%;
   max-width: 400px;
@@ -255,6 +304,156 @@ textarea {
   border-radius: 12px;
   padding: 2rem 1.75rem;
   box-shadow: var(--shadow-md);
+}
+
+.login-card-finaud {
+  max-width: 420px;
+  border-radius: 24px;
+  border: 1px solid rgba(163, 209, 51, 0.16);
+  background:
+    radial-gradient(ellipse 90% 70% at 8% 108%, rgba(163, 209, 51, 0.16), transparent 52%),
+    radial-gradient(ellipse 85% 65% at 108% -8%, rgba(0, 28, 91, 0.55), transparent 50%),
+    linear-gradient(165deg, #0b142c 0%, #02050c 72%);
+  color: #f4f6fb;
+  padding: 2.25rem 2rem 1.75rem;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 32px 90px rgba(0, 8, 24, 0.7);
+}
+
+.login-finaud-topo {
+  text-align: center;
+  margin-bottom: 1.75rem;
+}
+
+.login-finaud-ico {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto 0.85rem;
+  border-radius: 14px;
+  display: grid;
+  place-items: center;
+  background: rgba(163, 209, 51, 0.18);
+  color: #b4d84a;
+}
+
+.login-finaud-ico svg {
+  width: 26px;
+  height: 26px;
+}
+
+.login-finaud-kicker {
+  margin: 0 0 0.5rem;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.36em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.55);
+}
+
+.login-finaud-titulo {
+  margin: 0 0 0.35rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #f4f6fb;
+}
+
+.login-finaud-sub {
+  margin: 0;
+  color: rgba(244, 246, 251, 0.58);
+  font-size: 0.95rem;
+}
+
+.login-card-finaud .field-label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(244, 246, 251, 0.58);
+}
+
+.login-card-finaud .field-input {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #f4f6fb;
+}
+
+.login-card-finaud .field-input:focus {
+  outline: none;
+  border-color: rgba(163, 209, 51, 0.55);
+}
+
+.login-card-finaud .campo-senha-toggle {
+  color: rgba(244, 246, 251, 0.58);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+.login-card-finaud .campo-senha-toggle:hover:not(:disabled) {
+  color: #f4f6fb;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.login-card-finaud .login-submit.btn-primary {
+  background: #b4d84a;
+  color: #0c1408;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 700;
+}
+
+.login-card-finaud .login-submit.btn-primary:disabled {
+  background: color-mix(in srgb, #b4d84a 55%, #333);
+  color: #0c1408;
+}
+
+.login-card-finaud .login-subtitulo,
+.login-card-finaud .login-subtitulo-recuperar {
+  color: rgba(244, 246, 251, 0.58);
+}
+
+.login-card-finaud .login-erro {
+  color: #ffb4ab;
+}
+
+.login-card-finaud .login-sucesso {
+  color: #b4d84a;
+}
+
+.login-titulo-finaud {
+  margin: 0 0 0.5rem;
+  font-size: 1.15rem;
+  font-weight: 600;
+  text-align: center;
+  color: #f4f6fb;
+}
+
+.login-card-finaud .login-rodape {
+  text-align: center;
+}
+
+.login-card-finaud .btn-link {
+  color: rgba(244, 246, 251, 0.58);
+  text-decoration: underline;
+}
+
+.login-card-finaud .btn-link:hover {
+  color: #f4f6fb;
+}
+
+.login-portal-link {
+  display: block;
+  margin-top: 0.85rem;
+  text-align: center;
+  font-size: 13px;
+  color: rgba(244, 246, 251, 0.58);
+  text-decoration: underline;
+}
+
+.login-portal-link:hover {
+  color: #f4f6fb;
 }
 
 .marca-org {
@@ -389,7 +588,7 @@ textarea {
   width: 4rem;
   height: 4rem;
   border-radius: 999px;
-  background: linear-gradient(135deg, #3333a8, #1e1e72);
+  background: linear-gradient(135deg, #001c5b, #060b18);
   color: var(--sel-text);
   display: flex;
   align-items: center;
@@ -518,9 +717,9 @@ textarea {
   display: inline-flex;
   align-items: center;
   gap: 0.35rem;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--text-strong);
+  border: 1px solid #dee2e6;
+  background: #fff;
+  color: #212529;
   cursor: pointer;
   font: inherit;
   font-size: 0.9rem;
@@ -528,11 +727,28 @@ textarea {
   border-radius: 8px;
 }
 
+.app-menu-trigger:hover {
+  background: #f8f9fa;
+}
+
+[data-theme="escuro"] .app-menu-trigger {
+  background: var(--surface);
+  border-color: var(--border);
+  color: var(--text-strong);
+}
+
+[data-theme="escuro"] .app-menu-trigger:hover {
+  background: var(--surface-hover);
+}
+
 .app-menu-chevron {
-  color: var(--muted-3);
+  color: #868e96;
   font-size: 0.75rem;
 }
 
+[data-theme="escuro"] .app-menu-chevron {
+  color: var(--muted);
+}
 
 .app-menu-item {
   display: block;
@@ -543,16 +759,16 @@ textarea {
   padding: 0.55rem 1rem;
   font: inherit;
   font-size: 0.9rem;
-  color: var(--text-strong);
+  color: #212529;
   cursor: pointer;
 }
 
 .app-menu-item:hover {
-  background: var(--surface-2);
+  background: #f8f9fa;
 }
 
 .app-menu-item-perigo {
-  color: var(--danger);
+  color: #c92a2a;
 }
 
 .app-menu-list {
@@ -563,10 +779,10 @@ textarea {
   margin: 0;
   padding: 0;
   list-style: none;
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: #fff;
+  border: 1px solid #e2e5ea;
   border-radius: 8px;
-  box-shadow: var(--shadow-sm);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
   z-index: 50;
   overflow: hidden;
 }
@@ -576,7 +792,7 @@ textarea {
   align-items: center;
   gap: 0.65rem;
   padding: 0.85rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e2e5ea;
 }
 
 .app-menu-info-textos {
@@ -586,7 +802,7 @@ textarea {
 .app-menu-info-nome {
   font-size: 0.88rem;
   font-weight: 600;
-  color: var(--text);
+  color: #1a1a1a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -594,7 +810,7 @@ textarea {
 
 .app-menu-info-email {
   font-size: 0.75rem;
-  color: var(--muted);
+  color: #64748b;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -602,13 +818,13 @@ textarea {
 
 .app-menu-section {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid #e2e5ea;
 }
 
 .app-menu-section-title {
   font-size: 0.68rem;
   font-weight: 700;
-  color: var(--muted);
+  color: #6b7a9a;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.5rem;
@@ -623,9 +839,9 @@ textarea {
   flex: 1;
   padding: 0.4rem 0.25rem;
   border-radius: 6px;
-  border: 1px solid var(--border);
+  border: 1px solid #dee2e6;
   background: none;
-  color: var(--muted);
+  color: #6b7a9a;
   font-size: 0.75rem;
   font-weight: 500;
   cursor: pointer;
@@ -634,16 +850,65 @@ textarea {
 }
 
 .app-theme-btn:hover {
-  border-color: var(--marca-cor);
-  color: var(--marca-cor);
-  background: var(--accent-bg);
+  border-color: var(--ui-lima-hover);
+  color: var(--ui-ink);
+  background: rgba(163, 209, 51, 0.12);
 }
 
 .app-theme-btn.ativo {
-  background: var(--marca-cor);
-  border-color: var(--marca-cor);
-  color: var(--sel-text);
+  background: var(--ui-lima);
+  border-color: var(--ui-lima);
+  color: var(--ui-lima-ink);
   font-weight: 700;
+}
+
+[data-theme="escuro"] .app-menu-list {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: var(--shadow-sm);
+}
+
+[data-theme="escuro"] .app-menu-info,
+[data-theme="escuro"] .app-menu-section {
+  border-bottom-color: var(--border);
+}
+
+[data-theme="escuro"] .app-menu-info-nome {
+  color: var(--text-strong);
+}
+
+[data-theme="escuro"] .app-menu-info-email,
+[data-theme="escuro"] .app-menu-section-title {
+  color: var(--muted);
+}
+
+[data-theme="escuro"] .app-menu-item {
+  color: var(--text-strong);
+}
+
+[data-theme="escuro"] .app-menu-item:hover {
+  background: var(--surface-hover);
+}
+
+[data-theme="escuro"] .app-menu-item-perigo {
+  color: var(--danger);
+}
+
+[data-theme="escuro"] .app-theme-btn {
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+[data-theme="escuro"] .app-theme-btn:hover {
+  border-color: var(--ui-lima-hover);
+  color: var(--text-strong);
+  background: rgba(163, 209, 51, 0.12);
+}
+
+[data-theme="escuro"] .app-theme-btn.ativo {
+  background: var(--ui-lima);
+  border-color: var(--ui-lima);
+  color: var(--ui-lima-ink);
 }
 
 
@@ -665,9 +930,9 @@ textarea {
 }
 
 .filtros-periodo button.ativo {
-  background: var(--marca-cor);
-  color: var(--sel-text);
-  border-color: var(--marca-cor);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
+  border-color: var(--ui-lima);
   font-weight: 700;
 }
 
@@ -845,15 +1110,15 @@ textarea {
 }
 
 .calendario-dia-selecionado {
-  background: var(--marca-cor);
-  border-color: var(--marca-cor);
-  color: var(--sel-text);
+  background: var(--ui-lima);
+  border-color: var(--ui-lima);
+  color: var(--ui-lima-ink);
   font-weight: 700;
 }
 
 .calendario-dia-selecionado:hover {
-  background: var(--marca-cor);
-  filter: brightness(0.95);
+  background: var(--ui-lima-hover);
+  filter: none;
 }
 
 .calendario-rodape {
@@ -883,12 +1148,13 @@ textarea {
 }
 
 .calendario-acao-primaria {
-  color: var(--marca-cor);
-  border-color: color-mix(in srgb, var(--marca-cor) 35%, #e2e8f0);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
+  border-color: var(--ui-lima);
 }
 
 .calendario-acao-primaria:hover {
-  background: color-mix(in srgb, var(--marca-cor) 8%, #fff);
+  background: var(--ui-lima-hover);
 }
 
 .campo-senha-wrap {
@@ -935,6 +1201,7 @@ textarea {
   display: flex;
   min-height: 100vh;
   background: var(--bg);
+  font-family: Outfit, "Segoe UI", system-ui, sans-serif;
 }
 
 .painel-sidebar {
@@ -947,6 +1214,17 @@ textarea {
   transition: width 0.18s ease;
 }
 
+[data-theme="claro"] .painel-sidebar {
+  border-right: 1px solid var(--border-strong);
+}
+
+[data-theme="escuro"] .painel-sidebar {
+  background:
+    radial-gradient(ellipse 90% 40% at 0% 0%, rgba(163, 209, 51, 0.14), transparent 55%),
+    linear-gradient(180deg, #0b142c 0%, #060b18 72%);
+  color: #f4f6fb;
+}
+
 .painel-layout.painel-sidebar-recolhida .painel-sidebar {
   width: 72px;
 }
@@ -955,20 +1233,28 @@ textarea {
   display: flex;
   align-items: center;
   gap: 0.25rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  min-height: 3.5rem;
+  height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  box-sizing: border-box;
+  border-bottom: 1px solid var(--border-strong);
   padding-right: 0.35rem;
 }
 
+[data-theme="escuro"] .painel-sidebar-topo {
+  border-bottom-color: rgba(163, 209, 51, 0.14);
+}
+
 .painel-sidebar-logo {
-  padding: 1.1rem 0.75rem 1.1rem 1.25rem;
+  padding: 0 0.75rem 0 1.25rem;
   font-weight: 700;
   font-size: 1.05rem;
-  color: var(--on-dark);
+  color: var(--sidebar-text);
   flex: 1;
   min-width: 0;
   display: flex;
   align-items: center;
+  height: 100%;
 }
 
 .painel-sidebar-logo-curto {
@@ -976,7 +1262,7 @@ textarea {
 }
 
 .painel-layout.painel-sidebar-recolhida .painel-sidebar-logo {
-  padding: 1.1rem 0.25rem 1.1rem 0.65rem;
+  padding: 0 0.25rem 0 0.65rem;
   justify-content: center;
 }
 
@@ -994,7 +1280,7 @@ textarea {
   flex-shrink: 0;
   width: 2rem;
   height: 2rem;
-  border: none;
+  border: 1px solid var(--border);
   border-radius: 6px;
   background: transparent;
   color: var(--sidebar-muted);
@@ -1005,7 +1291,18 @@ textarea {
 
 .painel-sidebar-toggle:hover {
   background: var(--sidebar-hover);
-  color: var(--on-dark);
+  color: var(--sidebar-text);
+}
+
+[data-theme="escuro"] .painel-sidebar-toggle {
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+}
+
+[data-theme="escuro"] .painel-sidebar-toggle:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
 }
 
 .painel-nav {
@@ -1068,14 +1365,20 @@ textarea {
 
 .painel-nav-item:hover {
   background: var(--sidebar-hover);
-  color: var(--on-dark);
+  color: var(--sidebar-text);
 }
 
 .painel-nav-item.ativo {
   background: var(--sidebar-active);
-  color: var(--on-dark);
-  border-left: 3px solid var(--marca-cor);
+  color: var(--sidebar-text);
+  border-left: 3px solid var(--ui-lima-hover);
   padding-left: calc(1.25rem - 3px);
+  font-weight: 600;
+}
+
+[data-theme="escuro"] .painel-nav-item:hover,
+[data-theme="escuro"] .painel-nav-item.ativo {
+  color: #fff;
 }
 
 .painel-nav-sub .painel-nav-item.ativo {
@@ -1116,6 +1419,9 @@ textarea {
 
 .painel-topbar {
   height: 56px;
+  min-height: 56px;
+  max-height: 56px;
+  box-sizing: border-box;
   background: var(--surface);
   border-bottom: 1px solid var(--border-strong);
   display: flex;
@@ -1155,8 +1461,8 @@ textarea {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: var(--marca-cor);
-  color: var(--sel-text);
+  background: var(--ui-navy);
+  color: #fff;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1223,9 +1529,9 @@ textarea {
 }
 
 .admin-tabs button.ativo {
-  background: var(--marca-cor);
-  color: var(--sel-text);
-  border-color: var(--marca-cor);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
+  border-color: var(--ui-lima);
   font-weight: 700;
 }
 
@@ -1260,17 +1566,6 @@ textarea {
 
 .btn-secondary {
   padding: 0.45rem 0.9rem;
-  border-radius: 6px;
-  cursor: pointer;
-  border: 1px solid var(--border-input);
-  background: var(--surface);
-  color: var(--text-strong);
-  font-weight: 700;
-}
-
-.btn-secondary:disabled {
-  cursor: default;
-  opacity: 0.65;
 }
 
 .btn-perigo {
@@ -1651,9 +1946,9 @@ textarea {
 }
 
 .permissao-toggle-sim {
-  background: var(--marca-cor);
-  color: var(--sel-text);
-  border-color: var(--marca-cor);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
+  border-color: var(--ui-lima);
 }
 
 .permissao-toggle:disabled {
@@ -1801,11 +2096,12 @@ textarea {
 .paginacao-log button {
   margin-left: 0.45rem;
   padding: 0.35rem 0.7rem;
-  border: 1px solid var(--border-input);
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
   cursor: pointer;
+  font-weight: 700;
 }
 
 .paginacao-log button:disabled {
@@ -1945,10 +2241,10 @@ textarea {
 }
 
 .btn-detalhes {
-  border: 1px solid var(--accent-border);
+  border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--surface);
-  color: var(--marca-cor);
+  background: var(--ui-lima);
+  color: var(--ui-lima-ink);
   cursor: pointer;
   font-weight: 700;
   padding: 0.35rem 0.7rem;
@@ -1956,7 +2252,7 @@ textarea {
 }
 
 .btn-detalhes:hover {
-  background: var(--accent-bg);
+  background: var(--ui-lima-hover);
 }
 
 .arquivo-com-badge {

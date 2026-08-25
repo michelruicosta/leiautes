@@ -25,7 +25,7 @@ export default function App() {
 
   if (carregando) {
     return (
-      <div className="login-shell">
+      <div className="login-shell login-shell-finaud">
         <p className="meta">Carregando…</p>
       </div>
     );
