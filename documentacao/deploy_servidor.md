@@ -1,6 +1,6 @@
 # Deploy no servidor — leiautes_bacen
 
-Última atualização: **2026-07-22** (robô novo em paralelo; antigo ainda ativo)
+Última atualização: **2026-08-24** (robô novo em produção; legado desligado)
 
 **Referência de processo:** Normativos — `documentacao/manual_publicacao_site.md` Cap. 12 (repo normativos_ia).
 
@@ -15,8 +15,8 @@
 | **API interna** | `127.0.0.1:8003` |
 | **systemd** | `leiautes_bacen-api` |
 | **CyberPanel home** | `/home/leiautes-bacen.finaudapps.com.br/` |
-| **Robô novo** | path acima — cron root **paralelo** (teste) |
-| **Robô legado** | `/home/tsalachtech.com.br/apps/leiautes/` — **ainda ativo** (não desligar) |
+| **Robô produção** | path acima — agenda na tela **Robô** + cron root `--checar-agenda` |
+| **Robô legado** | `/home/tsalachtech.com.br/apps/leiautes/` — **cron comentado em 24/08/2026** |
 
 ### Portas Finaud (já em uso)
 
@@ -39,10 +39,10 @@
 | 4 | systemd `leiautes_bacen-api` + health `:8003` | ✅ |
 | 5 | vHost Conf (dist + `/api/` → 8003) | ✅ |
 | 6 | Cloudflare laranja após SSL | ✅ |
-| 7 | Validação login / telas | **pendente Michel** (`michel@`) |
+| 7 | Validação login / telas | ✅ Michel (24/08) |
 | 8 | Card portal finaudapps | ✅ (Michel — outro chat) |
-| 9 | Robô novo em paralelo (cron root + deps motor) | ✅ 2026-07-22 — **antigo ainda ativo** |
-| 10 | Desligar cron legado (`tsala9334` / `paine6949`) | **não fazer** até Michel validar |
+| 9 | Robô novo em produção (agenda + cron `--checar-agenda`) | ✅ 24/08/2026 |
+| 10 | Desligar cron legado (`tsala9334` / `paine6949`) | ✅ 24/08/2026 (linhas comentadas; backup em `/root/backup-cron-leiautes/`) |
 
 ### Validação E2E (2026-07-22)
 
@@ -120,46 +120,47 @@ curl -s http://127.0.0.1:8003/health
 
 ---
 
-## Robô — paralelo (2026-07-22)
+## Robô — produção (desde 24/08/2026)
 
-**Status:** robô **novo** agendado no root; robô **antigo** continua nos crons de `tsala9334` e `paine6949`.  
-Espelho do Cap. 12 Normativos. **Não desligar o antigo** até uma execução do novo estar validada por Michel.
+**Status:** robô **novo** é o oficial. Cron do **legado** comentado em `tsala9334` e `paine6949` (backup em `/root/backup-cron-leiautes/`).
 
-### Inventário cron (só leitura — legado intacto)
+### Inventário cron
 
 | Usuário | Linha leiautes | Status |
 |---------|----------------|--------|
-| **tsala9334** | `0 18 * * 1-5 …/apps/leiautes/run.sh` | **ativo** (legado) |
-| **paine6949** | `0 18 * * 1-5 …/apps/leiautes/run.sh` | **ativo** (legado) |
-| **root** | `0 18 * * 1-5` + `flock` → `/srv/finaud/tec/leiautes_bacen/` | **ativo** (teste paralelo) |
+| **tsala9334** | `run.sh` legado | **comentado** 24/08 |
+| **paine6949** | `run.sh` legado | **comentado** 24/08 |
+| **root** | `* * * * *` + `--checar-agenda` | **ativo** (produção) |
+| **root** | garantia 17:30 Seg–Sex | **ativo** (e-mail só em falha) |
 
 ### Cron garantia (check-up automático)
 
 Seg–Sex **17:30** (antes do robô das 18h). Só e-mail se falhar.
 
 ```cron
-# [leiautes_bacen] garantia automática — Seg-Sex 17:30; e-mail só em FALHA para michel@
-30 17 * * 1-5 flock -n /srv/finaud/tec/leiautes_bacen/.garantia.lock -c "cd /srv/finaud/tec/leiautes_bacen && set -a && . ./.env && set +a && export LEIAUTES_DISABLE_STATUS_TAIL=1 LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br HOME=/srv/finaud/tec/leiautes_bacen && .venv/bin/python scripts/garantia_robo_leiautes.py >> /srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log 2>&1"
+# [leiautes_bacen] garantia automática — Seg-Sex 17:30; e-mail só em FALHA
+30 17 * * 1-5 flock -n /srv/finaud/tec/leiautes_bacen/.garantia.lock -c "cd /srv/finaud/tec/leiautes_bacen && set -a && . ./.env && set +a && export LEIAUTES_DISABLE_STATUS_TAIL=1 HOME=/srv/finaud/tec/leiautes_bacen && .venv/bin/python scripts/garantia_robo_leiautes.py >> /srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log 2>&1"
 ```
 
 | Item | Detalhe |
 |------|---------|
 | Script | `scripts/garantia_robo_leiautes.py` |
 | Log | `/srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log` |
-| E-mail | **só se falhar** → `michel@finaud.com.br` |
+| E-mail | **só se falhar** |
 | O que checa | scrape Bacen com anexos; classificação precisa/técnico; HTML “O que mudou”; diff PDF se houver v7/v8 |
 
-### Cron novo (root)
+### Cron produção (root — agenda pela tela)
 
 ```cron
-# [leiautes_bacen] teste paralelo — Seg-Sex 18h; e-mail so michel@ via LEIAUTES_EMAIL_TEST_TO; antigo permanece
-0 18 * * 1-5 flock -n /srv/finaud/tec/leiautes_bacen/.robo.lock -c "cd /srv/finaud/tec/leiautes_bacen && set -a && . ./.env && set +a && export LEIAUTES_DISABLE_STATUS_TAIL=1 LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br HOME=/srv/finaud/tec/leiautes_bacen && .venv/bin/python scripts/verifica_leiautes_finaud.py >> /srv/finaud/tec/leiautes_bacen/logs/cron-teste-michel.log 2>&1"
+# [leiautes_bacen] agenda pela tela (Robo > Agenda) — checa a cada minuto
+* * * * * flock -n /srv/finaud/tec/leiautes_bacen/.robo.lock -c "cd /srv/finaud/tec/leiautes_bacen && set -a && . ./.env && set +a && export LEIAUTES_DISABLE_STATUS_TAIL=1 HOME=/srv/finaud/tec/leiautes_bacen && .venv/bin/python scripts/verifica_leiautes_finaud.py --checar-agenda >> /srv/finaud/tec/leiautes_bacen/logs/cron-teste-michel.log 2>&1"
 ```
 
-- `flock` evita duas execuções do **novo** ao mesmo tempo.
-- `LEIAUTES_EMAIL_TEST_TO=michel@finaud.com.br` redireciona destinatários do `config_email.json` só para Michel (quando o envio estiver ativo).
+- Agenda padrão: Seg–Sex **18:00** (editável em **Robô → Agenda**)
+- Destinatários: usuários ativos com **Receber e-mail de alertas** (não usa mais `LEIAUTES_EMAIL_TEST_TO`)
+- E-mail só com mudança (`email.enviar_sem_alteracao=false`)
 - Log: `/srv/finaud/tec/leiautes_bacen/logs/cron-teste-michel.log`
-- Backup crontab root: `/root/backup-cron-leiautes/`
+- Backup crontab: `/root/backup-cron-leiautes/`
 
 ### Motor / deps
 

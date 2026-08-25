@@ -60,6 +60,55 @@ function textoErro(execucao: ExecucaoResumo): string {
   return "—";
 }
 
+function extrairDestinatario(logTexto: string): string | null {
+  const enviado = logTexto.match(/E-mail enviado para:\s*(.+)/i);
+  if (enviado?.[1]) return enviado[1].trim();
+  const dest = logTexto.match(/Destinatários:\s*(.+)/i);
+  if (dest?.[1] && dest[1].trim() !== "—") return dest[1].trim();
+  return null;
+}
+
+/** Texto claro para o gestor — sem jargão de log técnico. */
+function resumoLogSimples(execucao: ExecucaoResumo, logTexto: string): string[] {
+  const linhas: string[] = [];
+
+  if (execucao.status === "sucesso") {
+    linhas.push("O robô terminou sem erro.");
+  } else if (execucao.status === "erro") {
+    const detalhe = (execucao.erro || "").trim();
+    linhas.push(detalhe ? `O robô falhou: ${detalhe}` : "O robô falhou. Veja o detalhe técnico abaixo.");
+  } else if (execucao.status === "em_andamento") {
+    linhas.push("O robô ainda está rodando.");
+  }
+
+  if (execucao.qtd_alteracoes > 0) {
+    linhas.push(
+      execucao.qtd_alteracoes === 1
+        ? "Foi encontrada 1 mudança na página do Bacen."
+        : `Foram encontradas ${execucao.qtd_alteracoes} mudanças na página do Bacen.`,
+    );
+  } else if (execucao.status === "sucesso") {
+    linhas.push("Nada mudou na página do Bacen nesta rodada.");
+  }
+
+  if (execucao.emails_enviados > 0) {
+    const para = extrairDestinatario(logTexto);
+    if (execucao.emails_enviados === 1) {
+      linhas.push(para ? `Foi enviado 1 e-mail para ${para}.` : "Foi enviado 1 e-mail.");
+    } else {
+      linhas.push(
+        para
+          ? `Foram enviados ${execucao.emails_enviados} e-mails (${para}).`
+          : `Foram enviados ${execucao.emails_enviados} e-mails.`,
+      );
+    }
+  } else if (execucao.status === "sucesso") {
+    linhas.push("Nenhum e-mail foi enviado nesta rodada.");
+  }
+
+  return linhas;
+}
+
 function resumoDias(dias: number[]): string {
   if (!dias.length) return "—";
   const mapa = Object.fromEntries(DIAS.map((d) => [d.v, d.label]));
@@ -365,7 +414,10 @@ export default function RoboPage() {
       )}
 
       {log && (
-        <div className="modal-backdrop" onClick={() => setLog(null)}>
+        <div
+          className="modal-backdrop modal-log-backdrop"
+          onClick={() => setLog(null)}
+        >
           <section
             className="modal-detalhe modal-log"
             role="dialog"
@@ -374,7 +426,7 @@ export default function RoboPage() {
           >
             <div className="modal-detalhe-head">
               <div>
-                <h2>Log da execução #{log.execucao.id}</h2>
+                <h2>Resumo da execução #{log.execucao.id}</h2>
                 <p className="meta">
                   {formatarData(log.execucao.iniciado_em)} até{" "}
                   {formatarData(log.execucao.finalizado_em)} ·{" "}
@@ -382,11 +434,6 @@ export default function RoboPage() {
                     {rotuloStatus(log.execucao.status)}
                   </strong>
                 </p>
-                {log.execucao.erro && (
-                  <p className="erro" style={{ marginTop: "0.5rem" }}>
-                    {log.execucao.erro}
-                  </p>
-                )}
               </div>
               <button
                 type="button"
@@ -398,13 +445,23 @@ export default function RoboPage() {
               </button>
             </div>
             <div className="modal-log-body">
-              {!log.disponivel && (
-                <p className="admin-ajuda">
-                  Sem arquivo de log salvo. Exibindo a observação registrada no
-                  histórico.
-                </p>
+              <ul className="log-resumo">
+                {resumoLogSimples(log.execucao, log.log_texto).map((linha) => (
+                  <li key={linha}>{linha}</li>
+                ))}
+              </ul>
+              {(log.log_texto || !log.disponivel) && (
+                <details className="log-tecnico">
+                  <summary>Ver detalhe técnico</summary>
+                  {!log.disponivel && (
+                    <p className="admin-ajuda">
+                      Sem arquivo de log salvo. Exibindo a observação registrada
+                      no histórico.
+                    </p>
+                  )}
+                  <pre className="log-output">{log.log_texto || "—"}</pre>
+                </details>
               )}
-              <pre className="log-output">{log.log_texto}</pre>
             </div>
           </section>
         </div>

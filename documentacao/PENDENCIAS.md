@@ -8,6 +8,14 @@
 
 ## Fechadas recentemente
 
+### ✅ Robô novo em produção — legado desligado (24/08)
+
+- Cron legado comentado em `tsala9334` e `paine6949` (backup em `/root/backup-cron-leiautes/`)
+- Produção: agenda na tela **Robô** + cron root `--checar-agenda`
+- Destinatários de alerta: michel@, marcio@, suporte@ (+ michelruicosta@gmail.com no cadastro)
+- E-mail só quando há mudança (`enviar_sem_alteracao` desligado)
+- Validado: legado e novo bateram em 0 mudanças no mesmo dia; teste de e-mail #50 ok
+
 ### ✅ Monitoramento MCC + DRSAC 2030 (24/08)
 
 - Robô passa a visitar as páginas **MCC** e **DRSAC 2030** no site do Bacen
