@@ -703,6 +703,40 @@ def _parse_evidencia_item(texto: str) -> dict:
     m = re.match(r'^Arquivo interno incluído: ([^;]+); evidência: "([\s\S]*)"$', texto)
     if m:
         return {"local": f"Arquivo interno {m.group(1)}", "depois": m.group(2)}
+    m = re.match(
+        r"^Linha atual ([^:]+): campo/schema incluído (.+?)(?: \((.+)\))?$",
+        texto.strip(),
+    )
+    if m:
+        caminho = m.group(2).strip()
+        peca = caminho.split("/")[-1] or caminho
+        return {
+            "local": peca,
+            "depois": peca,
+            "mudanca": "entrou",
+            "assinatura": m.group(3) or "",
+        }
+    m = re.match(
+        r"^Linha anterior ([^:]+): campo/schema removido (.+?)(?: \((.+)\))?$",
+        texto.strip(),
+    )
+    if m:
+        caminho = m.group(2).strip()
+        peca = caminho.split("/")[-1] or caminho
+        return {
+            "local": peca,
+            "antes": peca,
+            "mudanca": "saiu",
+            "assinatura": m.group(3) or "",
+        }
+    m = re.match(r"^(.*?): pattern (.+?) -> (.+)$", texto.strip())
+    if m:
+        return {
+            "local": m.group(1).strip() or "Campo",
+            "mudanca": "o que o campo aceita",
+            "antes": m.group(2).strip(),
+            "depois": m.group(3).strip(),
+        }
     return {"local": "Evidência", "depois": texto}
 
 
@@ -798,6 +832,14 @@ def _html_card_simples(titulo: str, textos: list[str], removido: bool = False) -
 # A lista completa vai na planilha anexa Antes_Depois_leiautes_*.xlsx.
 MAX_DIFFS_EMAIL = 5
 ANEXO_ANTES_DEPOIS_PREFIXO = "Antes_Depois_leiautes"
+OBS_NOME_MUDOU = (
+    "O nome da descrição no arquivo mudou em relação às versões anteriores."
+)
+OBS_REPUBLICOU = "O site só republicou; o conteúdo é o mesmo."
+OBS_SEM_ANTERIOR = (
+    "Primeiro arquivo deste tipo neste cadastro (não há outro para comparar)."
+)
+OBS_EXCLUIDO = "Saiu da página; a cópia continua guardada."
 
 def _eh_novo_arquivo(texto: str) -> bool:
     t = (texto or "").lower()
@@ -957,7 +999,8 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
                 antes_bruto, depois_bruto = _recortar_par_diff(antes_bruto, depois_bruto)
             except Exception:
                 antes_bruto, depois_bruto = antes_bruto[:160] + "…", depois_bruto[:160] + "…"
-        antes_h, depois_h = _html_marcar_diferenca(antes_bruto, depois_bruto)
+        antes_h = html.escape(antes_bruto or "—")
+        depois_h = html.escape(depois_bruto or "—")
         mudanca_h = (
             f'<strong style="color:#2e3192;">{html.escape(mudanca)}</strong>'
             if mudanca
@@ -974,13 +1017,18 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
             f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} "
             f"alteração(ões) adicional(is) — lista completa na planilha anexa "
             f"<strong>{html.escape(ANEXO_ANTES_DEPOIS_PREFIXO)}_….xlsx</strong> "
-            f"(colunas Onde / O que mudou / Antes / Depois / O que fazer).</p>"
+            f"(colunas Onde / O que mudou / Antes / Depois).</p>"
         )
+    return _html_tabela_diff(linhas, extra)
+
+
+def _html_tabela_cols(cabecalhos: list[str], linhas: list[str], extra: str = "") -> str:
+    th = "".join(f"<th><strong>{html.escape(h)}</strong></th>" for h in cabecalhos)
     return f"""
       <table class="diff-table" role="presentation" cellpadding="0" cellspacing="0">
         <thead>
           <tr>
-            <th>Onde</th><th>O que mudou</th><th>Antes</th><th>Depois</th>
+            {th}
           </tr>
         </thead>
         <tbody>
@@ -989,6 +1037,45 @@ def _html_tabela_mudancas(itens: list[str]) -> str:
       </table>
       {extra}
     """
+
+
+def _html_tabela_diff(linhas: list[str], extra: str = "") -> str:
+    return _html_tabela_cols(
+        ["Onde", "O que mudou", "Antes", "Depois"],
+        linhas,
+        extra,
+    )
+
+
+def _html_tabela_entrou_saiu(itens: list[str], tipo: str) -> str:
+    """Mesmas 4 colunas de Mudou: Onde | O que mudou | Antes | Depois."""
+    if not itens:
+        return ""
+    linhas = []
+    verbo = "entrou" if tipo == "entrou" else "saiu"
+    for texto in itens[:MAX_DIFFS_EMAIL]:
+        item = _parse_evidencia_item(str(texto))
+        local = html.escape(str(item.get("local") or "Item"))
+        mudanca = html.escape(str(item.get("mudanca") or verbo))
+        if tipo == "entrou":
+            antes_h = "—"
+            depois_h = html.escape(str(item.get("depois") or item.get("local") or "—"))
+        else:
+            antes_h = html.escape(str(item.get("antes") or item.get("local") or "—"))
+            depois_h = "—"
+        linhas.append(
+            f"<tr><td class='col-local'>{local}</td>"
+            f"<td><strong style='color:#2e3192;'>{mudanca}</strong></td>"
+            f"<td>{antes_h}</td><td>{depois_h}</td></tr>"
+        )
+    extra = ""
+    if len(itens) > MAX_DIFFS_EMAIL:
+        extra = (
+            f"<p class='more'>+ {len(itens) - MAX_DIFFS_EMAIL} item(ns) no e-mail; "
+            f"lista completa na planilha anexa "
+            f"<strong>{html.escape(ANEXO_ANTES_DEPOIS_PREFIXO)}_….xlsx</strong>.</p>"
+        )
+    return _html_tabela_diff(linhas, extra)
 
 
 def _html_lista_simples(titulo: str, tipo: str, itens: list[str]) -> str:
@@ -1031,6 +1118,11 @@ def _html_lista_diferencas(titulo: str, tipo: str, itens: list[str], vazio: str 
         return ""
     if tipo == "mudou":
         return f'<p class="sec-label">{html.escape(titulo)}</p>{_html_tabela_mudancas(itens)}'
+    if tipo in {"entrou", "saiu"}:
+        return (
+            f'<p class="sec-label">{html.escape(titulo)}</p>'
+            f"{_html_tabela_entrou_saiu(itens, tipo)}"
+        )
     return _html_lista_simples(titulo, tipo, itens)
 
 
@@ -1271,10 +1363,18 @@ def _explicar_linguagem_simples(
         m = re.search(r"antes:\s*([^\]]+)\]", str(det.get("resumo_executivo") or ""))
         antes_nome = (m.group(1).strip() if m else "").strip()
         if antes_nome:
-            _add(
-                f"Arquivo novo comparado com a versão anterior ({antes_nome}).",
-                2,
-            )
+            resumo_txt = str(det.get("resumo_executivo") or "")
+            if "nome no site mudou" in resumo_txt.lower():
+                _add(
+                    f"O nome no site mudou. Comparamos com {antes_nome}, "
+                    "só para você ver o que mudou.",
+                    2,
+                )
+            else:
+                _add(
+                    f"Arquivo novo comparado com a versão anterior ({antes_nome}).",
+                    2,
+                )
         else:
             _add("Arquivo novo comparado com a versão anterior do mesmo documento.", 2)
     elif tipo_cmp == "sem_anterior":
@@ -1338,24 +1438,27 @@ def _texto_situacao(item: dict, detalhe: dict | None) -> str:
 
     if tipo_cmp == "versao_pareada":
         if antes_nome:
+            resumo_txt = str(det.get("resumo_executivo") or "")
+            if "nome no site mudou" in resumo_txt.lower():
+                return (
+                    f"O nome no site mudou. Comparamos com {antes_nome}, "
+                    "o último deste mesmo tipo neste cadastro, só para você ver o que mudou."
+                )
             return (
-                f"Apareceu um arquivo novo{leiaute} na página do Bacen: {nome}. "
-                f"Para você ver o que mudou, o robô compara com a versão anterior "
-                f"do mesmo documento ({antes_nome}). "
-                "Não é o mesmo arquivo republicado: é a versão nova ao lado da antiga."
+                f"Não é o mesmo arquivo republicado: é a versão nova ao lado da antiga. "
+                f"Comparamos com {antes_nome} para você ver o que mudou."
             )
         return (
-            f"Apareceu um arquivo novo{leiaute} na página do Bacen: {nome}. "
-            "Para você ver o que mudou, o robô compara com a versão anterior "
-            "do mesmo documento."
+            "Não é o mesmo arquivo republicado: é a versão nova ao lado da antiga. "
+            "Comparamos com a versão anterior do mesmo documento para você ver o que mudou."
         )
     if tipo_cmp == "sem_anterior":
         return (
-            f"Apareceu um arquivo novo{leiaute} na página do Bacen: {nome}. "
-            "Ainda não há versão anterior no histórico para comparar automaticamente."
+            f"{nome}{leiaute} apareceu na página do Bacen. "
+            "Ainda não há versão anterior neste cadastro para comparar automaticamente."
         )
     return (
-        f"O arquivo{leiaute} já monitorado foi atualizado no site do Bacen: {nome}."
+        f"O arquivo que já acompanhávamos{leiaute} foi atualizado no site: {nome}."
     )
 
 
@@ -1445,101 +1548,218 @@ def _texto_o_que_fazer(item: dict, detalhe: dict | None) -> str:
     )
 
 
-def _html_passo(numero: int, titulo: str, corpo: str) -> str:
-    return f"""
-      <div class="passo">
-        <p class="passo-titulo">Passo {numero} de 3 · {html.escape(titulo)}</p>
-        {corpo}
-      </div>
-    """
+def _nome_anterior_comparacao(detalhe: dict | None) -> str:
+    det = detalhe or {}
+    direto = str(
+        det.get("arquivo_anterior_nome") or det.get("nome_anterior") or ""
+    ).strip()
+    if direto:
+        return direto
+    m = re.search(r"antes:\s*([^\]]+)\]", str(det.get("resumo_executivo") or ""))
+    return (m.group(1).strip() if m else "").strip()
 
 
-def _html_detalhe_conteudo(item, detalhe) -> str:
-    """Arquivo em 3 passos: situação → diferenças → ação."""
-    url = item["url"]
-    nome = _filename_from_url(url)
-    evidencia = item.get("evidencia") or ""
-    codigo = ((detalhe or {}).get("leiaute_codigo") or "").strip()
-    titulo_nome = (detalhe or {}).get("nome_arquivo") or nome
-    rotulo = f"{codigo} · {titulo_nome}" if codigo else str(titulo_nome)
-    contagem = _contagem_curta(detalhe, evidencia)
-    link = (
-        f'<a href="{html.escape(url)}" target="_blank">{html.escape(rotulo)}</a>'
-    )
-
-    situacao = _texto_situacao(item, detalhe)
-    o_que_fazer = _texto_o_que_fazer(item, detalhe)
-    simples_html = _html_linguagem_simples(
-        _explicar_linguagem_simples(detalhe, item)
-    )
-
+def _itens_diff_conteudo(detalhe: dict | None) -> tuple[list[str], list[str], list[str]]:
+    det = detalhe or {}
     incluidos = [
         i
-        for i in ((detalhe or {}).get("itens_incluidos") or [])
+        for i in (det.get("itens_incluidos") or [])
         if "novo arquivo na página" not in str(i).lower()
     ]
-    removidos = (detalhe or {}).get("itens_removidos") or []
-    _, conteudo = _separar_itens_tecnicos_e_conteudo(
-        (detalhe or {}).get("itens_alterados") or []
-    )
+    removidos = list(det.get("itens_removidos") or [])
+    _, conteudo = _separar_itens_tecnicos_e_conteudo(det.get("itens_alterados") or [])
     conteudo = [
         c
         for c in conteudo
         if "novo arquivo observado" not in str(c).lower()
-    ]
-    # Linha "Comparação: versão pareada" é técnica; a situação já explica.
-    conteudo = [
-        c
-        for c in conteudo
-        if "versão pareada" not in str(c).lower()
+        and "versão pareada" not in str(c).lower()
         and "versao pareada" not in str(c).lower()
     ]
-    secoes = "".join(
-        [
-            _html_lista_diferencas("Entrou", "entrou", incluidos),
-            _html_lista_diferencas("Saiu", "saiu", removidos),
-            _html_lista_diferencas("Mudou", "mudou", conteudo),
-        ]
+    return incluidos, removidos, conteudo
+
+
+def _eh_excluido(detalhe: dict | None, evidencia: str = "") -> bool:
+    junto = f"{evidencia} {str((detalhe or {}).get('resumo_executivo') or '')}".lower()
+    return "saiu da página" in junto or "excluíd" in junto
+
+
+def _classificar_quadro(item: dict, detalhe: dict | None) -> dict:
+    det = detalhe or {}
+    evidencia = item.get("evidencia") or ""
+    resumo = str(det.get("resumo_executivo") or "")
+    tipo_cmp, _ = _tipo_comparacao_rotulo(det)
+    nome_ant = _nome_anterior_comparacao(det)
+    inc, rem, alt = _itens_diff_conteudo(det)
+    tem_diff = bool(inc or rem or alt)
+    url = item.get("url") or ""
+    nome = str(det.get("nome_arquivo") or _filename_from_url(url))
+    codigo = str(det.get("leiaute_codigo") or "").strip() or "—"
+    base = {
+        "codigo": codigo,
+        "nome": nome,
+        "url": url,
+        "nome_anterior": nome_ant,
+        "incluidos": inc,
+        "removidos": rem,
+        "alterados": alt,
+    }
+    if _eh_excluido(det, evidencia):
+        return {
+            **base,
+            "situacao": "Excluído",
+            "observacao": OBS_EXCLUIDO,
+            "mostrar_pares": False,
+            "mostrar_tabela": False,
+            "mostrar_republicou": False,
+        }
+    eh_criado = (
+        tipo_cmp in {"versao_pareada", "sem_anterior"}
+        or _eh_novo_arquivo(evidencia)
+        or _eh_novo_arquivo(resumo)
     )
-    resumo = str((detalhe or {}).get("resumo_executivo") or "").strip()
-    if not secoes and (_eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo)):
-        secoes = (
-            "<p class='desc' style='margin:0'>"
-            "Ainda não há tabela Antes/Depois automática neste item."
-            "</p>"
+    if eh_criado and not nome_ant:
+        return {
+            **base,
+            "situacao": "Criado",
+            "observacao": OBS_SEM_ANTERIOR,
+            "mostrar_pares": False,
+            "mostrar_tabela": False,
+            "mostrar_republicou": False,
+        }
+    if eh_criado and nome_ant:
+        return {
+            **base,
+            "situacao": "Criado",
+            "observacao": OBS_NOME_MUDOU,
+            "mostrar_pares": True,
+            "mostrar_tabela": tem_diff,
+            "mostrar_republicou": False,
+        }
+    if _detalhe_so_tecnico(det, evidencia) or not tem_diff:
+        return {
+            **base,
+            "situacao": "Atualizado",
+            "observacao": OBS_REPUBLICOU,
+            "mostrar_pares": False,
+            "mostrar_tabela": False,
+            "mostrar_republicou": True,
+        }
+    return {
+        **base,
+        "situacao": "Atualizado",
+        "observacao": "",
+        "mostrar_pares": bool(nome_ant),
+        "mostrar_tabela": tem_diff,
+        "mostrar_republicou": False,
+    }
+
+
+def _html_linha_diff(texto: str, tipo: str) -> str:
+    item = _parse_evidencia_item(str(texto))
+    local = html.escape(str(item.get("local") or "Item"))
+    if tipo == "entrou":
+        mudanca = html.escape(str(item.get("mudanca") or "entrou"))
+        antes_h, depois_h = "—", html.escape(
+            str(item.get("depois") or item.get("local") or "—")
         )
-
-    passo1 = _html_passo(
-        1,
-        "Situação",
-        f"<p class='desc' style='margin:0'>{html.escape(situacao)}</p>"
-        "<p class='passo-next'>A seguir: o que mudou entre as versões.</p>",
-    )
-    meio = secoes + simples_html
-    if not meio.strip():
-        meio = "<p class='desc' style='margin:0'>Sem diferenças listadas.</p>"
-    passo2 = _html_passo(
-        2,
-        "Diferenças",
-        meio
-        + "<p class='passo-next'>A seguir: o que fazer com isso.</p>",
-    )
-    passo3 = _html_passo(
-        3,
-        "Ação",
-        f'<p class="acao" style="margin:0"><strong>O que fazer:</strong> '
-        f"{html.escape(o_que_fazer)}</p>",
+    elif tipo == "saiu":
+        mudanca = html.escape(str(item.get("mudanca") or "saiu"))
+        antes_h = html.escape(str(item.get("antes") or item.get("local") or "—"))
+        depois_h = "—"
+    else:
+        antes_bruto = str(item.get("antes") or "—")
+        depois_bruto = str(item.get("depois") or "—")
+        mudanca = str(item.get("mudanca") or "").strip() or "texto alterado"
+        if len(antes_bruto) > 160 or len(depois_bruto) > 160:
+            antes_bruto, depois_bruto = antes_bruto[:160] + "…", depois_bruto[:160] + "…"
+        antes_h = html.escape(antes_bruto or "—")
+        depois_h = html.escape(depois_bruto or "—")
+        mudanca = html.escape(mudanca)
+    return (
+        f"<tr><td class='col-local'>{local}</td>"
+        f"<td><strong style='color:#2e3192;'>{mudanca}</strong></td>"
+        f"<td>{antes_h}</td><td>{depois_h}</td></tr>"
     )
 
+
+def _html_tabela_comparativa_unificada(caso: dict) -> str:
+    pares = (
+        [("entrou", x) for x in caso["incluidos"]]
+        + [("saiu", x) for x in caso["removidos"]]
+        + [("mudou", x) for x in caso["alterados"]]
+    )
+    if not pares:
+        return ""
+    linhas = [_html_linha_diff(texto, tipo) for tipo, texto in pares[:MAX_DIFFS_EMAIL]]
+    extra = ""
+    if len(pares) > MAX_DIFFS_EMAIL:
+        extra = (
+            f"<p class='more'>Mostramos as {MAX_DIFFS_EMAIL} primeiras de "
+            f"{len(pares)} diferenças. A lista completa está na planilha em anexo.</p>"
+        )
+    return (
+        '<p class="sec-label">Tabela comparativa</p>'
+        f"{_html_tabela_diff(linhas, extra)}"
+    )
+
+
+def _html_quadro_arquivo(item: dict, detalhe: dict | None) -> str:
+    caso = _classificar_quadro(item, detalhe)
+    link = (
+        f'<a href="{html.escape(caso["url"])}" target="_blank">clique aqui</a>'
+        if caso["url"]
+        else "—"
+    )
+    quadro = _html_tabela_cols(
+        ["Leiaute", "Arquivo", "Situação", "Observação", "LINK"],
+        [
+            "<tr>"
+            f"<td class='col-local'>{html.escape(caso['codigo'])}</td>"
+            f"<td>{html.escape(caso['nome'])}</td>"
+            f"<td>{html.escape(caso['situacao'])}</td>"
+            f"<td>{html.escape(caso['observacao'] or '—')}</td>"
+            f"<td>{link}</td>"
+            "</tr>"
+        ],
+    )
+    extra = ""
+    if caso["mostrar_pares"]:
+        extra += (
+            '<p class="sec-label">Comparação com o arquivo anterior</p>'
+            + _html_tabela_cols(
+                ["Arquivo de agora", "Comparado com"],
+                [
+                    "<tr>"
+                    f"<td>{html.escape(caso['nome'])}</td>"
+                    f"<td>{html.escape(caso['nome_anterior'])}</td>"
+                    "</tr>"
+                ],
+            )
+        )
+    if caso["mostrar_tabela"]:
+        extra += _html_tabela_comparativa_unificada(caso)
+    if caso["mostrar_republicou"]:
+        extra += (
+            '<p class="caixa caixa-explica"><strong>Por que o conteúdo é o mesmo?</strong><br>'
+            "O Banco Central colocou o arquivo de novo na página (a data no site "
+            "mudou). Abrimos o interior e comparamos com a cópia que já tínhamos: "
+            "o texto, as células e as tabelas estão iguais. Eles republicaram o "
+            "arquivo, mas não alteraram o que está escrito dentro. Por isso não há "
+            "tabela comparativa e a rotina não precisa mudar.</p>"
+        )
     return f"""
       <div class="file-block">
-        <p class="file-title">{link}
-          <span class="muted"> — {html.escape(contagem)}</span></p>
-        {passo1}
-        {passo2}
-        {passo3}
+        {quadro}
+        {extra}
       </div>
     """
+
+
+def _html_detalhe_conteudo(
+    item, detalhe, indice: int = 1, total: int = 1
+) -> str:
+    del indice, total
+    return _html_quadro_arquivo(item, detalhe)
 
 
 def _descrever_mudanca_tecnica(evidencia: str = "", detalhe: dict | None = None) -> str:
@@ -1580,25 +1800,78 @@ def _descrever_mudanca_tecnica(evidencia: str = "", detalhe: dict | None = None)
     return "mudou: " + "; ".join(partes)
 
 
-def _html_lista_tecnica(itens_bloco: list[tuple[dict, dict]]) -> str:
-    """Lista técnica com o que mudou no site (ainda sem ação de conteúdo)."""
-    bullets = []
+def _rotulo_situacao_gestor(detalhe: dict | None, evidencia: str = "") -> str:
+    """Frase curta para a tabela de orientação (sem jargão)."""
+    if _detalhe_so_tecnico(detalhe, evidencia):
+        return "Republicou no site, sem mudança de conteúdo"
+    tipo_cmp, _ = _tipo_comparacao_rotulo(detalhe)
+    if tipo_cmp == "versao_pareada":
+        return "Versão nova na página"
+    if tipo_cmp == "sem_anterior":
+        return "Arquivo novo — primeira vez neste cadastro"
+    if tipo_cmp == "mesmo_arquivo":
+        return "O mesmo arquivo foi atualizado"
+    if _eh_novo_arquivo(evidencia) or _eh_novo_arquivo(
+        str((detalhe or {}).get("resumo_executivo") or "")
+    ):
+        return "Arquivo novo na página"
+    return "Precisa revisar"
+
+
+def _html_celula_arquivo(nome: str, url: str) -> str:
+    return (
+        f"{html.escape(nome)}"
+        f"<br><span class='muted'>"
+        f'<a href="{html.escape(url)}" target="_blank">Abrir no site do Bacen</a>'
+        f"</span>"
+    )
+
+
+def _html_tabela_indice_acao(itens_bloco: list[tuple[dict, dict]]) -> str:
+    """Só quando há mais de um arquivo: lista o que chegou, sem mandar 'comece aqui'."""
+    linhas = []
     for item, detalhe in itens_bloco:
         url = item["url"]
-        nome = _filename_from_url(url)
-        codigo = (detalhe.get("leiaute_codigo") or "").strip()
-        rotulo = f"{codigo} · {nome}" if codigo else nome
-        link = (
-            f'<a href="{html.escape(url)}" target="_blank">'
-            f"{html.escape(rotulo)}</a>"
+        nome = str(detalhe.get("nome_arquivo") or _filename_from_url(url))
+        codigo = html.escape((detalhe.get("leiaute_codigo") or "").strip() or "—")
+        situacao = html.escape(
+            _rotulo_situacao_gestor(detalhe, item.get("evidencia") or "")
         )
-        o_que = _descrever_mudanca_tecnica(item.get("evidencia") or "", detalhe)
-        bullets.append(
-            f"<li>{link}"
-            f"<br><span class='muted'><strong>O que mudou:</strong> "
-            f"{html.escape(o_que)}</span></li>"
+        linhas.append(
+            "<tr>"
+            f"<td class='col-local'>{codigo}</td>"
+            f"<td>{html.escape(nome)}</td>"
+            f"<td>{situacao}</td>"
+            "</tr>"
         )
-    return f"<ul class='tech-list'>{''.join(bullets)}</ul>"
+    return _html_tabela_cols(
+        ["Cadastro", "Arquivo", "O que aconteceu"],
+        linhas,
+    )
+
+
+def _html_lista_tecnica(itens_bloco: list[tuple[dict, dict]]) -> str:
+    """Tabela de aviso: republicou no site, sem ação de conteúdo."""
+    linhas = []
+    for item, detalhe in itens_bloco:
+        url = item["url"]
+        nome = str(detalhe.get("nome_arquivo") or _filename_from_url(url))
+        codigo = html.escape((detalhe.get("leiaute_codigo") or "").strip() or "—")
+        o_que = html.escape(
+            _descrever_mudanca_tecnica(item.get("evidencia") or "", detalhe)
+        )
+        linhas.append(
+            "<tr>"
+            f"<td class='col-local'>{codigo}</td>"
+            f"<td>{_html_celula_arquivo(nome, url)}</td>"
+            f"<td>{o_que}</td>"
+            "<td>Nada por agora</td>"
+            "</tr>"
+        )
+    return _html_tabela_cols(
+        ["Cadastro", "Arquivo", "O que mudou no site", "Precisa agir"],
+        linhas,
+    )
 
 
 def _html_detalhe_alteracao(item, detalhe) -> str:
@@ -1710,6 +1983,8 @@ def gerar_planilha_antes_depois(
             c
             for c in alterados_txt
             if "novo arquivo observado" not in str(c).lower()
+            and "versão pareada" not in str(c).lower()
+            and "versao pareada" not in str(c).lower()
         ]
         blocos = (
             [("entrou", x) for x in incluidos]
@@ -1764,95 +2039,78 @@ def gerar_planilha_antes_depois(
     return gerar_bytes_planilha_gestor(dados, nome_arquivo=nome)
 
 
+def _frase_lead_noticia(
+    precisa_agir: list[tuple[dict, dict]], n_tech: int
+) -> str:
+    """Uma frase só: o que o Banco Central fez. Sem mandar 'siga os passos'."""
+    if not precisa_agir:
+        return "Nenhum arquivo pede mudança de rotina."
+    if len(precisa_agir) == 1:
+        item, det = precisa_agir[0]
+        codigo = str(det.get("leiaute_codigo") or "").strip()
+        nome = str(
+            det.get("nome_arquivo") or _filename_from_url(item.get("url") or "")
+        )
+        de = f" do {codigo}" if codigo else ""
+        tipo_cmp, _ = _tipo_comparacao_rotulo(det)
+        evidencia = item.get("evidencia") or ""
+        resumo = str(det.get("resumo_executivo") or "")
+        if tipo_cmp == "versao_pareada":
+            frase = f"O Banco Central publicou uma versão nova{de}: {nome}."
+        elif (
+            tipo_cmp == "sem_anterior"
+            or _eh_novo_arquivo(evidencia)
+            or _eh_novo_arquivo(resumo)
+        ):
+            frase = f"O Banco Central publicou um arquivo novo{de}: {nome}."
+        else:
+            frase = f"O Banco Central atualizou um arquivo{de}: {nome}."
+    else:
+        frase = (
+            f"O Banco Central publicou mudanças em {len(precisa_agir)} arquivos."
+        )
+    if n_tech == 1:
+        frase += (
+            " Há também 1 aviso só de republicação no site, no final deste e-mail."
+        )
+    elif n_tech > 1:
+        frase += (
+            f" Há também {n_tech} avisos só de republicação no site, "
+            "no final deste e-mail."
+        )
+    return frase
+
+
 def montar_corpo_email_alteracoes(
     alterados: list[dict],
     detalhes_por_url: dict,
     categoria_por_url: dict | None = None,
 ) -> str:
-    """Dois blocos limpos: Precisa agir (conteúdo) e Não precisa agir (técnico)."""
+    """Quadro por arquivo: situação, observação, comparação só quando cabe."""
     del categoria_por_url
-    precisa_agir: list[tuple[dict, dict]] = []
-    nao_precisa: list[tuple[dict, dict]] = []
-
+    casos: list[dict] = []
+    blocos: list[str] = []
     for item in alterados:
-        url = item["url"]
-        detalhe = detalhes_por_url.get(url) or {}
-        evidencia = item.get("evidencia") or ""
-        par = (item, detalhe)
-        if _detalhe_so_tecnico(detalhe, evidencia):
-            nao_precisa.append(par)
-        else:
-            precisa_agir.append(par)
+        detalhe = detalhes_por_url.get(item["url"]) or {}
+        casos.append(_classificar_quadro(item, detalhe))
+        blocos.append(_html_quadro_arquivo(item, detalhe))
 
-    n = len(alterados)
-    n_acao = len(precisa_agir)
-    n_tech = len(nao_precisa)
-    n_pareado = 0
-    n_mesmo = 0
-    n_sem_ant = 0
-    for _item, detalhe in precisa_agir:
-        tipo_cmp, _ = _tipo_comparacao_rotulo(detalhe)
-        if tipo_cmp == "versao_pareada":
-            n_pareado += 1
-        elif tipo_cmp == "sem_anterior":
-            n_sem_ant += 1
-        else:
-            n_mesmo += 1
-
-    bloco_acao = ""
-    if precisa_agir:
-        detalhes = "".join(
-            _html_detalhe_conteudo(item, detalhe or None)
-            for item, detalhe in precisa_agir
-        )
-        bloco_acao = f"""
-      <h2 class="h-acao">Arquivos para revisar ({n_acao})</h2>
-      <p class="desc">
-        Cada arquivo abaixo está em 3 passos: situação, diferenças e ação.
-        A lista completa também está na planilha em anexo
-        <strong>{ANEXO_ANTES_DEPOIS_PREFIXO}_….xlsx</strong>
-        (abas Resumo, O que mudou e Só aviso).
-      </p>
-      {detalhes}
-    """
-
-    bloco_tech = ""
-    if nao_precisa:
-        bloco_tech = f"""
-      <h2 class="h-tech">Só aviso (sem ação) ({n_tech})</h2>
-      <p class="desc">
-        O Bacen republicou o arquivo no site, sem mudança de texto, célula ou tabela.
-        Em geral não exige ajuste de rotina.
-      </p>
-      {_html_lista_tecnica(nao_precisa)}
-    """
-
-    partes_lead: list[str] = []
-    if n_pareado:
-        partes_lead.append(f"{n_pareado} arquivo(s) novo(s) na página do Bacen")
-    if n_mesmo:
-        partes_lead.append(f"{n_mesmo} arquivo(s) atualizado(s)")
-    if n_sem_ant:
-        partes_lead.append(f"{n_sem_ant} arquivo(s) novo(s) sem versão anterior")
-    if n_tech:
-        partes_lead.append(f"{n_tech} só aviso (sem ação)")
-    if not partes_lead:
-        partes_lead.append(f"{n} arquivo(s)")
-
-    titulo_lead = " · ".join(partes_lead)
-    lead_acao = (
-        "revise o(s) passo(s) abaixo"
-        if n_acao
-        else "nenhum item exige ação de conteúdo"
+    titulo = (
+        '<h2 class="h-acao">O que encontramos hoje:</h2>'
+        if casos
+        else ""
     )
-
+    tem_tabela = any(c["mostrar_tabela"] for c in casos)
+    caixa_planilha = (
+        '<p class="caixa">Confira a planilha em anexo. Lá está a lista completa '
+        "do que mudou.</p>"
+        if tem_tabela
+        else ""
+    )
     return f"""
-      <p class="lead">
-        <strong>{titulo_lead}</strong>
-        <span class="muted"> — {lead_acao}</span>
-      </p>
-      {bloco_acao}
-      {bloco_tech}
+      {titulo}
+      {''.join(blocos)}
+      {caixa_planilha}
     """
 
 
@@ -1895,14 +2153,21 @@ def gerar_html_email(conteudo_html: str, data_ref: str, logo_cid: str) -> str:
   }}
   .simples-list {{ margin: 0 0 0 18px; padding: 0; }}
   .simples-list li {{ margin: 0 0 4px; }}
-  .file-block {{ margin: 0 0 20px; padding: 0 0 16px; border-bottom: 1px solid #eee; }}
+  .file-block {{ margin: 16px 0 20px; padding: 0 0 16px; border-bottom: 1px solid #eee; }}
   .file-block:last-child {{ border-bottom: none; }}
   .file-title {{ margin: 0 0 10px; font-size: 15px; font-weight: bold; color: #222; }}
+  .caixa {{
+    margin: 10px 0 0; padding: 10px 12px; background: #eef2fb;
+    border-left: 4px solid {BLUE_BRAND}; color: #222; font-size: 14px;
+  }}
+  .caixa-explica {{
+    background: #d9d9d9; border-left-color: #666;
+  }}
   .sec-label {{ margin: 10px 0 4px; font-size: 13px; font-weight: bold; color: #222; }}
   .diff-table {{ width: 100%; border-collapse: collapse; font-size: 13px; margin: 0 0 6px; }}
   .diff-table th {{
-    text-align: left; background: #f3f3f3; color: #555; font-size: 11px;
-    text-transform: uppercase; letter-spacing: 0.02em; padding: 6px 8px; border: 1px solid #e0e0e0;
+    text-align: left; background: {BLUE_BRAND}; color: #fff; font-size: 13px;
+    font-weight: bold; padding: 8px; border: 1px solid {BLUE_BRAND};
   }}
   .diff-table td {{ vertical-align: top; padding: 6px 8px; border: 1px solid #e0e0e0; word-break: break-word; }}
   .diff-table .col-local {{ width: 30%; font-weight: bold; color: #333; }}
@@ -2009,27 +2274,28 @@ def baixar_para_anexo(session, url, max_single=MAX_SINGLE_ATTACH_SIZE):
 
 
 # ====== CONFIG DE E-MAIL ======
-def load_email_config(path: Path):
+def load_email_config(path: Path, incluir_destinatarios: bool = True):
     cfg = json.loads(path.read_text(encoding="utf-8"))
     to: list[str] = []
-    try:
-        from persistencia.usuarios_db import listar_emails_alerta
+    if incluir_destinatarios:
+        try:
+            from persistencia.usuarios_db import listar_emails_alerta
 
-        to = listar_emails_alerta()
-        logger.info(
-            "Destinatários pelo cadastro (ativos + alerta): %s",
-            ", ".join(to) if to else "(nenhum)",
-        )
-    except Exception as e:
-        logger.warning("Falha ao ler destinatários dos usuários: %s", e)
+            to = listar_emails_alerta()
+            logger.info(
+                "Destinatários pelo cadastro (ativos + alerta): %s",
+                ", ".join(to) if to else "(nenhum)",
+            )
+        except Exception as e:
+            logger.warning("Falha ao ler destinatários dos usuários: %s", e)
 
-    test_to = os.environ.get("LEIAUTES_EMAIL_TEST_TO", "").strip()
-    if test_to:
-        to = [x.strip() for x in re.split(r"[,;]", test_to) if x.strip()]
-        logger.info(
-            "LEIAUTES_EMAIL_TEST_TO ativo: redirecionando envio para %s",
-            ", ".join(to),
-        )
+        test_to = os.environ.get("LEIAUTES_EMAIL_TEST_TO", "").strip()
+        if test_to:
+            to = [x.strip() for x in re.split(r"[,;]", test_to) if x.strip()]
+            logger.info(
+                "LEIAUTES_EMAIL_TEST_TO ativo: redirecionando envio para %s",
+                ", ".join(to),
+            )
     smtp = cfg.get("smtp", {})
     return {
         "from": cfg.get("from") or cfg.get("user"),

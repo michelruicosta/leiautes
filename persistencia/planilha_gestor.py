@@ -263,7 +263,6 @@ def gerar_bytes_planilha_gestor(
         "O que mudou",
         "Antes",
         "Depois",
-        "O que fazer",
     ]
     _escrever_topo(
         ws,
@@ -271,8 +270,7 @@ def gerar_bytes_planilha_gestor(
         "O que mudou — detalhe das diferenças",
         (
             "Cada linha é uma mudança. "
-            "Veja onde está (aba, célula ou página), o que mudou, o valor de antes e o de depois, "
-            "e o que fazer na rotina."
+            "Veja onde está (aba, célula ou página), o que mudou, o valor de antes e o de depois."
         ),
     )
     _escrever_cabecalho(ws, cols)
@@ -283,7 +281,7 @@ def gerar_bytes_planilha_gestor(
         _escrever_linha(
             ws,
             row,
-            ["", "", "", "", "Nenhuma diferença detalhada nesta exportação.", "", "", ""],
+            ["", "", "", "", "Nenhuma diferença detalhada nesta exportação.", "", ""],
         )
         for col in range(1, len(cols) + 1):
             _estilo_dado(ws.cell(row=row, column=col))
@@ -300,7 +298,6 @@ def gerar_bytes_planilha_gestor(
                     lin.o_que_mudou,
                     lin.antes,
                     lin.depois,
-                    lin.o_que_fazer,
                 ],
             )
             fill = ROW_ALT if i % 2 == 1 else None
@@ -316,7 +313,6 @@ def gerar_bytes_planilha_gestor(
         "E": 22,
         "F": 32,
         "G": 32,
-        "H": 36,
     }
     _larguras(ws, widths_det)
     _fechar_aba(ws, len(cols), widths_det)

@@ -146,8 +146,8 @@ Seg–Sex **17:30** (antes do robô das 18h). Só e-mail se falhar.
 |------|---------|
 | Script | `scripts/garantia_robo_leiautes.py` |
 | Log | `/srv/finaud/tec/leiautes_bacen/logs/garantia-robo.log` |
-| E-mail | **só se falhar** |
-| O que checa | scrape Bacen com anexos; classificação precisa/técnico; HTML “O que mudou”; diff PDF se houver v7/v8 |
+| E-mail | **só se falhar**, só para **administrador** ativo (não para a lista do comunicado do gestor) |
+| O que checa | scrape Bacen com anexos; classificação precisa/técnico; HTML do quadro (“O que encontramos hoje”); diff PDF se houver v7/v8 |
 
 ### Cron produção (root — agenda pela tela)
 

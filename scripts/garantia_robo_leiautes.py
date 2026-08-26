@@ -9,7 +9,8 @@ O que faz:
   4) HTML do e-mail — blocos e textos esperados.
 
 Alerta:
-  - Só envia e-mail se ALGUMA checagem falhar (para michel@ / LEIAUTES_EMAIL_TEST_TO).
+  - Só envia e-mail se ALGUMA checagem falhar.
+  - Destinatários: administradores ativos (não a lista do comunicado do gestor).
   - Se tudo OK, só grava log (sem spam).
 
 Uso:
@@ -140,14 +141,11 @@ def check_classificacao_email() -> None:
 
     html = m.montar_corpo_email_alteracoes(alterados, detalhes)
     for trecho in (
-        "Arquivos para revisar",
-        "Só aviso",
-        "O que fazer",
-        "O que mudou",
-        "Antes_Depois_leiautes",
-        "FolhaNova",
-        "FolhaAntiga",
-        "acrescentou",
+        "O que encontramos hoje",
+        "clique aqui",
+        "Observação",
+        "Criado",
+        "Atualizado",
     ):
         if trecho not in html:
             raise RuntimeError(f"HTML do e-mail sem trecho esperado: {trecho!r}")
@@ -220,15 +218,28 @@ def check_descrever_mudanca() -> None:
         raise RuntimeError(f"descrever mudanca falhou: {d!r}")
 
 
+def _destinatarios_falha_garantia() -> list[str]:
+    """Só administradores ativos — o comunicado do gestor não entra nesta lista."""
+    from persistencia.usuarios_db import listar_emails_administradores
+
+    dest = listar_emails_administradores()
+    if dest:
+        return dest
+    extra = os.environ.get("LEIAUTES_EMAIL_TEST_TO", "").strip()
+    if extra:
+        return [x.strip() for x in extra.replace(";", ",").split(",") if x.strip()]
+    return []
+
+
 def _enviar_alerta(falhas: list[str]) -> None:
     import html as html_mod
     import verifica_leiautes_finaud as m
 
-    cfg = m.load_email_config(m.CONFIG_PATH)
-    dest = list(cfg.get("to") or [])
+    cfg = m.load_email_config(m.CONFIG_PATH, incluir_destinatarios=False)
+    dest = _destinatarios_falha_garantia()
     if not dest:
         raise RuntimeError(
-            "Nenhum destinatário: usuários ativos com 'Receber e-mail de alertas'."
+            "Nenhum administrador ativo no cadastro para receber o alerta técnico."
         )
     hoje = datetime.now().strftime("%d/%m/%Y %H:%M")
     lista = "".join(f"<li>{html_mod.escape(f)}</li>" for f in falhas)

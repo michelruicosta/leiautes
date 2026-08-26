@@ -95,6 +95,19 @@ def obter_usuario(usuario_id: int) -> Optional[dict]:
     return _row_usuario(row) if row else None
 
 
+def _emails_unicos(rows) -> list[str]:
+    vistos: set[str] = set()
+    saida: list[str] = []
+    for row in rows:
+        email = str(row["email"] or "").strip()
+        chave = email.lower()
+        if not email or "@" not in email or chave in vistos:
+            continue
+        vistos.add(chave)
+        saida.append(email)
+    return saida
+
+
 def listar_emails_alerta() -> list[str]:
     """E-mails de usuários ativos com flag de alerta ligado (ordem estável)."""
     init_db()
@@ -107,16 +120,22 @@ def listar_emails_alerta() -> list[str]:
             ORDER BY email COLLATE NOCASE
             """
         ).fetchall()
-    vistos: set[str] = set()
-    saida: list[str] = []
-    for row in rows:
-        email = str(row["email"] or "").strip()
-        chave = email.lower()
-        if not email or "@" not in email or chave in vistos:
-            continue
-        vistos.add(chave)
-        saida.append(email)
-    return saida
+    return _emails_unicos(rows)
+
+
+def listar_emails_administradores() -> list[str]:
+    """E-mails de administradores ativos (alerta técnico; não usa a flag do comunicado)."""
+    init_db()
+    with conectar() as conn:
+        rows = conn.execute(
+            """
+            SELECT email
+            FROM usuarios
+            WHERE ativo = 1 AND perfil_codigo = 'administrador'
+            ORDER BY email COLLATE NOCASE
+            """
+        ).fetchall()
+    return _emails_unicos(rows)
 
 
 def criar_usuario(data: dict) -> int:
