@@ -479,9 +479,11 @@ def _alteracao_so_aviso(alt: dict[str, Any]) -> bool:
 
 
 def _codigo_situacao(resumo: str) -> str:
-    if resumo.startswith("[Versão pareada"):
+    if resumo.startswith("[Versão pareada") or resumo.startswith(
+        "[Comparado com a versão anterior"
+    ):
         return "versao_pareada"
-    if resumo.startswith("[Sem anterior]"):
+    if resumo.startswith("[Sem anterior]") or resumo.startswith("[Arquivo novo]"):
         return "sem_anterior"
     if resumo.startswith("[Mesmo arquivo]"):
         return "mesmo_arquivo"

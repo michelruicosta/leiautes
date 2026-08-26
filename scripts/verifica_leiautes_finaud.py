@@ -1053,7 +1053,9 @@ def _tem_diff_conteudo(detalhe: dict | None) -> bool:
 def _tipo_comparacao_rotulo(detalhe: dict | None) -> tuple[str, str]:
     """Retorna (código, rótulo amigável) a partir do resumo gravado."""
     resumo = str((detalhe or {}).get("resumo_executivo") or "")
-    if resumo.startswith("[Versão pareada"):
+    if resumo.startswith("[Versão pareada") or resumo.startswith(
+        "[Comparado com a versão anterior"
+    ):
         # Extrai "antes: Nome" se houver
         m = re.search(r"antes:\s*([^\]]+)\]", resumo)
         antes = (m.group(1).strip() if m else "").strip()
@@ -1063,7 +1065,7 @@ def _tipo_comparacao_rotulo(detalhe: dict | None) -> tuple[str, str]:
                 f"Nova versão na página (arquivo novo) — Antes: {antes}",
             )
         return "versao_pareada", "Nova versão na página (arquivo novo)"
-    if resumo.startswith("[Sem anterior]"):
+    if resumo.startswith("[Sem anterior]") or resumo.startswith("[Arquivo novo]"):
         return "sem_anterior", "Arquivo novo — sem versão anterior para comparar"
     if resumo.startswith("[Mesmo arquivo]"):
         return "mesmo_arquivo", "Atualização do mesmo arquivo"
@@ -1418,7 +1420,7 @@ def _texto_o_que_fazer(item: dict, detalhe: dict | None) -> str:
         (_eh_novo_arquivo(evidencia) or _eh_novo_arquivo(resumo))
         and tipo_cmp != "versao_pareada"
     ):
-        if tipo_cmp == "sem_anterior" or "[Sem anterior]" in resumo:
+        if tipo_cmp == "sem_anterior" or "[Sem anterior]" in resumo or "[Arquivo novo]" in resumo:
             return (
                 f"Arquivo novo{alvo} sem versão anterior para comparar. "
                 "Ainda não há tabela Antes/Depois automática."

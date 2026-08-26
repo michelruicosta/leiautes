@@ -48,6 +48,33 @@ def _familia_nome_arquivo(nome_arquivo: str) -> str:
     return base
 
 
+def _extensao_arquivo(nome_arquivo: str) -> str:
+    from urllib.parse import unquote
+
+    return Path(unquote(nome_arquivo or "")).suffix.lower()
+
+
+def _versao_no_nome(nome_arquivo: str) -> Optional[int]:
+    """Extrai v2, v5, _v3 do nome (ex.: 2062_v3.xsd, Esquema de validação XSD v5.xsd)."""
+    from urllib.parse import unquote
+
+    base = Path(unquote(nome_arquivo or "")).name
+    m = re.search(r"(?:^|[^A-Za-z0-9])v(\d+)(?=[^0-9]|$)", base, flags=re.IGNORECASE)
+    if not m:
+        return None
+    try:
+        return int(m.group(1))
+    except Exception:
+        return None
+
+
+def _resolver_caminho_armazenado(caminho: str) -> Optional[Path]:
+    path = Path(caminho)
+    if not path.is_absolute():
+        path = RAIZ / caminho
+    return path if path.exists() else None
+
+
 def _competencia_yyyymm(nome_arquivo: str) -> Optional[int]:
     """Extrai YYYYMM do nome Bacen (ex.: 2062-202607-v1-...)."""
     from urllib.parse import unquote
@@ -74,9 +101,9 @@ def _buscar_caminho_versao_parente(
 ) -> Optional[tuple[str, str, int]]:
     """Retorna (caminho_arquivo, nome_anterior, versao_id) da versão 'irmã' mais próxima."""
     familia = _familia_nome_arquivo(nome_arquivo)
-    if not familia or len(familia) < 8:
-        return None
     competencia_atual = _competencia_yyyymm(nome_arquivo)
+    extensao = _extensao_arquivo(nome_arquivo)
+    versao_atual = _versao_no_nome(nome_arquivo)
 
     sql = """
         SELECT ar.id, ar.nome_arquivo, v.caminho_arquivo, ar.atualizado_em, v.id AS versao_id
@@ -94,47 +121,72 @@ def _buscar_caminho_versao_parente(
         params.append(excluir_arquivo_id)
     sql += " ORDER BY ar.atualizado_em DESC, v.id DESC LIMIT 120"
 
-    def _candidatos(rows) -> Optional[tuple[str, str, int]]:
+    def _escolher(
+        rows,
+        *,
+        exigir_mesma_familia: bool,
+    ) -> Optional[tuple[str, str, int]]:
         melhores: list[tuple[tuple, str, str, int]] = []
         for row in rows:
             nome_ant = row["nome_arquivo"] or ""
-            if _familia_nome_arquivo(nome_ant) != familia:
-                continue
             if nome_ant.strip().lower() == (nome_arquivo or "").strip().lower():
                 continue
+            if exigir_mesma_familia:
+                if not familia or len(familia) < 8:
+                    continue
+                if _familia_nome_arquivo(nome_ant) != familia:
+                    continue
+            else:
+                if not extensao or _extensao_arquivo(nome_ant) != extensao:
+                    continue
             caminho = row["caminho_arquivo"]
-            path = Path(caminho)
-            if not path.is_absolute():
-                path = RAIZ / caminho
-            if not path.exists():
+            path = _resolver_caminho_armazenado(str(caminho or ""))
+            if path is None:
                 continue
-            comp_ant = _competencia_yyyymm(nome_ant)
-            # Preferir competência imediatamente anterior; senão a mais próxima;
-            # por último, a mais recentemente atualizada.
-            if competencia_atual is not None and comp_ant is not None:
-                if comp_ant < competencia_atual:
-                    chave = (0, competencia_atual - comp_ant, -int(row["versao_id"] or 0))
-                elif comp_ant > competencia_atual:
-                    chave = (2, comp_ant - competencia_atual, -int(row["versao_id"] or 0))
+            if exigir_mesma_familia:
+                comp_ant = _competencia_yyyymm(nome_ant)
+                if competencia_atual is not None and comp_ant is not None:
+                    if comp_ant < competencia_atual:
+                        chave = (0, competencia_atual - comp_ant, -int(row["versao_id"] or 0))
+                    elif comp_ant > competencia_atual:
+                        chave = (2, comp_ant - competencia_atual, -int(row["versao_id"] or 0))
+                    else:
+                        chave = (1, 0, -int(row["versao_id"] or 0))
+                else:
+                    chave = (3, 0, -int(row["versao_id"] or 0))
+            else:
+                v_ant = _versao_no_nome(nome_ant)
+                if versao_atual is not None and v_ant is not None:
+                    if v_ant < versao_atual:
+                        chave = (0, versao_atual - v_ant, -int(row["versao_id"] or 0))
+                    else:
+                        chave = (2, v_ant, -int(row["versao_id"] or 0))
                 else:
                     chave = (1, 0, -int(row["versao_id"] or 0))
-            else:
-                chave = (3, 0, -int(row["versao_id"] or 0))
-            melhores.append((chave, str(caminho), nome_ant, int(row["versao_id"])))
+            melhores.append((chave, str(path), nome_ant, int(row["versao_id"])))
         if not melhores:
             return None
         melhores.sort(key=lambda x: x[0])
         _, caminho, nome_ant, versao_id = melhores[0]
         return caminho, nome_ant, versao_id
 
+    def _resolver(rows) -> Optional[tuple[str, str, int]]:
+        por_familia = _escolher(rows, exigir_mesma_familia=True)
+        if por_familia:
+            return por_familia
+        # Arquivo novo com outro nome (ex.: Esquema...v5 vs 2062_v3): último do mesmo tipo no leiaute.
+        if leiaute_id is None:
+            return None
+        return _escolher(rows, exigir_mesma_familia=False)
+
     if conn is not None:
         rows = conn.execute(sql, params).fetchall()
-        return _candidatos(rows)
+        return _resolver(rows)
 
     init_db()
     with conectar() as c:
         rows = c.execute(sql, params).fetchall()
-        return _candidatos(rows)
+        return _resolver(rows)
 
 
 def salvar_conteudo_versao(
@@ -391,16 +443,17 @@ def registrar_arquivo_observado(
                 def _com_rotulo(texto: str) -> str:
                     if tipo_comparacao == "versao_pareada" and nome_anterior_parente:
                         return (
-                            f"[Versão pareada · antes: {nome_anterior_parente}] {texto}"
+                            f"[Comparado com a versão anterior · antes: {nome_anterior_parente}] {texto}"
                         )
                     if tipo_comparacao == "sem_anterior":
-                        return f"[Sem anterior] {texto}"
+                        return f"[Arquivo novo] {texto}"
                     return f"[Mesmo arquivo] {texto}"
 
                 if tem_diff_conteudo and comparacao:
                     if tipo_comparacao == "versao_pareada" and nome_anterior_parente:
                         resumo = _com_rotulo(
-                            f"Arquivo novo na página comparado com {nome_anterior_parente}. "
+                            f"Arquivo novo na página. Comparamos com {nome_anterior_parente} "
+                            "para você ter um cheiro do que mudou. "
                             + resumo_cmp
                         )
                     elif novo_arquivo:
@@ -424,12 +477,13 @@ def registrar_arquivo_observado(
                 elif novo_arquivo:
                     if nome_anterior_parente:
                         resumo = _com_rotulo(
-                            f"Arquivo novo na página comparado com {nome_anterior_parente}. "
-                            "Diff de conteúdo não apontou diferenças relevantes."
+                            f"Arquivo novo na página. Comparamos com {nome_anterior_parente} "
+                            "para você ter um cheiro do que mudou. "
+                            "Não apareceu diferença relevante no conteúdo."
                         )
                         impacto = (
-                            "Conferir se a nova versão muda algo além do nome/metadado; "
-                            "a estrutura comparada não mostrou alteração material."
+                            "Olhe o Antes/Depois mesmo assim: o nome no site é outro, "
+                            "mas é o último arquivo do mesmo tipo neste leiaute."
                         )
                         incluidos = [
                             f"Novo arquivo na página (pareado com {nome_anterior_parente})."
@@ -445,11 +499,11 @@ def registrar_arquivo_observado(
                     else:
                         resumo = _com_rotulo(
                             "Arquivo novo na página do Bacen. "
-                            "Não há versão anterior da série no histórico para montar Antes/Depois."
+                            "Ainda não há outro arquivo do mesmo tipo neste leiaute para comparar."
                         )
                         impacto = (
-                            "Não há com o que comparar automaticamente ainda. "
-                            "Na próxima versão da série o robô poderá parear."
+                            "Quando existir um arquivo anterior do mesmo tipo, "
+                            "o robô compara para você ver o que mudou."
                         )
                         incluidos = ["Novo arquivo na página."]
                         removidos = []
@@ -490,3 +544,137 @@ def registrar_arquivo_observado(
                 alteracao_id = int(cur_alt.lastrowid)
 
     return arquivo_id, versao_id, alteracao_id
+
+
+def reprocessar_alteracoes_arquivo_novo(execucao_id: int) -> int:
+    """Completa Antes/Depois de arquivo novo que ainda não tinha versão anterior."""
+    if comparar_arquivos is None:
+        return 0
+    init_db()
+    atualizados = 0
+    with conectar() as conn:
+        rows = conn.execute(
+            """
+            SELECT
+                a.id,
+                a.arquivo_id,
+                ar.nome_arquivo,
+                ar.leiaute_id,
+                ar.tipo_arquivo,
+                va.caminho_arquivo
+            FROM alteracoes_detectadas a
+            JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
+            JOIN versoes_arquivos va ON va.id = a.versao_atual_id
+            WHERE a.execucao_id = ?
+              AND (
+                a.resumo_executivo LIKE '[Sem anterior]%'
+                OR a.resumo_executivo LIKE '[Arquivo novo]%'
+              )
+            """,
+            (execucao_id,),
+        ).fetchall()
+        for row in rows:
+            if row["leiaute_id"] is None:
+                continue
+            parente = _buscar_caminho_versao_parente(
+                nome_arquivo=row["nome_arquivo"],
+                leiaute_id=int(row["leiaute_id"]),
+                excluir_arquivo_id=int(row["arquivo_id"]),
+                conn=conn,
+            )
+            if not parente:
+                continue
+            caminho_ant, nome_ant, versao_ant_id = parente
+            try:
+                comparacao = comparar_arquivos(
+                    caminho_anterior=caminho_ant,
+                    caminho_atual=row["caminho_arquivo"],
+                    tipo_arquivo=row["tipo_arquivo"],
+                )
+            except Exception as exc:
+                comparacao = {
+                    "resumo_executivo": (
+                        f"Arquivo alterado, mas o diff automático falhou: {exc}"
+                    ),
+                    "impacto_sugerido": "Revisar manualmente o arquivo anexo.",
+                    "itens_incluidos": [],
+                    "itens_removidos": [],
+                    "itens_alterados": [],
+                }
+            resumo_cmp = str((comparacao or {}).get("resumo_executivo") or "")
+            tem_diff = bool(
+                comparacao
+                and (
+                    (comparacao.get("itens_incluidos") or [])
+                    or (comparacao.get("itens_removidos") or [])
+                    or (comparacao.get("itens_alterados") or [])
+                )
+                and "nenhuma diferença" not in resumo_cmp.lower()
+                and "nenhuma diferenca" not in resumo_cmp.lower()
+            )
+            rotulo = (
+                f"[Comparado com a versão anterior · antes: {nome_ant}] "
+            )
+            if tem_diff and comparacao:
+                resumo = (
+                    rotulo
+                    + f"Arquivo novo na página. Comparamos com {nome_ant} "
+                    "para você ter um cheiro do que mudou. "
+                    + resumo_cmp
+                )
+                impacto = comparacao.get("impacto_sugerido") or (
+                    "Revisar as diferenças Antes/Depois e o arquivo anexo."
+                )
+                incluidos = list(comparacao.get("itens_incluidos") or [])
+                removidos = list(comparacao.get("itens_removidos") or [])
+                alterados = [
+                    (
+                        f'Comparação: mudanca "versão pareada (URLs diferentes)"; '
+                        f'antes "{nome_ant}"; '
+                        f'depois "{row["nome_arquivo"]}"'
+                    )
+                ] + list(comparacao.get("itens_alterados") or [])
+            else:
+                resumo = (
+                    rotulo
+                    + f"Arquivo novo na página. Comparamos com {nome_ant} "
+                    "para você ter um cheiro do que mudou. "
+                    "Não apareceu diferença relevante no conteúdo."
+                )
+                impacto = (
+                    "Olhe o Antes/Depois mesmo assim: o nome no site é outro, "
+                    "mas é o último arquivo do mesmo tipo neste leiaute."
+                )
+                incluidos = [f"Novo arquivo na página (pareado com {nome_ant})."]
+                removidos = []
+                alterados = [
+                    (
+                        f'Comparação: mudanca "versão pareada sem diff material"; '
+                        f'antes "{nome_ant}"; '
+                        f'depois "{row["nome_arquivo"]}"'
+                    )
+                ]
+            conn.execute(
+                """
+                UPDATE alteracoes_detectadas
+                SET versao_anterior_id = ?,
+                    resumo_executivo = ?,
+                    impacto_sugerido = ?,
+                    itens_incluidos = ?,
+                    itens_removidos = ?,
+                    itens_alterados = ?
+                WHERE id = ?
+                """,
+                (
+                    versao_ant_id,
+                    resumo,
+                    impacto,
+                    json.dumps(incluidos, ensure_ascii=False),
+                    json.dumps(removidos, ensure_ascii=False),
+                    json.dumps(alterados, ensure_ascii=False),
+                    row["id"],
+                ),
+            )
+            atualizados += 1
+    return atualizados
+
