@@ -8,6 +8,16 @@
   --ui-lima: #b4d84a;
   --ui-lima-hover: #a3d133;
   --ui-lima-ink: #0c1408;
+  --ui-accent: #3e63c8;
+  --ui-accent-hover: #3457b5;
+  --ui-accent-ink: #ffffff;
+  --ui-accent-soft: rgba(62, 99, 200, 0.14);
+  --mesa-fundo:
+    radial-gradient(ellipse 85% 42% at 50% 0%, rgba(62, 99, 200, 0.07), transparent 56%),
+    linear-gradient(180deg, #ffffff 0%, #f7f8fa 75%);
+  --quadro-fundo:
+    radial-gradient(ellipse 90% 48% at 10% 0%, rgba(62, 99, 200, 0.08), transparent 52%),
+    linear-gradient(180deg, #ffffff 0%, #f4f6f9 80%);
   --marca-cor: #001c5b;
   --bg: #f0f2f5;
   --surface: #ffffff;
@@ -31,7 +41,7 @@
   --on-dark: #ffffff;
   --sidebar-bg: #ffffff;
   --sidebar-hover: #f3f5f8;
-  --sidebar-active: rgba(163, 209, 51, 0.14);
+  --sidebar-active: var(--ui-accent-soft);
   --sidebar-text: #1c2b4a;
   --sidebar-muted: #6b7a9a;
   --sidebar-item: #334155;
@@ -60,6 +70,16 @@
 }
 
 [data-theme="claro"] {
+  --ui-accent: #3e63c8;
+  --ui-accent-hover: #3457b5;
+  --ui-accent-ink: #ffffff;
+  --ui-accent-soft: rgba(62, 99, 200, 0.12);
+  --mesa-fundo:
+    radial-gradient(ellipse 85% 42% at 50% 0%, rgba(62, 99, 200, 0.07), transparent 56%),
+    linear-gradient(180deg, #ffffff 0%, #f7f8fa 75%);
+  --quadro-fundo:
+    radial-gradient(ellipse 90% 48% at 10% 0%, rgba(62, 99, 200, 0.08), transparent 52%),
+    linear-gradient(180deg, #ffffff 0%, #f4f6f9 80%);
   --marca-cor: #001c5b;
   --bg: #f7f8fa;
   --surface: #ffffff;
@@ -83,7 +103,7 @@
   --on-dark: #ffffff;
   --sidebar-bg: #ffffff;
   --sidebar-hover: #f3f5f8;
-  --sidebar-active: rgba(163, 209, 51, 0.14);
+  --sidebar-active: var(--ui-accent-soft);
   --sidebar-text: #1c2b4a;
   --sidebar-muted: #6b7a9a;
   --sidebar-item: #334155;
@@ -107,6 +127,16 @@
 }
 
 [data-theme="escuro"] {
+  --ui-accent: #3e63c8;
+  --ui-accent-hover: #4d73d6;
+  --ui-accent-ink: #ffffff;
+  --ui-accent-soft: rgba(62, 99, 200, 0.2);
+  --mesa-fundo:
+    radial-gradient(ellipse 80% 48% at 42% 0%, rgba(62, 99, 200, 0.2), transparent 58%),
+    linear-gradient(180deg, #18243c 0%, #111827 72%);
+  --quadro-fundo:
+    radial-gradient(ellipse 90% 50% at 8% 0%, rgba(62, 99, 200, 0.18), transparent 52%),
+    linear-gradient(180deg, #2a3a52 0%, #1f2937 70%);
   --marca-cor: #60a5fa;
   --bg: #111827;
   --surface: #1f2937;
@@ -130,7 +160,7 @@
   --on-dark: #ffffff;
   --sidebar-bg: #060b18;
   --sidebar-hover: rgba(255, 255, 255, 0.05);
-  --sidebar-active: rgba(163, 209, 51, 0.12);
+  --sidebar-active: var(--ui-accent-soft);
   --sidebar-text: #f4f6fb;
   --sidebar-muted: rgba(244, 246, 251, 0.42);
   --sidebar-item: rgba(244, 246, 251, 0.72);
@@ -183,7 +213,7 @@ textarea {
 }
 
 .card {
-  background: var(--surface);
+  background: var(--quadro-fundo);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1rem 1.25rem;
@@ -229,22 +259,24 @@ textarea {
   border-radius: 6px;
   cursor: pointer;
   border: 1px solid transparent;
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
   font-weight: 700;
 }
 
 .btn-primary:hover:not(:disabled),
 .btn-novo:hover:not(:disabled),
 .btn-secondary:hover:not(:disabled) {
-  background: var(--ui-lima-hover);
+  background: var(--ui-accent-hover);
 }
 
 .btn-primary:disabled,
 .btn-novo:disabled,
 .btn-secondary:disabled {
-  background: color-mix(in srgb, var(--ui-lima) 55%, #ccc);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  -webkit-text-fill-color: var(--ui-accent-ink);
+  font-weight: 700;
   cursor: default;
   opacity: 1;
 }
@@ -850,15 +882,15 @@ textarea {
 }
 
 .app-theme-btn:hover {
-  border-color: var(--ui-lima-hover);
+  border-color: var(--ui-accent-hover);
   color: var(--ui-ink);
-  background: rgba(163, 209, 51, 0.12);
+  background: var(--ui-accent-soft);
 }
 
 .app-theme-btn.ativo {
-  background: var(--ui-lima);
-  border-color: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-accent-ink);
   font-weight: 700;
 }
 
@@ -900,15 +932,15 @@ textarea {
 }
 
 [data-theme="escuro"] .app-theme-btn:hover {
-  border-color: var(--ui-lima-hover);
+  border-color: var(--ui-accent-hover);
   color: var(--text-strong);
-  background: rgba(163, 209, 51, 0.12);
+  background: var(--ui-accent-soft);
 }
 
 [data-theme="escuro"] .app-theme-btn.ativo {
-  background: var(--ui-lima);
-  border-color: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-accent-ink);
 }
 
 
@@ -930,9 +962,9 @@ textarea {
 }
 
 .filtros-periodo button.ativo {
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
-  border-color: var(--ui-lima);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  border-color: var(--ui-accent);
   font-weight: 700;
 }
 
@@ -1110,14 +1142,14 @@ textarea {
 }
 
 .calendario-dia-selecionado {
-  background: var(--ui-lima);
-  border-color: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--ui-accent-ink);
   font-weight: 700;
 }
 
 .calendario-dia-selecionado:hover {
-  background: var(--ui-lima-hover);
+  background: var(--ui-accent-hover);
   filter: none;
 }
 
@@ -1148,13 +1180,13 @@ textarea {
 }
 
 .calendario-acao-primaria {
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
-  border-color: var(--ui-lima);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  border-color: var(--ui-accent);
 }
 
 .calendario-acao-primaria:hover {
-  background: var(--ui-lima-hover);
+  background: var(--ui-accent-hover);
 }
 
 .campo-senha-wrap {
@@ -1220,7 +1252,7 @@ textarea {
 
 [data-theme="escuro"] .painel-sidebar {
   background:
-    radial-gradient(ellipse 90% 40% at 0% 0%, rgba(163, 209, 51, 0.14), transparent 55%),
+    radial-gradient(ellipse 90% 40% at 0% 0%, rgba(62, 99, 200, 0.22), transparent 55%),
     linear-gradient(180deg, #0b142c 0%, #060b18 72%);
   color: #f4f6fb;
 }
@@ -1242,7 +1274,7 @@ textarea {
 }
 
 [data-theme="escuro"] .painel-sidebar-topo {
-  border-bottom-color: rgba(163, 209, 51, 0.14);
+  border-bottom-color: rgba(62, 99, 200, 0.28);
 }
 
 .painel-sidebar-logo {
@@ -1371,7 +1403,7 @@ textarea {
 .painel-nav-item.ativo {
   background: var(--sidebar-active);
   color: var(--sidebar-text);
-  border-left: 3px solid var(--ui-lima-hover);
+  border-left: 3px solid var(--ui-accent-hover);
   padding-left: calc(1.25rem - 3px);
   font-weight: 600;
 }
@@ -1434,6 +1466,7 @@ textarea {
   flex: 1;
   padding: 1.5rem 1.75rem 2rem;
   overflow-y: auto;
+  background: var(--mesa-fundo);
 }
 
 .painel-footer {
@@ -1529,14 +1562,14 @@ textarea {
 }
 
 .admin-tabs button.ativo {
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
-  border-color: var(--ui-lima);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  border-color: var(--ui-accent);
   font-weight: 700;
 }
 
 .config-painel-aba {
-  background: var(--surface);
+  background: var(--quadro-fundo);
   border: 1px solid var(--border-strong);
   border-radius: 10px;
   padding: 1.25rem 1.35rem;
@@ -1698,7 +1731,7 @@ textarea {
   align-items: center;
   margin-bottom: 1rem;
   padding: 1.35rem 1.5rem;
-  background: var(--surface);
+  background: var(--quadro-fundo);
   border: 1px solid var(--border);
   border-left: 5px solid var(--marca-cor);
   border-radius: 8px;
@@ -1754,7 +1787,7 @@ textarea {
 }
 
 .dashboard-change-card {
-  background: var(--surface);
+  background: var(--quadro-fundo);
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 1.2rem 1.35rem;
@@ -1946,9 +1979,9 @@ textarea {
 }
 
 .permissao-toggle-sim {
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
-  border-color: var(--ui-lima);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
+  border-color: var(--ui-accent);
 }
 
 .permissao-toggle:disabled {
@@ -2098,8 +2131,8 @@ textarea {
   padding: 0.35rem 0.7rem;
   border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
   cursor: pointer;
   font-weight: 700;
 }
@@ -2243,8 +2276,8 @@ textarea {
 .btn-detalhes {
   border: 1px solid transparent;
   border-radius: 6px;
-  background: var(--ui-lima);
-  color: var(--ui-lima-ink);
+  background: var(--ui-accent);
+  color: var(--ui-accent-ink);
   cursor: pointer;
   font-weight: 700;
   padding: 0.35rem 0.7rem;
@@ -2252,7 +2285,7 @@ textarea {
 }
 
 .btn-detalhes:hover {
-  background: var(--ui-lima-hover);
+  background: var(--ui-accent-hover);
 }
 
 .arquivo-com-badge {
