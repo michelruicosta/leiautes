@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """O comparador de XSD precisa ver receita do tipo (CNPJ) e cabeçalho, não só o nome do campo."""
+from __future__ import annotations
+
 from pathlib import Path
 
 from backend.app.services.comparador_arquivos import comparar_arquivos
