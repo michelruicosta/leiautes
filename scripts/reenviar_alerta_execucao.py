@@ -20,9 +20,12 @@ if str(BASE) not in sys.path:
 if str(BASE / "scripts") not in sys.path:
     sys.path.insert(0, str(BASE / "scripts"))
 
-from persistencia.arquivos_db import reprocessar_alteracoes_arquivo_novo
+from persistencia.arquivos_db import (
+    reprocessar_alteracoes_arquivo_novo,
+    reprocessar_comparacoes_execucao,
+)
 from persistencia.db import conectar, init_db
-from persistencia.execucoes_db import obter_ultima_execucao
+from persistencia.execucoes_db import obter_execucao, obter_ultima_execucao
 from verifica_leiautes_finaud import (
     ASSUNTO,
     CONFIG_PATH,
@@ -84,7 +87,11 @@ def main() -> None:
         raise SystemExit("Nenhuma execução encontrada.")
 
     n = reprocessar_alteracoes_arquivo_novo(execucao_id)
-    print(f"Execução {execucao_id}: {n} arquivo(s) novo(s) agora com comparação.")
+    n2 = reprocessar_comparacoes_execucao(execucao_id)
+    print(
+        f"Execução {execucao_id}: {n} arquivo(s) novo(s) com comparação; "
+        f"{n2} comparação(ões) reprocessada(s)."
+    )
 
     detalhes = _carregar_detalhes_alteracoes(execucao_id)
     alterados = _alterados_da_execucao(detalhes)
@@ -106,7 +113,12 @@ def main() -> None:
     corpo = montar_corpo_email_alteracoes(alterados, detalhes, {})
     from datetime import datetime
 
-    hoje = datetime.now().strftime("%d/%m/%Y")
+    ex = obter_execucao(execucao_id) or {}
+    inicio = str(ex.get("iniciado_em") or "")
+    try:
+        hoje = datetime.fromisoformat(inicio).strftime("%d/%m/%Y")
+    except ValueError:
+        hoje = datetime.now().strftime("%d/%m/%Y")
     corpo_html = gerar_html_email(corpo, hoje, logo_cid)
     msg.attach(MIMEText(corpo_html, "html", "utf-8"))
 

@@ -1,12 +1,21 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-24**
+Última atualização: **2026-08-26**
 
 ## Em aberto
 
 *(nenhuma urgente)*
 
 ## Fechadas recentemente
+
+### ✅ Comparação de arquivos + e-mail do gestor (26/08)
+
+- Referência: `documentacao/COMPARACAO_ARQUIVOS.md`
+- Papéis com nome diferente **cravados** (críticas DLO/DRM, instruções DRM/DDR/SCD, leiaute DDR).
+- Mesmo mês no nome: desempate por **v** e depois **vi**.
+- Modelo vs Contas e MCC AMCC001/002/Comum continuam **sem** cruzar.
+- Comparador XSD lista receita do tipo (CNPJ) e data-base do cabeçalho.
+- E-mail: quadro por arquivo, cabeçalho azul, planilha sem coluna “O que fazer”, comparação com o arquivo anterior. Ensaio de tipos/cenários validado por Michel.
 
 ### ✅ Robô novo em produção — legado desligado (24/08)
 

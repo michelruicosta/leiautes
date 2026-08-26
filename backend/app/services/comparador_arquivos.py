@@ -424,6 +424,67 @@ def _xml_attr(elem: ElementTree.Element, nome: str) -> str:
     return ""
 
 
+def _detalhes_restricao_xsd(elem: ElementTree.Element) -> dict[str, str]:
+    """Receita do tipo: o que aceita (números, tamanho, lista de códigos)."""
+    det: dict[str, str] = {}
+    enums: list[str] = []
+    for child in elem.iter():
+        t = _xml_tag(child.tag)
+        if t == "restriction":
+            base = _xml_attr(child, "base")
+            if base:
+                det.setdefault("base", base)
+        elif t == "pattern":
+            val = _xml_attr(child, "value")
+            if val:
+                det["pattern"] = val
+        elif t in {
+            "minLength",
+            "maxLength",
+            "length",
+            "minInclusive",
+            "maxInclusive",
+            "totalDigits",
+            "fractionDigits",
+        }:
+            val = _xml_attr(child, "value")
+            if val:
+                det[t] = val
+        elif t == "enumeration":
+            val = _xml_attr(child, "value")
+            if val:
+                enums.append(val)
+        elif t == "whiteSpace":
+            val = _xml_attr(child, "value")
+            if val:
+                det["whiteSpace"] = val
+    if enums:
+        det["enumeration"] = "|".join(enums)
+    return det
+
+
+def _xpath_filho(elem: ElementTree.Element, tag: str) -> str:
+    for child in list(elem):
+        if _xml_tag(child.tag) == tag:
+            return _xml_attr(child, "xpath")
+    return ""
+
+
+def _anotacoes_cabecalho_xsd(texto: str) -> dict[str, str]:
+    notas: dict[str, str] = {}
+    m = re.search(r"data-base:\s*([^+<\n]+)", texto, flags=re.IGNORECASE)
+    if m:
+        notas["data-base"] = re.sub(r"\s+", " ", m.group(1)).strip(" +")
+    m = re.search(
+        r"Atualizado em\s+(\d{1,2}/\d{1,2}/\d{4})",
+        texto,
+        flags=re.IGNORECASE,
+    )
+    if m:
+        notas["atualizado em"] = m.group(1)
+    return notas
+
+
 def _mapa_linhas_xsd(texto: str) -> dict[str, int]:
     linhas: dict[str, int] = {}
     for numero, linha in enumerate(texto.splitlines(), start=1):
@@ -437,12 +498,21 @@ def _coletar_xsd(path: Path) -> dict[str, dict[str, Any]]:
     root = ElementTree.fromstring(texto)
     linhas_por_nome = _mapa_linhas_xsd(texto)
     itens: dict[str, dict[str, Any]] = {}
+    tags_peca = {
+        "element",
+        "attribute",
+        "complexType",
+        "simpleType",
+        "key",
+        "unique",
+        "keyref",
+    }
 
     def walk(elem: ElementTree.Element, prefixo: str) -> None:
         tag = _xml_tag(elem.tag)
         nome = _xml_attr(elem, "name") or _xml_attr(elem, "ref") or tag
         atual = f"{prefixo}/{nome}" if prefixo else nome
-        if tag in {"element", "attribute", "complexType", "simpleType"}:
+        if tag in tags_peca:
             assinatura = {
                 "tag": tag,
                 "type": _xml_attr(elem, "type"),
@@ -451,6 +521,17 @@ def _coletar_xsd(path: Path) -> dict[str, dict[str, Any]]:
                 "maxOccurs": _xml_attr(elem, "maxOccurs"),
                 "use": _xml_attr(elem, "use"),
             }
+            if tag == "simpleType":
+                assinatura.update(_detalhes_restricao_xsd(elem))
+            if tag in {"key", "unique", "keyref"}:
+                assinatura["selector"] = _xpath_filho(elem, "selector")
+                fields = [
+                    _xml_attr(c, "xpath")
+                    for c in list(elem)
+                    if _xml_tag(c.tag) == "field"
+                ]
+                if fields:
+                    assinatura["field"] = ",".join(fields)
             assinatura_texto = ", ".join(
                 f"{k}={v}" for k, v in assinatura.items() if v
             ) or tag
@@ -488,6 +569,16 @@ def _comparar_xsd(anterior: Path, atual: Path) -> dict[str, Any]:
                 f"{chave}: linha anterior {ant[chave].get('linha') or '?'} -> "
                 f"linha atual {novo[chave].get('linha') or '?'}; antes "
                 f"({ant[chave]['assinatura']}); depois ({novo[chave]['assinatura']})"
+            )
+    notas_ant = _anotacoes_cabecalho_xsd(_ler_texto(anterior))
+    notas_novo = _anotacoes_cabecalho_xsd(_ler_texto(atual))
+    for chave in sorted(set(notas_ant) | set(notas_novo)):
+        v_ant = notas_ant.get(chave, "")
+        v_novo = notas_novo.get(chave, "")
+        if v_ant != v_novo:
+            alterados.append(
+                f'Comparação: mudanca "{chave}"; '
+                f'antes "{v_ant or "—"}"; depois "{v_novo or "—"}"'
             )
     # Estrutura idêntica, mas bytes/texto diferentes (versão, comentários, etc.)
     if not incluidos and not removidos and not alterados:
