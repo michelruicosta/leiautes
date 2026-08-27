@@ -410,6 +410,7 @@ textarea {
   border-radius: 12px;
   background: rgba(255, 255, 255, 0.06);
   color: #f4f6fb;
+  color-scheme: dark;
 }
 
 .login-card-finaud .field-input:focus {
@@ -417,10 +418,19 @@ textarea {
   border-color: rgba(163, 209, 51, 0.55);
 }
 
+.login-card-finaud .field-input:-webkit-autofill,
+.login-card-finaud .field-input:-webkit-autofill:hover,
+.login-card-finaud .field-input:-webkit-autofill:focus {
+  -webkit-text-fill-color: #f4f6fb;
+  caret-color: #f4f6fb;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 1000px #10182c inset;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
 .login-card-finaud .campo-senha-toggle {
   color: rgba(244, 246, 251, 0.58);
-  background: rgba(255, 255, 255, 0.06);
-  border-color: rgba(255, 255, 255, 0.14);
+  background: transparent;
 }
 
 .login-card-finaud .campo-senha-toggle:hover:not(:disabled) {
@@ -1190,24 +1200,28 @@ textarea {
 }
 
 .campo-senha-wrap {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
+  position: relative;
 }
 
 .campo-senha-wrap .field-input {
-  flex: 1;
+  padding-right: 2.75rem;
 }
 
 .campo-senha-toggle {
-  width: 44px;
-  min-width: 44px;
-  border: 1px solid var(--border-input);
-  border-radius: 8px;
-  background: var(--surface);
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
   color: var(--marca-cor);
-  font-size: 1.15rem;
-  font-weight: 800;
   cursor: pointer;
 }
 

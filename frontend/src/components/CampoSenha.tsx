@@ -27,6 +27,7 @@ export default function CampoSenha({ id, label, value, onChange, ...rest }: Prop
           className="campo-senha-toggle"
           onClick={() => setVisivel((atual) => !atual)}
           aria-label={visivel ? "Ocultar senha" : "Mostrar senha"}
+          aria-pressed={visivel}
           title={visivel ? "Ocultar senha" : "Mostrar senha"}
         >
           <svg viewBox="0 0 24 24" aria-hidden="true">

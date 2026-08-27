@@ -82,7 +82,7 @@ export default function LoginPage() {
         >
           <CabecalhoLoginLeiautes />
           <h2 className="login-titulo login-titulo-finaud">Recuperar acesso</h2>
-          <p className="login-subtitulo login-subtitulo-recuperar">
+          <p className="login-subtitulo">
             Informe seu e-mail corporativo. Se a conta estiver ativa, enviamos
             uma senha temporária.
           </p>
@@ -99,6 +99,10 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
+              onInvalid={(e) => {
+                e.currentTarget.setCustomValidity("Informe seu e-mail.");
+              }}
+              onInput={(e) => e.currentTarget.setCustomValidity("")}
             />
           </div>
 
@@ -158,6 +162,10 @@ export default function LoginPage() {
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             required
+            onInvalid={(e) => {
+              e.currentTarget.setCustomValidity("Informe seu e-mail.");
+            }}
+            onInput={(e) => e.currentTarget.setCustomValidity("")}
           />
         </div>
 
