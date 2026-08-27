@@ -1,12 +1,18 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-26**
+Última atualização: **2026-08-27**
 
 ## Em aberto
 
 *(nenhuma urgente)*
 
 ## Fechadas recentemente
+
+### ✅ Cadastro de Leiautes na Administração (27/08)
+
+- Menu: a tela saiu de **Operação** e foi para **Administração** (primeiro item).
+- Operador e gestor não veem mais o cadastro; só o administrador (ou quem for liberado na matriz).
+- Produção: commit `712d8b4`.
 
 ### ✅ Comparação de arquivos + e-mail do gestor (26/08)
 
