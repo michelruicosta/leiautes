@@ -1,8 +1,9 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import (
     LeiauteCreateRequest,
     LeiauteListaResponse,
@@ -18,7 +19,11 @@ from persistencia.leiautes_db import (
 )
 from persistencia.auditoria_db import registrar_log
 
-router = APIRouter(prefix="/leiautes", tags=["leiautes"])
+router = APIRouter(
+    prefix="/leiautes",
+    tags=["leiautes"],
+    dependencies=[Depends(exigir_rota("admin-leiautes"))],
+)
 
 
 @router.get("", response_model=LeiauteListaResponse)

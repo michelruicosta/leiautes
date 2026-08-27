@@ -374,12 +374,12 @@ def seed_leiautes_padrao() -> None:
 
 def seed_perfis_padrao() -> None:
     permissoes = {
-        "operador": ["dashboard", "leiautes", "alteracoes", "admin-robo"],
-        "gestor": ["dashboard", "leiautes", "alteracoes"],
+        "operador": ["dashboard", "alteracoes", "admin-robo"],
+        "gestor": ["dashboard", "alteracoes"],
         "administrador": [
             "dashboard",
-            "leiautes",
             "alteracoes",
+            "admin-leiautes",
             "admin-robo",
             "admin-configuracoes",
             "admin-usuarios",
@@ -397,7 +397,8 @@ def seed_perfis_padrao() -> None:
                 """,
                 (perfil, _json(rotas), agora),
             )
-        # Remove rota antiga "E-mail do gestor" (modelo ficou em Configurações).
+        # Remove rotas antigas: e-mail do gestor (foi para Configurações)
+        # e cadastro de leiautes em Operação (passou para Administração).
         for row in conn.execute(
             "SELECT perfil_codigo, rotas_permitidas FROM perfis_permissoes"
         ):
@@ -407,7 +408,12 @@ def seed_perfis_padrao() -> None:
                 atuais = []
             if not isinstance(atuais, list):
                 atuais = []
-            limpas = [r for r in atuais if r != "email-gestor"]
+            limpas = [r for r in atuais if r not in ("email-gestor", "leiautes")]
+            if (
+                row["perfil_codigo"] == "administrador"
+                and "admin-leiautes" not in limpas
+            ):
+                limpas.append("admin-leiautes")
             if limpas != atuais:
                 conn.execute(
                     """

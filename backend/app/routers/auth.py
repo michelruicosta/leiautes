@@ -30,8 +30,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 _ROTAS_ADMIN = [
     "dashboard",
-    "leiautes",
     "alteracoes",
+    "admin-leiautes",
     "admin-robo",
     "admin-configuracoes",
     "admin-usuarios",

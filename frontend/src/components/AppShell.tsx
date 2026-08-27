@@ -22,7 +22,7 @@ const ROTA_PARA_PERMISSAO: Record<
   string
 > = {
   dashboard: "dashboard",
-  leiautes: "leiautes",
+  leiautes: "admin-leiautes",
   alteracoes: "alteracoes",
   robo: "admin-robo",
   configuracoes: "admin-configuracoes",
@@ -173,9 +173,32 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
   const { usuario, sair } = useAuth();
   const permitidas = usuario?.rotas_permitidas ?? [];
 
-  const [operacaoAberta, setOperacaoAberta] = useState(false);
-  const [adminAberta, setAdminAberta] = useState(false);
+  const [operacaoAberta, setOperacaoAberta] = useState(
+    rota === "dashboard" || rota === "alteracoes",
+  );
+  const [adminAberta, setAdminAberta] = useState(
+    rota === "leiautes" ||
+      rota === "robo" ||
+      rota === "configuracoes" ||
+      rota === "usuarios" ||
+      rota === "auditoria",
+  );
   const [sidebarRecolhida, setSidebarRecolhida] = useState(false);
+
+  useEffect(() => {
+    if (rota === "dashboard" || rota === "alteracoes") {
+      setOperacaoAberta(true);
+    }
+    if (
+      rota === "leiautes" ||
+      rota === "robo" ||
+      rota === "configuracoes" ||
+      rota === "usuarios" ||
+      rota === "auditoria"
+    ) {
+      setAdminAberta(true);
+    }
+  }, [rota]);
 
   const navItem = (destino: RotaPainel, label: string, icone: string) => {
     if (!podeAcessarRota(destino, permitidas)) return null;
@@ -225,10 +248,10 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
 
   const temOperacao =
     podeAcessarRota("dashboard", permitidas) ||
-    podeAcessarRota("leiautes", permitidas) ||
     podeAcessarRota("alteracoes", permitidas);
 
   const temAdmin =
+    podeAcessarRota("leiautes", permitidas) ||
     podeAcessarRota("robo", permitidas) ||
     podeAcessarRota("configuracoes", permitidas) ||
     podeAcessarRota("usuarios", permitidas) ||
@@ -237,13 +260,13 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
   const itensOperacao = (
     <>
       {navItem("dashboard", "Monitoramento", "📊")}
-      {navItem("leiautes", "Cadastro de Leiautes", "📄")}
       {navItem("alteracoes", "Histórico e Versões", "🔎")}
     </>
   );
 
   const itensAdmin = (
     <>
+      {navItem("leiautes", "Cadastro de Leiautes", "📄")}
       {navItem("robo", "Robô", "🤖")}
       {navItem("configuracoes", "Configurações", "⚙️")}
       {navItem("usuarios", "Usuários e perfis", "👤")}

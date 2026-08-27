@@ -127,8 +127,8 @@ def _rotas_permitidas(usuario: dict) -> set[str]:
     if perfil == "administrador":
         return {
             "dashboard",
-            "leiautes",
             "alteracoes",
+            "admin-leiautes",
             "admin-robo",
             "admin-configuracoes",
             "admin-usuarios",
