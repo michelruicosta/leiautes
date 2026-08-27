@@ -42,6 +42,7 @@ app.add_middleware(
         "http://127.0.0.1:5177",
         "http://127.0.0.1:8000",
         "http://127.0.0.1:8001",
+        "http://127.0.0.1:8003",
         "http://127.0.0.1:8002",
         "https://finaudapps.com.br",
         "https://www.finaudapps.com.br",
@@ -79,7 +80,7 @@ def main() -> None:
     uvicorn.run(
         "app.main:app",
         host="127.0.0.1",
-        port=8001,
+        port=8003,
         reload=True,
     )
 

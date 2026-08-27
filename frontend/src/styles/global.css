@@ -552,6 +552,7 @@ textarea {
   color: var(--pos-text);
   font-size: 0.9rem;
   margin: 0 0 1rem;
+  white-space: pre-line;
 }
 
 .login-titulo-secundario {
@@ -732,6 +733,7 @@ textarea {
 
 .requisitos-senha li.ok {
   color: var(--pos-text);
+  font-weight: 600;
 }
 
 .requisitos-senha li.ok .requisitos-senha-marca {

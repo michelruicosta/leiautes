@@ -1,6 +1,10 @@
 
 # Monitoramento de Leiautes Bacen (Finaud)
 
+**No PC (hoje):** tela `http://127.0.0.1:5177` · API `http://127.0.0.1:8003/docs`.
+Não mandar localhost se o serviço não estiver no ar. Não usar 8001 (Auditoria).
+Subir: `python -m app.main` em `backend/` e `npm run dev` em `frontend/`.
+
 Automação desenvolvida para monitorar atualizações nos leiautes do Banco Central (Bacen).  
 Verifica novos documentos ou alterações, envia e-mail com log detalhado e atualiza o status da execução em painel público.
 

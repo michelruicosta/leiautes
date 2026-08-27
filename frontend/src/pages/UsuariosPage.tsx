@@ -9,6 +9,10 @@ import {
 } from "../api/leiautes";
 import CampoSenha from "../components/CampoSenha";
 import ModalConfirmacao, { type ConfirmacaoConfig } from "../components/ModalConfirmacao";
+import RequisitosSenha, {
+  mensagemSenhaIncompleta,
+  senhaAtendePolitica,
+} from "../components/RequisitosSenha";
 import type { UsuarioPayload, UsuarioResumo } from "../api/types";
 
 type AbaUsuarios = "usuarios" | "perfis";
@@ -128,8 +132,11 @@ export default function UsuariosPage() {
     if (formUsuario.nome.trim().length < 2) return "Informe o nome do usuário.";
     if (!formUsuario.email.includes("@")) return "Informe um e-mail válido.";
     if (!PERFIS.includes(formUsuario.perfil_codigo)) return "Selecione um perfil válido.";
-    if (definirSenhaApp && senhaUsuario.trim().length === 0) {
-      return "Marcou senha neste app. Informe a senha ou desmarque a opção.";
+    if (definirSenhaApp) {
+      if (senhaUsuario.trim().length === 0) {
+        return "Marcou senha neste app. Informe a senha ou desmarque a opção.";
+      }
+      return mensagemSenhaIncompleta(senhaUsuario);
     }
     return null;
   };
@@ -484,13 +491,20 @@ export default function UsuariosPage() {
                 senha local ou reset temporário.
               </p>
               {definirSenhaApp && (
-                <CampoSenha
-                  id="usuario-senha"
-                  label={modalUsuario === "novo" ? "Senha inicial" : "Nova senha"}
-                  autoComplete="new-password"
-                  value={senhaUsuario}
-                  onChange={setSenhaUsuario}
-                />
+                <>
+                  <CampoSenha
+                    id="usuario-senha"
+                    label={modalUsuario === "novo" ? "Senha inicial" : "Nova senha"}
+                    autoComplete="new-password"
+                    value={senhaUsuario}
+                    onChange={setSenhaUsuario}
+                    aria-describedby="requisitos-senha-usuario"
+                  />
+                  <RequisitosSenha
+                    id="requisitos-senha-usuario"
+                    senha={senhaUsuario}
+                  />
+                </>
               )}
               <label className="admin-dia-chip">
                 <input
@@ -529,7 +543,10 @@ export default function UsuariosPage() {
                 <button
                   type="button"
                   className="btn-novo"
-                  disabled={salvando}
+                  disabled={
+                    salvando ||
+                    (definirSenhaApp && !senhaAtendePolitica(senhaUsuario))
+                  }
                   onClick={() => void salvarUsuario()}
                 >
                   {salvando ? "Salvando..." : "Salvar usuário"}

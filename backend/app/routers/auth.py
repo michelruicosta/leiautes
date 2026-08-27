@@ -10,8 +10,10 @@ from app.models.schemas import (
     LoginRequest,
     LoginResponse,
     RecuperarSenhaRequest,
+    RecuperarSenhaResponse,
     UsuarioAuthResponse,
 )
+from app.services.auth_recuperacao import solicitar_recuperacao_senha
 from app.services.auth_senha import validar_politica_senha
 from app.services.auth_sessao import (
     emitir_token_sessao,
@@ -117,22 +119,10 @@ def me(usuario: dict = Depends(exigir_usuario)) -> UsuarioAuthResponse:
     return _usuario_auth(usuario)
 
 
-@router.post("/recuperar-senha")
-def recuperar_senha(body: RecuperarSenhaRequest) -> dict[str, str]:
-    usuario = buscar_usuario_por_email(body.email)
-    if usuario is not None and usuario.get("ativo"):
-        registrar_log(
-            usuario=usuario["email"],
-            pagina="Login",
-            acao="Recuperação de senha",
-            detalhe="Solicitação de recuperação registrada. Envio de e-mail será integrado ao SMTP.",
-        )
-    return {
-        "mensagem": (
-            "Se o e-mail estiver ativo, a recuperação será encaminhada. "
-            "Nesta fase, peça ao administrador para definir uma senha temporária."
-        )
-    }
+@router.post("/recuperar-senha", response_model=RecuperarSenhaResponse)
+def recuperar_senha(body: RecuperarSenhaRequest) -> RecuperarSenhaResponse:
+    mensagem = solicitar_recuperacao_senha(body.email)
+    return RecuperarSenhaResponse(mensagem=mensagem)
 
 
 @router.post("/alterar-senha")

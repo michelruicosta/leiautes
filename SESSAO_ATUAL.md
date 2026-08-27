@@ -4,7 +4,7 @@
 
 ## Estado
 
-Cadastro de Leiautes está em **Administração** (papel do administrador). Em produção: commit `712d8b4`.
+Trabalho na **main**. Checklist de senha ao vivo e esqueci senha com e-mail da temporária, validados neste PC.
 
 ## Pendência mais quente
 
@@ -12,4 +12,4 @@ Nenhuma urgente.
 
 ## Encerrado neste chat
 
-A tela saiu de Operação. Operador e gestor não cadastram leiautes. Push e site atualizados.
+Lista de senha igual ao admin do grupo (troca e criação). Esqueci senha envia e-mail. Branch temporária `codex/app-leiautes-bacen` sai depois do push da main.

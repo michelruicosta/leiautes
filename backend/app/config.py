@@ -36,7 +36,7 @@ else:
 
 URL_LOGIN_RECUPERACAO = os.environ.get(
     "LEIAUTES_FRONTEND_URL",
-    "http://localhost:5175",
+    "http://127.0.0.1:5177",
 ).rstrip("/")
 
 # SSO portal — ver documentacao/sso_portal_apps_finaud.md

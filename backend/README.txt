@@ -4,6 +4,9 @@ Base FastAPI criada seguindo o padrao do projeto `normativos_ia`.
 
 ## Executar em desenvolvimento
 
+**No PC (hoje):** API **8003** · tela Vite **5177**.
+Não mandar localhost se o serviço não estiver no ar. Não usar 8001 (Auditoria).
+
 Com o ambiente virtual ativo:
 
 ```bash
@@ -11,6 +14,9 @@ python -m pip install -r backend/requirements-api.txt
 cd backend
 python -m app.main
 ```
+
+Swagger: http://127.0.0.1:8003/docs
+Tela: cd frontend && npm run dev → http://127.0.0.1:5177
 
 Endpoint inicial:
 

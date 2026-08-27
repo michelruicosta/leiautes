@@ -2,6 +2,7 @@ venv/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+frontend/.vite/
 logs/
 runtime/
 dados/
@@ -12,6 +13,7 @@ __pycache__/
 *.log
 *.gz
 .pki/
+.env
 config/config_email.json
 # Backups
 *.backup.json

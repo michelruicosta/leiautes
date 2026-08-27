@@ -1,0 +1,37 @@
+---
+description: Portas locais fixas; subir servidores antes de mandar localhost
+alwaysApply: true
+---
+
+# Dev local — porta fixa + servidor no ar
+
+**NUNCA** mandar `localhost` / `127.0.0.1` se o serviço não estiver no ar.
+**NUNCA** usar a porta de outro app.
+**NUNCA** mandar **8001** (Auditoria) nem **8002** (Normativos) como se fosse este app.
+
+Neste repo: trabalhar na **`main`**. Não criar branch.
+
+`localhost` / `127.0.0.1` = só neste PC. Site no ar = `*.finaudapps.com.br` (só depois de Michel pedir publicar na VPS).
+
+## Portas do grupo (não usar a de outro app)
+
+| Pasta do chat | Tela no PC | API no PC |
+|---------------|------------|-----------|
+| `portal_finaudapps` | prévia na 8000 | **8000** |
+| `Projeto_Auditoria_IA` | **5173** | **8001** |
+| `normativos_ia` | **5178** | **8002** |
+| `leiautes` (este) | **5177** | **8003** |
+| `gestao_area_suporte` | **5179** | **8004** |
+
+Se a porta deste app estiver ocupada: avisar. **Não** usar a porta de outro app.
+
+## Ritual — testar no PC (este repo)
+
+1. Verificar `http://127.0.0.1:8003/health` e `http://localhost:5177`.
+2. Se não responderem, subir em background (sem pedir):
+   - API: `cd backend` → `python -m app.main` (porta **8003**)
+   - UI: `cd frontend` → `npm run dev` (porta **5177**)
+3. Esperar health ok e Vite pronto.
+4. Informar: `http://localhost:5177` e `http://127.0.0.1:8003/docs`
+
+Produção (VPS) **não** usa este ritual. ADRs/histórico de deploy antigo ficam como estão.
