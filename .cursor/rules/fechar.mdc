@@ -1,0 +1,10 @@
+---
+description: /fechar sem cerebro — estado só no bordo do repo
+alwaysApply: true
+---
+
+# Encerrar sessão
+
+O estado deste projeto fica só em `SESSAO_ATUAL.md`.
+
+No `/fechar`: atualizar o bordo do repo, commit, perguntar o push. **Não** procurar, atualizar nem mencionar `D:\cerebro\PROJETOS.md`.
