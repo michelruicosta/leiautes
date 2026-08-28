@@ -46,10 +46,8 @@ const OPCOES_TEMA: { id: PreferenciaTema; rotulo: string; dica: string }[] = [
 ];
 
 function MenuUsuario({
-  onPerfil,
   onSair,
 }: {
-  onPerfil: () => void;
   onSair: () => void;
 }) {
   const { usuario } = useAuth();
@@ -141,14 +139,6 @@ function MenuUsuario({
           <button
             type="button"
             role="menuitem"
-            className="app-menu-item"
-            onClick={() => escolher(onPerfil)}
-          >
-            Perfil
-          </button>
-          <button
-            type="button"
-            role="menuitem"
             className="app-menu-item app-menu-item-perigo"
             onClick={() => escolher(onSair)}
           >
@@ -164,7 +154,7 @@ export function podeAcessarRota(
   rota: RotaPainel,
   rotasPermitidas: string[] | undefined,
 ): boolean {
-  if (rota === "alterar-senha" || rota === "perfil") return true;
+  if (rota === "alterar-senha" || rota === "perfil") return false;
   const codigo = ROTA_PARA_PERMISSAO[rota];
   return (rotasPermitidas ?? []).includes(codigo);
 }
@@ -326,10 +316,7 @@ export default function AppShell({ rota, onNavegar, children }: Props) {
       </aside>
       <div className="painel-main-wrap">
         <header className="painel-topbar">
-          <MenuUsuario
-            onPerfil={() => onNavegar("perfil")}
-            onSair={() => void sair()}
-          />
+          <MenuUsuario onSair={() => void sair()} />
         </header>
         <main className="painel-content">{children}</main>
         <footer className="painel-footer">© 2026 — Leiautes Bacen</footer>

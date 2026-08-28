@@ -4,7 +4,7 @@
 
 ## Estado
 
-Trabalho na **main**. Checklist de senha ao vivo e esqueci senha com e-mail da temporária, validados neste PC.
+**main** no GitHub. Senha pelo portal: sem item Perfil no menu e sem “Esqueceu a senha?” no login.
 
 ## Pendência mais quente
 
@@ -12,4 +12,4 @@ Nenhuma urgente.
 
 ## Encerrado neste chat
 
-Lista de senha igual ao admin do grupo (troca e criação). Esqueci senha envia e-mail. Branch temporária `codex/app-leiautes-bacen` sai depois do push da main.
+Checklist de senha (validado neste PC). Esconder Perfil e esqueci senha. Publicar no site.

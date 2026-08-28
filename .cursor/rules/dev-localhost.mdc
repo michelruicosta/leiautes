@@ -1,17 +1,18 @@
 ---
-description: Portas locais fixas; subir servidores antes de mandar localhost
+description: Portas locais fixas; subir e ABRIR a tela antes de mandar o endereço
 alwaysApply: true
 ---
 
-# Dev local — porta fixa + servidor no ar
+# Dev local — porta fixa + tela já aberta
 
 **NUNCA** mandar `localhost` / `127.0.0.1` se o serviço não estiver no ar.
 **NUNCA** usar a porta de outro app.
 **NUNCA** mandar **8001** (Auditoria) nem **8002** (Normativos) como se fosse este app.
+**NUNCA** só escrever o endereço no chat. Quando for hora de testar, a tela já tem que estar **aberta e respondendo**.
 
 Neste repo: trabalhar na **`main`**. Não criar branch.
 
-`localhost` / `127.0.0.1` = só neste PC. Site no ar = `*.finaudapps.com.br` (só depois de Michel pedir publicar na VPS).
+`127.0.0.1` = só neste PC. Site no ar = `*.finaudapps.com.br` (só depois de Michel pedir publicar na VPS).
 
 ## Portas do grupo (não usar a de outro app)
 
@@ -25,13 +26,16 @@ Neste repo: trabalhar na **`main`**. Não criar branch.
 
 Se a porta deste app estiver ocupada: avisar. **Não** usar a porta de outro app.
 
-## Ritual — testar no PC (este repo)
+## Ritual — testar neste PC
 
-1. Verificar `http://127.0.0.1:8003/health` e `http://localhost:5177`.
+1. Conferir se a API e a tela **respondem** (`http://127.0.0.1:8003/health` e `http://127.0.0.1:5177`). Processo “rodando” no terminal não basta — tem que haver porta em escuta e resposta HTTP.
 2. Se não responderem, subir em background (sem pedir):
    - API: `cd backend` → `python -m app.main` (porta **8003**)
-   - UI: `cd frontend` → `npm run dev` (porta **5177**)
-3. Esperar health ok e Vite pronto.
-4. Informar: `http://localhost:5177` e `http://127.0.0.1:8003/docs`
+   - UI: `cd frontend` → `npm run dev` (porta **5177**, host `127.0.0.1`)
+3. Esperar health ok e Vite pronto. Confirmar de novo o HTTP 200.
+4. **Abrir a tela** no navegador (aba visível) em `http://127.0.0.1:5177` **antes** de avisar no chat.
+5. Só então informar: `http://127.0.0.1:5177` (já aberta) e `http://127.0.0.1:8003/docs`.
 
-Produção (VPS) **não** usa este ritual. ADRs/histórico de deploy antigo ficam como estão.
+No Windows, **não** mandar `localhost:5177` — trava. Usar **`127.0.0.1:5177`**.
+
+Produção (VPS) **não** usa este ritual.

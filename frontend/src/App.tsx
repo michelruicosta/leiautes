@@ -1,13 +1,11 @@
 import { useEffect, useState } from "react";
 import AppShell, { podeAcessarRota, type RotaPainel } from "./components/AppShell";
 import AlteracoesPage from "./pages/AlteracoesPage";
-import AlterarSenhaPage from "./pages/AlterarSenhaPage";
 import AuditoriaPage from "./pages/AuditoriaPage";
 import ConfiguracoesPage from "./pages/ConfiguracoesPage";
 import DashboardPage from "./pages/DashboardPage";
 import LeiautesPage from "./pages/LeiautesPage";
 import LoginPage from "./pages/LoginPage";
-import PerfilPage from "./pages/PerfilPage";
 import RoboPage from "./pages/RoboPage";
 import UsuariosPage from "./pages/UsuariosPage";
 import { useAuth } from "./context/AuthContext";
@@ -52,13 +50,6 @@ export default function App() {
       <ConfiguracoesPage />
     ) : rotaEfetiva === "auditoria" ? (
       <AuditoriaPage />
-    ) : rotaEfetiva === "perfil" ? (
-      <PerfilPage
-        onAlterarSenha={() => setRota("alterar-senha")}
-        onVoltarHome={() => setRota("dashboard")}
-      />
-    ) : rotaEfetiva === "alterar-senha" ? (
-      <AlterarSenhaPage onVoltarPerfil={() => setRota("perfil")} />
     ) : (
       <UsuariosPage />
     );

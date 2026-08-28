@@ -1,5 +1,11 @@
 # Registro de correções — Leiautes Bacen
 
+## 2026-08-27 — Perfil e esqueci senha saem do app
+
+**O que era:** o menu do nome tinha Perfil (alterar senha no app) e o login tinha “Esqueceu a senha?”.
+
+**O que passou a ser:** senha só no portal. No app: Portal de apps e Sair. No login: só Entrar e o link do portal.
+
 ## 2026-08-27 — Checklist de senha e esqueci senha
 
 **O que era:** a lista de requisitos não aparecia na criação de senha no admin; o esqueci senha não enviava e-mail.
