@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { useAuth } from "../context/AuthContext";
+import { useAuth, urlPortalApps } from "../context/AuthContext";
 import {
   useTheme,
   type PreferenciaTema,
@@ -35,10 +35,6 @@ type Props = {
   onNavegar: (rota: RotaPainel) => void;
   children: ReactNode;
 };
-
-const URL_PORTAL_APPS =
-  (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
-  "https://finaudapps.com.br";
 
 const OPCOES_TEMA: { id: PreferenciaTema; rotulo: string; dica: string }[] = [
   { id: "claro", rotulo: "Claro", dica: "Fundo claro" },
@@ -129,7 +125,7 @@ function MenuUsuario({
           <a
             role="menuitem"
             className="app-menu-item app-menu-link"
-            href={URL_PORTAL_APPS}
+            href={urlPortalApps()}
             target="_blank"
             rel="noopener noreferrer"
             onClick={() => setMenuAberto(false)}

@@ -1,11 +1,7 @@
 import { type FormEvent, useState } from "react";
 import { ApiError } from "../api/client";
 import CampoSenha from "../components/CampoSenha";
-import { useAuth } from "../context/AuthContext";
-
-const URL_PORTAL_APPS =
-  (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
-  "https://finaudapps.com.br";
+import { useAuth, urlPortalApps } from "../context/AuthContext";
 
 function CabecalhoLoginLeiautes() {
   return (
@@ -94,7 +90,7 @@ export default function LoginPage() {
           {enviando ? "Entrando…" : "Entrar"}
         </button>
 
-        <a className="login-portal-link" href={URL_PORTAL_APPS}>
+        <a className="login-portal-link" href={urlPortalApps()}>
           Portal de apps
         </a>
       </form>

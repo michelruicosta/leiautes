@@ -16,9 +16,18 @@ import {
 import { ApiError } from "../api/client";
 
 /** Entrada única do Grupo Finaud — padrão UI: Sair do app volta para cá. */
-const URL_PORTAL_APPS =
-  (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
-  "https://finaudapps.com.br";
+export function urlPortalApps(): string {
+  if (typeof window !== "undefined") {
+    const host = window.location.hostname;
+    if (host === "localhost" || host === "127.0.0.1") {
+      return "http://127.0.0.1:8000/portal-preview/";
+    }
+  }
+  return (
+    (import.meta.env.VITE_PORTAL_URL as string | undefined)?.replace(/\/$/, "") ||
+    "https://finaudapps.com.br"
+  );
+}
 
 type AuthContextValue = {
   usuario: UsuarioAuth | null;
@@ -65,7 +74,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       await logoutAuth();
     } finally {
       setUsuario(null);
-      window.location.assign(URL_PORTAL_APPS);
+      window.location.assign(urlPortalApps());
     }
   }, []);
 
