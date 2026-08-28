@@ -831,35 +831,6 @@ textarea {
   overflow: hidden;
 }
 
-.app-menu-info {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-  padding: 0.85rem 1rem;
-  border-bottom: 1px solid #e2e5ea;
-}
-
-.app-menu-info-textos {
-  min-width: 0;
-}
-
-.app-menu-info-nome {
-  font-size: 0.88rem;
-  font-weight: 600;
-  color: #1a1a1a;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.app-menu-info-email {
-  font-size: 0.75rem;
-  color: #64748b;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .app-menu-section {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid #e2e5ea;
@@ -912,16 +883,10 @@ textarea {
   box-shadow: var(--shadow-sm);
 }
 
-[data-theme="escuro"] .app-menu-info,
 [data-theme="escuro"] .app-menu-section {
   border-bottom-color: var(--border);
 }
 
-[data-theme="escuro"] .app-menu-info-nome {
-  color: var(--text-strong);
-}
-
-[data-theme="escuro"] .app-menu-info-email,
 [data-theme="escuro"] .app-menu-section-title {
   color: var(--muted);
 }
@@ -1504,20 +1469,6 @@ textarea {
 
 .app-menu-trigger.user-menu-trigger {
   padding: 0.35rem 0.65rem;
-}
-
-.user-avatar {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: var(--ui-navy);
-  color: #fff;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.75rem;
-  font-weight: 600;
-  flex-shrink: 0;
 }
 
 .user-menu-email {

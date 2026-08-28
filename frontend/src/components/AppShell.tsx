@@ -69,13 +69,6 @@ function MenuUsuario({
     acao();
   };
 
-  const iniciais = usuario.nome
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((p) => p[0]?.toUpperCase() ?? "")
-    .join("");
-
   return (
     <div className="app-menu" ref={menuRef}>
       <button
@@ -92,18 +85,6 @@ function MenuUsuario({
       </button>
       {menuAberto && (
         <div className="app-menu-list" role="menu">
-          <div className="app-menu-info">
-            <div className="user-avatar" aria-hidden>
-              {iniciais || "?"}
-            </div>
-            <div className="app-menu-info-textos">
-              <div className="app-menu-info-nome">{usuario.nome}</div>
-              {usuario.email ? (
-                <div className="app-menu-info-email">{usuario.email}</div>
-              ) : null}
-            </div>
-          </div>
-
           <div className="app-menu-section">
             <div className="app-menu-section-title">Aparência</div>
             <div className="app-theme-opts" role="group" aria-label="Aparência">
@@ -126,8 +107,6 @@ function MenuUsuario({
             role="menuitem"
             className="app-menu-item app-menu-link"
             href={urlPortalApps()}
-            target="_blank"
-            rel="noopener noreferrer"
             onClick={() => setMenuAberto(false)}
           >
             Portal de apps
