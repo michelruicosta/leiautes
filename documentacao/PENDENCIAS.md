@@ -1,12 +1,24 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-27**
+Última atualização: **2026-08-27 23:24**
 
 ## Em aberto
 
 *(nenhuma urgente)*
 
 ## Fechadas recentemente
+
+### ✅ Senha no portal — sem Perfil e sem esqueci senha (27/08)
+
+- Menu do nome: **Portal de apps** e **Sair** (vermelho). Sem Perfil.
+- Login: e-mail, senha, Entrar, Portal de apps. Sem “Esqueceu a senha?”.
+- Produção: commit `f87db25` em `https://leiautes-bacen.finaudapps.com.br`.
+
+### ✅ Checklist de senha ao vivo (27/08)
+
+- Lista verde conforme a pessoa digita (8 caracteres, maiúscula, minúscula, número, especial).
+- Vale na troca neste app e em Usuários (definir senha).
+- Recuperação por e-mail na API (senha temporária); o link saiu da tela porque a senha fica no portal.
 
 ### ✅ Cadastro de Leiautes na Administração (27/08)
 
