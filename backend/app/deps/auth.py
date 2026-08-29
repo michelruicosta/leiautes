@@ -8,6 +8,7 @@ from app.services.auth_sessao import validar_token_sessao
 from app.services.portal_sso import UsuarioPortal, consultar_usuario_portal
 from persistencia.auditoria_db import registrar_log
 from persistencia.usuarios_db import (
+    atualizar_usuario,
     buscar_usuario_por_email,
     buscar_usuario_por_id,
     criar_usuario,
@@ -55,16 +56,11 @@ def _via_cookie_portal(cookie_valor: str, *, cookie_name: str, auth_base_url: st
     if portal is None:
         return None
     usuario = buscar_usuario_por_email(portal.email)
-    if usuario is not None and not usuario.get("ativo"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail=(
-                "Seu usuário está inativo neste app. "
-                "Peça ao administrador para reativá-lo."
-            ),
-        )
     if usuario is None:
         usuario = _provisionar_usuario_portal(portal)
+    elif not usuario.get("ativo"):
+        atualizado = atualizar_usuario(int(usuario["id"]), {"ativo": True})
+        usuario = atualizado or usuario
     return usuario
 
 
