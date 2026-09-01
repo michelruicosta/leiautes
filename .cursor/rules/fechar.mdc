@@ -1,10 +1,16 @@
 ---
-description: /fechar sem cerebro — estado só no bordo do repo
+description: /fechar — estado só no bordo deste repo
 alwaysApply: true
 ---
 
 # Encerrar sessão
 
-O estado deste projeto fica só em `SESSAO_ATUAL.md`.
+O estado deste projeto fica só no bordo deste repo:
 
-No `/fechar`: atualizar o bordo do repo, commit, perguntar o push. **Não** procurar, atualizar nem mencionar `D:\cerebro\PROJETOS.md`.
+- `SESSAO_ATUAL.md`
+- `documentações/PENDENCIAS.md`
+- `documentações/REGISTRO_CORRECOES.md`
+
+No `/fechar`: atualizar esses três, commit, perguntar o push. **Não** procurar, atualizar nem mencionar mapa geral fora deste repo.
+
+O ritual completo está em `.cursor/rules/gestor-projeto.mdc`.

@@ -1,5 +1,6 @@
-
 # Monitoramento de Leiautes Bacen (Finaud)
+
+**Cadernos de bordo:** `SESSAO_ATUAL.md` · `documentações/PENDENCIAS.md` · `INICIO_CHAT.md` (`/iniciar` `/salvar` `/fechar`). Índice: `documentacao/README.md`.
 
 **No PC (hoje):** tela `http://127.0.0.1:5177` · API `http://127.0.0.1:8003/docs`.
 Não mandar localhost se o serviço não estiver no ar. Não usar 8001 (Auditoria).
