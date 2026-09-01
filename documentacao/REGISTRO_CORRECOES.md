@@ -1,5 +1,14 @@
 # Registro de correções — Leiautes Bacen
 
+## 2026-09-01 12:25 — Chamado arquivado (sem Perfil neste app)
+
+🔎 **Em miúdos:** Michel conferiu depois de uns dias: neste app não pode ter Perfil. Continua certo. Chamado encerrado.
+
+- **Problema:** reabrir o chat antigo e não saber se ainda valia.
+- **Causa raiz:** o bordo tinha parado em 27/08; o combinado já estava no site.
+- **Correção:** conferência no código — menu só Portal de apps e Sair.
+- **Validação:** ✅ Michel, 01/09.
+
 ## 2026-08-27 23:15 — Publicado no site (Perfil e esqueci senha)
 
 🔎 **Em miúdos:** o site no ar ficou igual ao combinado neste PC: senha no portal; neste app, só entrar e sair.

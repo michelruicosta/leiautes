@@ -1,6 +1,6 @@
 # Pendências — Leiautes Bacen
 
-Última atualização: **2026-08-27 23:24**
+Última atualização: **2026-09-01 12:25**
 
 ## Em aberto
 
@@ -8,7 +8,11 @@
 
 ## Fechadas recentemente
 
-### ✅ Senha no portal — sem Perfil e sem esqueci senha (27/08)
+### ✅ Senha no portal — sem Perfil e sem esqueci senha (27/08, conferido 01/09)
+
+- Menu do nome: **Portal de apps** e **Sair** (vermelho). Sem Perfil — **não pode ter** neste app.
+- Login: e-mail, senha, Entrar, Portal de apps. Sem “Esqueceu a senha?”.
+- Chamado deste chat arquivado em 01/09.
 
 - Menu do nome: **Portal de apps** e **Sair** (vermelho). Sem Perfil.
 - Login: e-mail, senha, Entrar, Portal de apps. Sem “Esqueceu a senha?”.

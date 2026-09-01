@@ -1,10 +1,10 @@
 # Sessão atual — Leiautes Bacen
 
-Última atualização: **2026-08-27 23:24**
+Última atualização: **2026-09-01 12:25**
 
 ## Estado
 
-**main** no GitHub e no site (`f87db25`). Senha fica no portal: login sem “Esqueceu a senha?”; menu do nome só **Portal de apps** e **Sair**.
+Chamado deste chat **arquivado**. Senha no portal: neste app o menu do nome é só **Portal de apps** e **Sair** — sem Perfil. Confirmado por Michel em 01/09.
 
 ## Pendência mais quente
 
@@ -12,12 +12,11 @@ Nenhuma urgente.
 
 ## Próximo passo
 
-Aguardar o uso no site. Se a operação pedir ajuste, tratar na próxima sessão.
+Nada deste chamado. Abrir chat novo se a operação pedir outra coisa.
 
-## Encerrado nesta sessão (27/08)
+## Encerrado (27/08, conferido 01/09)
 
-- Checklist verde ao vivo na senha (admin e troca neste app)
-- Recuperação por e-mail na API; o link saiu da tela porque a senha fica no portal
-- Perfil e alterar senha saíram do menu do app
-- Ritual neste PC: só informar o endereço com a tela já aberta e respondendo
-- Publicado: `https://leiautes-bacen.finaudapps.com.br`
+- Checklist verde ao vivo na senha
+- Sem “Esqueceu a senha?” no login; senha no portal
+- Sem Perfil neste app
+- Publicado em `https://leiautes-bacen.finaudapps.com.br`
