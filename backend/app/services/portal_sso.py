@@ -43,7 +43,7 @@ def consultar_usuario_portal(
         method="GET",
     )
     try:
-        with urllib.request.urlopen(req, timeout=config.PORTAL_AUTH_TIMEOUT_SEG) as resp:
+        with urllib.request.urlopen(req, timeout=config.PORTAL_AUTH_TIMEOUT_SEG) as resp:  # nosec B310 — URL vem de PORTAL_AUTH_URL no .env (admin), nunca do usuário
             if resp.status != 200:
                 return None
             data = json.loads(resp.read().decode("utf-8"))

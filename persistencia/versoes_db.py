@@ -60,7 +60,7 @@ def _head_url_bacen(url: str, timeout: float = 12.0) -> int:
             method="HEAD",
             headers={"User-Agent": "leiautes_bacen/1.0 (+monitoramento)"},
         )
-        with urllib.request.urlopen(req, timeout=timeout) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:  # nosec B310 — URL vem de urls do BACEN cadastradas pelo admin, nunca do usuário
             return int(resp.status)
     except urllib.error.HTTPError as exc:
         return int(exc.code or 0)
