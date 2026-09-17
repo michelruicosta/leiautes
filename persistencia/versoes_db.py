@@ -129,36 +129,24 @@ def listar_versoes(
     with conectar() as conn:
         _ensure_colunas_url(conn)
         total = conn.execute(
-            f"""
-            SELECT COUNT(*) AS c
-            FROM versoes_arquivos v
-            JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id
-            LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
-            {sql_where}
-            """,
+            "SELECT COUNT(*) AS c "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            "FROM versoes_arquivos v "
+            "JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id "
+            "LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id "
+            + sql_where,
             params,
         ).fetchone()["c"]
 
         rows = conn.execute(
-            f"""
-            SELECT
-                v.id,
-                v.criado_em AS capturado_em,
-                v.caminho_arquivo,
-                ar.id AS arquivo_id,
-                ar.nome_arquivo AS arquivo_nome,
-                ar.tipo_arquivo AS arquivo_tipo,
-                ar.url AS url_bacen,
-                ar.url_http_status,
-                ar.url_verificado_em,
-                COALESCE(l.codigo, '') AS leiaute_codigo
-            FROM versoes_arquivos v
-            JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id
-            LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
-            {sql_where}
-            ORDER BY v.criado_em DESC, v.id DESC
-            LIMIT ? OFFSET ?
-            """,
+            "SELECT v.id, v.criado_em AS capturado_em, v.caminho_arquivo, "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            "ar.id AS arquivo_id, ar.nome_arquivo AS arquivo_nome, ar.tipo_arquivo AS arquivo_tipo, "
+            "ar.url AS url_bacen, ar.url_http_status, ar.url_verificado_em, "
+            "COALESCE(l.codigo, '') AS leiaute_codigo "
+            "FROM versoes_arquivos v "
+            "JOIN arquivos_monitorados ar ON ar.id = v.arquivo_id "
+            "LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id "
+            + sql_where
+            + " ORDER BY v.criado_em DESC, v.id DESC LIMIT ? OFFSET ?",
             [*params, limit, offset],
         ).fetchall()
 

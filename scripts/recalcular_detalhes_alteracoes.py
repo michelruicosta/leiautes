@@ -21,19 +21,14 @@ def recalcular(tipo: str | None = None) -> int:
     atualizados = 0
     with conectar() as conn:
         rows = conn.execute(
-            f"""
-            SELECT
-                a.id,
-                ar.tipo_arquivo,
-                va.caminho_arquivo AS caminho_atual,
-                vp.caminho_arquivo AS caminho_anterior
-            FROM alteracoes_detectadas a
-            JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
-            JOIN versoes_arquivos va ON va.id = a.versao_atual_id
-            LEFT JOIN versoes_arquivos vp ON vp.id = a.versao_anterior_id
-            {where}
-            ORDER BY a.id
-            """,
+            "SELECT a.id, ar.tipo_arquivo, "  # nosec B608 — where contém apenas cláusula SQL fixa ou string vazia; valores passados via parâmetros ?
+            "va.caminho_arquivo AS caminho_atual, vp.caminho_arquivo AS caminho_anterior "
+            "FROM alteracoes_detectadas a "
+            "JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id "
+            "JOIN versoes_arquivos va ON va.id = a.versao_atual_id "
+            "LEFT JOIN versoes_arquivos vp ON vp.id = a.versao_anterior_id "
+            + where
+            + " ORDER BY a.id",
             params,
         ).fetchall()
 

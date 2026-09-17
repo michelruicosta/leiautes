@@ -336,39 +336,22 @@ def _buscar_alteracoes(escopo: str) -> tuple[list[dict[str, Any]], str]:
                 titulo = "Relatório de alterações de leiautes Bacen"
 
         rows = conn.execute(
-            f"""
-            SELECT
-                a.id,
-                a.execucao_id,
-                a.status,
-                a.criado_em,
-                a.resumo_executivo,
-                a.impacto_sugerido,
-                a.itens_incluidos,
-                a.itens_removidos,
-                a.itens_alterados,
-                COALESCE(l.codigo, '') AS leiaute_codigo,
-                COALESCE(l.nome, '') AS leiaute_nome,
-                ar.nome_arquivo,
-                ar.tipo_arquivo,
-                ar.last_modified,
-                ar.url,
-                ar.final_url,
-                e.iniciado_em,
-                e.finalizado_em,
-                va.caminho_arquivo AS versao_anterior,
-                vn.caminho_arquivo AS versao_atual,
-                va.tamanho_bytes AS tamanho_anterior,
-                vn.tamanho_bytes AS tamanho_atual
-            FROM alteracoes_detectadas a
-            JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
-            LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
-            LEFT JOIN execucoes e ON e.id = a.execucao_id
-            LEFT JOIN versoes_arquivos va ON va.id = a.versao_anterior_id
-            LEFT JOIN versoes_arquivos vn ON vn.id = a.versao_atual_id
-            {where}
-            ORDER BY a.execucao_id DESC, a.id DESC
-            """,
+            "SELECT a.id, a.execucao_id, a.status, a.criado_em, "  # nosec B608 — where contém apenas cláusula SQL fixa ou string vazia; valores passados via parâmetros ?
+            "a.resumo_executivo, a.impacto_sugerido, "
+            "a.itens_incluidos, a.itens_removidos, a.itens_alterados, "
+            "COALESCE(l.codigo, '') AS leiaute_codigo, COALESCE(l.nome, '') AS leiaute_nome, "
+            "ar.nome_arquivo, ar.tipo_arquivo, ar.last_modified, ar.url, ar.final_url, "
+            "e.iniciado_em, e.finalizado_em, "
+            "va.caminho_arquivo AS versao_anterior, vn.caminho_arquivo AS versao_atual, "
+            "va.tamanho_bytes AS tamanho_anterior, vn.tamanho_bytes AS tamanho_atual "
+            "FROM alteracoes_detectadas a "
+            "JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id "
+            "LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id "
+            "LEFT JOIN execucoes e ON e.id = a.execucao_id "
+            "LEFT JOIN versoes_arquivos va ON va.id = a.versao_anterior_id "
+            "LEFT JOIN versoes_arquivos vn ON vn.id = a.versao_atual_id "
+            + where
+            + " ORDER BY a.execucao_id DESC, a.id DESC",
             params,
         ).fetchall()
 

@@ -72,11 +72,9 @@ def listar_usuarios() -> tuple[list[dict], int]:
     with conectar() as conn:
         total = conn.execute("SELECT COUNT(*) AS c FROM usuarios").fetchone()["c"]
         rows = conn.execute(
-            f"""
-            SELECT {_CAMPOS_USUARIO}
-            FROM usuarios
-            ORDER BY nome COLLATE NOCASE
-            """
+            "SELECT "  # nosec B608 — _CAMPOS_USUARIO é constante hardcoded de nomes de colunas, nunca entrada do usuário
+            + _CAMPOS_USUARIO
+            + " FROM usuarios ORDER BY nome COLLATE NOCASE"
         ).fetchall()
     return [_row_usuario(row) for row in rows], int(total)
 
@@ -85,11 +83,9 @@ def obter_usuario(usuario_id: int) -> Optional[dict]:
     init_db()
     with conectar() as conn:
         row = conn.execute(
-            f"""
-            SELECT {_CAMPOS_USUARIO}
-            FROM usuarios
-            WHERE id = ?
-            """,
+            "SELECT "  # nosec B608 — _CAMPOS_USUARIO é constante hardcoded de nomes de colunas, nunca entrada do usuário
+            + _CAMPOS_USUARIO
+            + " FROM usuarios WHERE id = ?",
             (usuario_id,),
         ).fetchone()
     return _row_usuario(row) if row else None

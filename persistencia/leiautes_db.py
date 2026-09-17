@@ -39,15 +39,14 @@ def listar_leiautes(*, ativos: Optional[bool] = None) -> tuple[list[dict], int]:
         params.append(1 if ativos else 0)
     with conectar() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM leiautes_monitorados {where}",
+            "SELECT COUNT(*) AS c FROM leiautes_monitorados "  # nosec B608 — where contém apenas cláusula SQL fixa; valores passados via parâmetros ?
+            + where,
             params,
         ).fetchone()["c"]
         rows = conn.execute(
-            f"""
-            SELECT * FROM leiautes_monitorados
-            {where}
-            ORDER BY categoria, codigo
-            """,
+            "SELECT * FROM leiautes_monitorados "  # nosec B608 — where contém apenas cláusula SQL fixa; valores passados via parâmetros ?
+            + where
+            + " ORDER BY categoria, codigo",
             params,
         ).fetchall()
     return [_row_leiaute(row) for row in rows], int(total)

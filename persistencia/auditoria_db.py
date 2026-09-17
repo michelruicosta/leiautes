@@ -68,17 +68,15 @@ def listar_logs(
     offset = max(0, offset)
     with conectar() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) AS c FROM auditoria {sql_where}",
+            "SELECT COUNT(*) AS c FROM auditoria "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            + sql_where,
             params,
         ).fetchone()["c"]
         rows = conn.execute(
-            f"""
-            SELECT id, usuario, pagina, acao, detalhe, criado_em
-            FROM auditoria
-            {sql_where}
-            ORDER BY criado_em DESC, id DESC
-            LIMIT ? OFFSET ?
-            """,
+            "SELECT id, usuario, pagina, acao, detalhe, criado_em "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            "FROM auditoria "
+            + sql_where
+            + " ORDER BY criado_em DESC, id DESC LIMIT ? OFFSET ?",
             (*params, limit, offset),
         ).fetchall()
     return [dict(row) for row in rows], int(total)

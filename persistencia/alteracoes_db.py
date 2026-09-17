@@ -48,37 +48,24 @@ def listar_alteracoes(
     sql_where = f"WHERE {' AND '.join(where)}" if where else ""
     with conectar() as conn:
         total = conn.execute(
-            f"""
-            SELECT COUNT(*) AS c
-            FROM alteracoes_detectadas a
-            JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
-            LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
-            {sql_where}
-            """,
+            "SELECT COUNT(*) AS c "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            "FROM alteracoes_detectadas a "
+            "JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id "
+            "LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id "
+            + sql_where,
             params,
         ).fetchone()["c"]
         rows = conn.execute(
-            f"""
-            SELECT
-                a.id,
-                a.execucao_id,
-                COALESCE(l.codigo, '') AS leiaute_codigo,
-                ar.nome_arquivo AS arquivo_nome,
-                ar.tipo_arquivo AS arquivo_tipo,
-                a.resumo_executivo,
-                a.impacto_sugerido,
-                a.status,
-                a.criado_em,
-                a.itens_incluidos,
-                a.itens_removidos,
-                a.itens_alterados
-            FROM alteracoes_detectadas a
-            JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id
-            LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id
-            {sql_where}
-            ORDER BY a.id DESC
-            LIMIT ? OFFSET ?
-            """,
+            "SELECT a.id, a.execucao_id, "  # nosec B608 — sql_where contém apenas cláusulas SQL fixas; valores passados via parâmetros ?
+            "COALESCE(l.codigo, '') AS leiaute_codigo, "
+            "ar.nome_arquivo AS arquivo_nome, ar.tipo_arquivo AS arquivo_tipo, "
+            "a.resumo_executivo, a.impacto_sugerido, a.status, a.criado_em, "
+            "a.itens_incluidos, a.itens_removidos, a.itens_alterados "
+            "FROM alteracoes_detectadas a "
+            "JOIN arquivos_monitorados ar ON ar.id = a.arquivo_id "
+            "LEFT JOIN leiautes_monitorados l ON l.id = ar.leiaute_id "
+            + sql_where
+            + " ORDER BY a.id DESC LIMIT ? OFFSET ?",
             [*params, limit, offset],
         ).fetchall()
     return [_row_alteracao(row) for row in rows], int(total)
