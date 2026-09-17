@@ -94,7 +94,7 @@ def executar_robo_atual(
     cmd = [sys.executable, str(SCRIPT_MOTOR)]
 
     try:
-        proc = subprocess.run(
+        proc = subprocess.run(  # nosec B603 — subprocess com lista de args fixos sem shell=True (padrão seguro); sem entrada do usuário
             cmd,
             cwd=str(RAIZ_PROJETO),
             env=env,

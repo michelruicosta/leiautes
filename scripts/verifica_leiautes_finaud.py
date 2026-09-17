@@ -267,7 +267,7 @@ def baixar_conteudo_para_historico(session, url, max_single=MAX_SINGLE_ATTACH_SI
         cl = hi.get("content_length")
         if cl and cl.isdigit() and int(cl) > max_single:
             return None, f"pula historico: Content-Length {cl} > limite"
-    except Exception:
+    except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
         pass
 
     r = session.get(url, stream=True, allow_redirects=True, timeout=TIMEOUT)
@@ -333,7 +333,7 @@ def verificar_anexos(urls_anexos, categoria_por_url=None, execucao_id=None, use_
             if "partial_fp" not in info:
                 try:
                     info["partial_fp"] = small_range_fingerprint(sess, url)
-                except Exception:
+                except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
                     pass
 
         mudanca_real, reasons = _metadados_mudaram(
@@ -500,7 +500,7 @@ def _coletar_hrefs_assets(page) -> list[str]:
                 }"""
             )
         )
-    except Exception:
+    except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
         pass
 
     # Complemento: assets embutidos no HTML (ex.: XSD do DRM que às vezes não vira <a>).
@@ -518,7 +518,7 @@ def _coletar_hrefs_assets(page) -> list[str]:
             flags=re.I,
         ):
             hrefs.append(page.evaluate("u => new URL(u, document.baseURI).toString()", m))
-    except Exception:
+    except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
         pass
     return list(dict.fromkeys(hrefs))
 
@@ -533,7 +533,7 @@ def extrair_datas_categorias_e_anexos(url):
         page.goto(url, timeout=90000, wait_until="networkidle")
         try:
             page.wait_for_selector("table", timeout=8000)
-        except Exception:
+        except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
             pass
         try:
             page.wait_for_selector(
@@ -559,7 +559,7 @@ def extrair_datas_categorias_e_anexos(url):
                 text = (cell.inner_text() or "").strip()
                 if len(text) == 10 and text[2] == "/" and text[5] == "/":
                     datas.append(text)
-        except Exception:
+        except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
             pass
 
         hrefs = _coletar_hrefs_assets(page)
@@ -2251,7 +2251,7 @@ def baixar_para_anexo(session, url, max_single=MAX_SINGLE_ATTACH_SIZE):
         cl = hi.get("content_length")
         if cl and cl.isdigit() and int(cl) > max_single:
             return None, None, None, f"pula: Content-Length {cl} > limite"
-    except Exception:
+    except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
         pass
 
     r = session.get(url, stream=True, allow_redirects=True, timeout=TIMEOUT)
@@ -2699,7 +2699,7 @@ if __name__ == "__main__":
                     status="erro",
                     erro=str(e).splitlines()[-1][:2000],
                 )
-            except Exception:
+            except Exception:  # nosec B110 — falha de rede/página web — ignora e continua varredura
                 pass
         try:
             resumo_err = {"Motivo": str(e).splitlines()[-1]}

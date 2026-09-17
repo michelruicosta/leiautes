@@ -851,7 +851,7 @@ def _comparar_pdf(anterior: Path, atual: Path) -> dict[str, Any]:
                         continue
                     if _diff_so_espaco_interno(ant_t, dep_t):
                         continue
-                except Exception:
+                except Exception:  # nosec B110 — falha ao processar arquivo individual — ignora e passa ao próximo
                     pass
             alterados.append(item)
 
