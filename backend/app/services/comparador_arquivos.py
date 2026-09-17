@@ -8,7 +8,7 @@ import zipfile
 from datetime import date, datetime
 from pathlib import Path
 from typing import Any
-from xml.etree import ElementTree
+from defusedxml import ElementTree
 
 RAIZ = Path(__file__).resolve().parent.parent.parent.parent
 
