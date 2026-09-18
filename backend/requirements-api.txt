@@ -2,7 +2,7 @@
 #   python -m pip install -r backend/requirements-api.txt
 fastapi~=0.141.1
 uvicorn[standard]~=0.32.0
-pydantic~=2.10.0
+pydantic~=2.13.5
 python-dotenv~=1.2.2
 bcrypt~=4.2.0
 itsdangerous~=2.2.0
