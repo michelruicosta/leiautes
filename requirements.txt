@@ -1,6 +1,6 @@
 certifi==2026.1.4
 bcrypt==4.3.0
-charset-normalizer==3.4.3
+charset-normalizer==3.5.1
 greenlet==3.2.4
 idna==3.19
 itsdangerous==2.2.0
