@@ -1,12 +1,17 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import AlteracaoListaResponse, AlteracaoResumo
 from persistencia.alteracoes_db import listar_alteracoes, obter_alteracao
 
-router = APIRouter(prefix="/alteracoes", tags=["alteracoes"])
+router = APIRouter(
+    prefix="/alteracoes",
+    tags=["alteracoes"],
+    dependencies=[Depends(exigir_rota("alteracoes"))],
+)
 
 
 @router.get("", response_model=AlteracaoListaResponse)

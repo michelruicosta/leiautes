@@ -3,13 +3,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.config import RAIZ_PROJETO
+from app.deps.auth import exigir_rota
 from app.models.schemas import ExecucaoListaResponse, ExecucaoLogResponse, ExecucaoResumo
 from persistencia.execucoes_db import listar_execucoes, obter_execucao, obter_ultima_execucao
 
-router = APIRouter(prefix="/execucoes", tags=["execucoes"])
+# Execuções e log técnico só aparecem na tela Robô — mesma permissão.
+router = APIRouter(
+    prefix="/execucoes",
+    tags=["execucoes"],
+    dependencies=[Depends(exigir_rota("admin-robo"))],
+)
 
 
 def _ler_log_execucao(log_path: str | None, fallback: str | None) -> tuple[str, bool]:

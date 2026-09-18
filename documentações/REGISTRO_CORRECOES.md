@@ -30,6 +30,29 @@ Histórico vivo de tudo que foi corrigido. Ler antes de qualquer correção.
 
 <!-- Entradas mais recentes primeiro -->
 
+### 2026-09-18 20:30 — Correções A01-2/4/5/8/9/11/13 + remoção do login local
+
+**🔎 Em miúdos:** login com senha local, recuperar senha e alterar senha foram removidos do servidor. Só o portal SSO dá acesso. Junto com isso: usuário inativo já não é reativado pelo portal; operador não tem mais acesso ao robô por padrão; cada ação na trilha de auditoria passa a gravar quem realmente fez; /docs e /openapi.json somem em produção; CORS vem do .env.
+**Problema:** ver achados A01-2, A01-4, A01-5, A01-8, A01-9, A01-11 e A01-13 registrados na entrada de 19:55.
+**Causa raiz:** ver entradas abaixo.
+**Correção:**
+- A01-2/11: removidos endpoints `/auth/login`, `/auth/recuperar-senha`, `/auth/alterar-senha`; deletados `auth_recuperacao.py`, `auth_email.py`, `auth_sessao.py` via `git rm`. Só `/auth/me` e `/auth/logout` permanecem. `hash_senha` movida para `auth_senha.py`.
+- A01-4 (`deps/auth.py`): usuário inativo pelo SSO retorna 401 em vez de ser reativado.
+- A01-5 (`persistencia/db.py`): `operador` não tem mais `admin-robo` no seed nem nos bancos existentes (migração automática no startup).
+- A01-8 (`routers/usuarios.py`, `leiautes.py`, `robo.py`, `configuracoes.py`): `usuario: dict = Depends(exigir_usuario)` adicionado nas funções de mutação; `registrar_log` passa `usuario["email"]`. FastAPI reutiliza o resultado do `exigir_usuario` já chamado pelo `exigir_rota` no nível do router.
+- A01-9 (`config.py`, `main.py`): `ENVIRONMENT=production` desliga `/docs`, `/redoc` e `/openapi.json`.
+- A01-13 (`config.py`, `main.py`): lista CORS vem de `CORS_ALLOW_ORIGINS` no `.env`; padrão de dev mantém localhost; produção deve definir só domínios reais.
+**Validação:** ⚠️ VALIDAÇÃO PENDENTE em produção. Neste PC: ✅ todos os imports funcionam (16 rotas registradas, zero erros). Critério: após publicar, login direto (`POST /api/auth/login`) deve dar 404; portal SSO deve continuar funcionando; auditoria deve mostrar e-mail real de quem editou.
+
+### 2026-09-18 19:55 — Auditoria de controle de acesso (OWASP A01) + cadeado nas 5 rotas abertas
+
+**🔎 Em miúdos:** o painel, as alterações, o relatório em Excel, os arquivos guardados e o log do robô abriam para qualquer pessoa na internet que soubesse o endereço, sem login. Agora o servidor pede login e confere o perfil.
+**Problema:** em produção, sem cookie, `/api/dashboard`, `/api/alteracoes`, `/api/execucoes/ultima` e `/api/relatorios/alteracoes.xlsx` respondiam 200 (conferido em 18/09).
+**Causa raiz:** os routers `dashboard`, `alteracoes`, `versoes`, `relatorios` e `execucoes` nunca tiveram `Depends`. A trava existia só na tela (o app só mostra as páginas depois do login), não no servidor.
+**Correção:** `dependencies=[Depends(exigir_rota(...))]` nos 5 routers, no mesmo padrão dos de Administração — `dashboard` → `dashboard`; `alteracoes`, `versoes`, `relatorios` → `alteracoes` (tudo da tela Alterações); `execucoes` → `admin-robo` (só a tela Robô usa). Arquivos: `backend/app/routers/{dashboard,alteracoes,versoes,relatorios,execucoes}.py`.
+**Validação:** ⚠️ VALIDAÇÃO PENDENTE em produção. Neste PC: ✅ 47 checagens com banco temporário — sem cookie e com cookie falso = 401; administrador/gestor/operador entram no que o perfil permite; gestor leva 403 em `/execucoes`; perfil sem rotas leva 403 em tudo; `/health` segue público. Critério em produção: depois de publicar, `curl -s -o /dev/null -w "%{http_code}" https://leiautes-bacen.finaudapps.com.br/api/dashboard` sem login tem de dar **401**, e as telas Painel, Alterações (com download) e Robô têm de abrir normal logado.
+**Demais achados da auditoria (2 altos, 6 médios, 6 baixos):** listados em `PENDENCIAS.md`.
+
 ### 2026-09-01 14:25 — Cadernos de bordo no molde do Normativos
 
 **🔎 Em miúdos:** os cadernos deste projeto passaram a ter o mesmo jeito dos do Normativos: o que está no ar, o que ainda falta e o que é só história.

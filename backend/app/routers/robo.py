@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from app.deps.auth import exigir_rota
+from app.deps.auth import exigir_rota, exigir_usuario
 from app.models.schemas import (
     AgendaRoboResponse,
     AgendaRoboUpdateRequest,
@@ -40,7 +40,10 @@ def obter_agenda() -> AgendaRoboResponse:
 
 
 @router.put("/agenda", response_model=AgendaRoboResponse)
-def salvar_agenda(payload: AgendaRoboUpdateRequest) -> AgendaRoboResponse:
+def salvar_agenda(
+    payload: AgendaRoboUpdateRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> AgendaRoboResponse:
     cfg = atualizar_config_agenda(
         horarios=payload.horarios,
         dias_semana=payload.dias_semana,
@@ -48,6 +51,7 @@ def salvar_agenda(payload: AgendaRoboUpdateRequest) -> AgendaRoboResponse:
         robo_ativo=payload.robo_ativo,
     )
     registrar_log(
+        usuario=usuario["email"],
         pagina="Robô",
         acao="Atualizar agenda",
         detalhe=(
@@ -59,7 +63,10 @@ def salvar_agenda(payload: AgendaRoboUpdateRequest) -> AgendaRoboResponse:
 
 
 @router.post("/executar", response_model=RoboExecutarResponse)
-def executar(payload: RoboExecutarRequest) -> RoboExecutarResponse:
+def executar(
+    payload: RoboExecutarRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> RoboExecutarResponse:
     try:
         resultado = executar_robo_atual(
             modo_teste=payload.modo_teste,
@@ -70,6 +77,7 @@ def executar(payload: RoboExecutarRequest) -> RoboExecutarResponse:
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     registrar_log(
+        usuario=usuario["email"],
         pagina="Robô",
         acao="Execução manual",
         detalhe=(

@@ -20,13 +20,11 @@ APP_NAME = "leiautes_bacen"
 SCRIPT_MOTOR = RAIZ_PROJETO / "scripts" / "verifica_leiautes_finaud.py"
 DB_PATH = Path(os.environ.get("LEIAUTES_DB_PATH", RAIZ_PROJETO / "dados" / "leiautes.db"))
 
-AUTH_SECRET_KEY = os.environ.get(
-    "AUTH_SECRET_KEY",
-    "dev-alterar-em-producao-leiautes-bacen",
-)
+# Ambiente: "production" desabilita /docs e /openapi.json (A01-9)
+ENVIRONMENT = os.environ.get("ENVIRONMENT", "development").strip().lower()
+
+# Cookie de sessão local (mantido só para o logout limpar sessões antigas)
 AUTH_COOKIE_NAME = "leiautes_sessao"
-AUTH_SESSAO_MAX_AGE_SEG = 60 * 60 * 24 * 7
-AUTH_SEED_PASSWORD = os.environ.get("AUTH_SEED_PASSWORD", "finaud-dev-2026")
 AUTH_COOKIE_DOMAIN = os.environ.get("AUTH_COOKIE_DOMAIN") or None
 _cookie_secure_env = os.environ.get("AUTH_COOKIE_SECURE")
 if _cookie_secure_env is not None:
@@ -34,10 +32,33 @@ if _cookie_secure_env is not None:
 else:
     AUTH_COOKIE_SECURE = bool(AUTH_COOKIE_DOMAIN)
 
-URL_LOGIN_RECUPERACAO = os.environ.get(
-    "LEIAUTES_FRONTEND_URL",
-    "http://127.0.0.1:5177",
-).rstrip("/")
+# CORS — lista separada por vírgula no .env (A01-13)
+# Em produção defina só as origens reais; o padrão inclui localhost para desenvolvimento.
+_cors_env = os.environ.get("CORS_ALLOW_ORIGINS", "").strip()
+if _cors_env:
+    CORS_ALLOW_ORIGINS: list[str] = [o.strip() for o in _cors_env.split(",") if o.strip()]
+else:
+    CORS_ALLOW_ORIGINS = [
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "http://127.0.0.1:5174",
+        "http://localhost:5175",
+        "http://127.0.0.1:5175",
+        "http://localhost:5176",
+        "http://127.0.0.1:5176",
+        "http://localhost:5177",
+        "http://127.0.0.1:5177",
+        "http://127.0.0.1:8000",
+        "http://127.0.0.1:8001",
+        "http://127.0.0.1:8002",
+        "http://127.0.0.1:8003",
+        "https://finaudapps.com.br",
+        "https://www.finaudapps.com.br",
+        "https://admin.finaudapps.com.br",
+        "https://leiautes-bacen.finaudapps.com.br",
+        "https://www.leiautes-bacen.finaudapps.com.br",
+    ]
 
 # SSO portal — ver documentacao/sso_portal_apps_finaud.md
 PORTAL_AUTH_URL = os.environ.get(

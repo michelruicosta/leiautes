@@ -4,7 +4,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import API_VERSION
+from app.config import API_VERSION, CORS_ALLOW_ORIGINS, ENVIRONMENT
 from app.routers import (
     alteracoes,
     auth,
@@ -21,35 +21,24 @@ from app.routers import (
 )
 from persistencia.db import init_db
 
+# A01-9: /docs e /openapi.json só em desenvolvimento
+_docs_url = None if ENVIRONMENT == "production" else "/docs"
+_redoc_url = None if ENVIRONMENT == "production" else "/redoc"
+_openapi_url = None if ENVIRONMENT == "production" else "/openapi.json"
+
 app = FastAPI(
     title="leiautes_bacen - API",
     description="Monitoramento de leiautes Bacen e comparacao de versoes - MVP v1.",
     version=API_VERSION,
+    docs_url=_docs_url,
+    redoc_url=_redoc_url,
+    openapi_url=_openapi_url,
 )
 
+# A01-13: origens CORS vindas do .env (sem localhost em produção)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:5174",
-        "http://127.0.0.1:5174",
-        "http://localhost:5175",
-        "http://127.0.0.1:5175",
-        "http://localhost:5176",
-        "http://127.0.0.1:5176",
-        "http://localhost:5177",
-        "http://127.0.0.1:5177",
-        "http://127.0.0.1:8000",
-        "http://127.0.0.1:8001",
-        "http://127.0.0.1:8003",
-        "http://127.0.0.1:8002",
-        "https://finaudapps.com.br",
-        "https://www.finaudapps.com.br",
-        "https://admin.finaudapps.com.br",
-        "https://leiautes-bacen.finaudapps.com.br",
-        "https://www.leiautes-bacen.finaudapps.com.br",
-    ],
+    allow_origins=CORS_ALLOW_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

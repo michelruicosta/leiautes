@@ -374,7 +374,8 @@ def seed_leiautes_padrao() -> None:
 
 def seed_perfis_padrao() -> None:
     permissoes = {
-        "operador": ["dashboard", "alteracoes", "admin-robo"],
+        # A01-5: operador não tem admin-robo por padrão; admin libera caso a caso
+        "operador": ["dashboard", "alteracoes"],
         "gestor": ["dashboard", "alteracoes"],
         "administrador": [
             "dashboard",
@@ -397,8 +398,7 @@ def seed_perfis_padrao() -> None:
                 """,
                 (perfil, _json(rotas), agora),
             )
-        # Remove rotas antigas: e-mail do gestor (foi para Configurações)
-        # e cadastro de leiautes em Operação (passou para Administração).
+        # Migrações de rotas obsoletas ou movidas.
         for row in conn.execute(
             "SELECT perfil_codigo, rotas_permitidas FROM perfis_permissoes"
         ):
@@ -408,12 +408,17 @@ def seed_perfis_padrao() -> None:
                 atuais = []
             if not isinstance(atuais, list):
                 atuais = []
+            # Remove rotas antigas: e-mail do gestor (foi para Configurações)
+            # e cadastro de leiautes em Operação (passou para Administração).
             limpas = [r for r in atuais if r not in ("email-gestor", "leiautes")]
             if (
                 row["perfil_codigo"] == "administrador"
                 and "admin-leiautes" not in limpas
             ):
                 limpas.append("admin-leiautes")
+            # A01-5: remove admin-robo do operador (segurança; admin libera caso a caso)
+            if row["perfil_codigo"] == "operador":
+                limpas = [r for r in limpas if r != "admin-robo"]
             if limpas != atuais:
                 conn.execute(
                     """

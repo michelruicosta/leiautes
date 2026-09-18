@@ -1,32 +1,12 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, Response, status
 
 from app import config
 from app.deps.auth import exigir_usuario
-from app.models.schemas import (
-    AlterarSenhaRequest,
-    LoginRequest,
-    LoginResponse,
-    RecuperarSenhaRequest,
-    RecuperarSenhaResponse,
-    UsuarioAuthResponse,
-)
-from app.services.auth_recuperacao import solicitar_recuperacao_senha
-from app.services.auth_senha import validar_politica_senha
-from app.services.auth_sessao import (
-    emitir_token_sessao,
-    hash_senha,
-    tem_senha_local,
-    verificar_senha,
-)
-from persistencia.auditoria_db import registrar_log
-from persistencia.usuarios_db import (
-    atualizar_senha_usuario,
-    buscar_usuario_por_email,
-    listar_permissoes_perfis,
-)
+from app.models.schemas import UsuarioAuthResponse
+from persistencia.usuarios_db import listar_permissoes_perfis
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -68,48 +48,11 @@ def _usuario_auth(usuario: dict) -> UsuarioAuthResponse:
     )
 
 
-@router.post("/login", response_model=LoginResponse)
-def login(body: LoginRequest, response: Response) -> LoginResponse:
-    usuario = buscar_usuario_por_email(body.email)
-    if usuario is None or not usuario.get("ativo"):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha incorretos.",
-        )
-    if not tem_senha_local(usuario.get("senha_hash")):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=(
-                "Este usuário foi liberado para entrar pelo portal Finaud. "
-                "Ainda não há senha local definida neste app."
-            ),
-        )
-    if not verificar_senha(body.senha, usuario.get("senha_hash")):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="E-mail ou senha incorretos.",
-        )
-    token = emitir_token_sessao(usuario["id"])
-    response.set_cookie(
-        key=config.AUTH_COOKIE_NAME,
-        value=token,
-        max_age=config.AUTH_SESSAO_MAX_AGE_SEG,
-        **_cookie_params(),
-    )
-    registrar_log(
-        usuario=usuario["email"],
-        pagina="Login",
-        acao="Autenticação",
-        detalhe="Login realizado com sucesso.",
-    )
-    return LoginResponse(usuario=_usuario_auth(usuario), mensagem="Login realizado.")
-
-
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
 def logout(response: Response) -> None:
     params = _cookie_params()
+    # Apaga os três cookies SSO possíveis (limpeza de sessão anterior com login local)
     response.delete_cookie(key=config.AUTH_COOKIE_NAME, **params)
-    # SSO: ao sair do app, encerra também a sessão do portal neste domínio
     response.delete_cookie(key=config.PORTAL_COOKIE_NAME, **params)
     response.delete_cookie(key=config.AUDITORIA_PORTAL_COOKIE_NAME, **params)
 
@@ -117,41 +60,3 @@ def logout(response: Response) -> None:
 @router.get("/me", response_model=UsuarioAuthResponse)
 def me(usuario: dict = Depends(exigir_usuario)) -> UsuarioAuthResponse:
     return _usuario_auth(usuario)
-
-
-@router.post("/recuperar-senha", response_model=RecuperarSenhaResponse)
-def recuperar_senha(body: RecuperarSenhaRequest) -> RecuperarSenhaResponse:
-    mensagem = solicitar_recuperacao_senha(body.email)
-    return RecuperarSenhaResponse(mensagem=mensagem)
-
-
-@router.post("/alterar-senha")
-def alterar_senha(
-    body: AlterarSenhaRequest,
-    usuario: dict = Depends(exigir_usuario),
-) -> dict[str, str]:
-    if body.nova_senha != body.confirmar_senha:
-        raise HTTPException(status_code=400, detail="As senhas não coincidem.")
-    if body.senha_atual == body.nova_senha:
-        raise HTTPException(
-            status_code=400,
-            detail="A nova senha deve ser diferente da senha atual.",
-        )
-    erro = validar_politica_senha(body.nova_senha)
-    if erro:
-        raise HTTPException(status_code=400, detail=erro)
-    if not tem_senha_local(usuario.get("senha_hash")):
-        raise HTTPException(
-            status_code=400,
-            detail="Este usuário ainda não tem senha local definida.",
-        )
-    if not verificar_senha(body.senha_atual, usuario.get("senha_hash")):
-        raise HTTPException(status_code=400, detail="Senha atual incorreta.")
-    atualizar_senha_usuario(usuario["id"], hash_senha(body.nova_senha))
-    registrar_log(
-        usuario=usuario["email"],
-        pagina="Alterar senha",
-        acao="Alterar senha",
-        detalhe="Senha alterada pelo usuário.",
-    )
-    return {"mensagem": "Senha alterada com sucesso."}

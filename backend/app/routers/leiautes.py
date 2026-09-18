@@ -3,13 +3,14 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 
-from app.deps.auth import exigir_rota
+from app.deps.auth import exigir_rota, exigir_usuario
 from app.models.schemas import (
     LeiauteCreateRequest,
     LeiauteListaResponse,
     LeiauteResumo,
     LeiauteUpdateRequest,
 )
+from persistencia.auditoria_db import registrar_log
 from persistencia.leiautes_db import (
     atualizar_leiaute,
     criar_leiaute,
@@ -17,7 +18,6 @@ from persistencia.leiautes_db import (
     listar_leiautes,
     obter_leiaute,
 )
-from persistencia.auditoria_db import registrar_log
 
 router = APIRouter(
     prefix="/leiautes",
@@ -44,12 +44,16 @@ def obter(leiaute_id: int) -> LeiauteResumo:
 
 
 @router.post("", response_model=LeiauteResumo)
-def criar(payload: LeiauteCreateRequest) -> LeiauteResumo:
+def criar(
+    payload: LeiauteCreateRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> LeiauteResumo:
     leiaute_id = criar_leiaute(payload.model_dump())
     item = obter_leiaute(leiaute_id)
     if not item:
         raise HTTPException(status_code=500, detail="Falha ao criar leiaute")
     registrar_log(
+        usuario=usuario["email"],
         pagina="Cadastro de Leiautes",
         acao="Criação",
         detalhe=f"Leiaute {item['codigo']} criado.",
@@ -58,7 +62,11 @@ def criar(payload: LeiauteCreateRequest) -> LeiauteResumo:
 
 
 @router.put("/{leiaute_id}", response_model=LeiauteResumo)
-def atualizar(leiaute_id: int, payload: LeiauteUpdateRequest) -> LeiauteResumo:
+def atualizar(
+    leiaute_id: int,
+    payload: LeiauteUpdateRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> LeiauteResumo:
     antes = obter_leiaute(leiaute_id)
     item = atualizar_leiaute(leiaute_id, payload.model_dump(exclude_unset=True))
     if not item:
@@ -69,6 +77,7 @@ def atualizar(leiaute_id: int, payload: LeiauteUpdateRequest) -> LeiauteResumo:
     elif antes and not antes["ativo"] and item["ativo"]:
         acao = "Ativação"
     registrar_log(
+        usuario=usuario["email"],
         pagina="Cadastro de Leiautes",
         acao=acao,
         detalhe=f"Leiaute {item['codigo']} atualizado.",
@@ -77,7 +86,10 @@ def atualizar(leiaute_id: int, payload: LeiauteUpdateRequest) -> LeiauteResumo:
 
 
 @router.delete("/{leiaute_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-def excluir(leiaute_id: int) -> None:
+def excluir(
+    leiaute_id: int,
+    usuario: dict = Depends(exigir_usuario),
+) -> None:
     item = obter_leiaute(leiaute_id)
     if not item:
         raise HTTPException(status_code=404, detail="Leiaute não encontrado")
@@ -91,6 +103,7 @@ def excluir(leiaute_id: int) -> None:
             ),
         )
     registrar_log(
+        usuario=usuario["email"],
         pagina="Cadastro de Leiautes",
         acao="Exclusão",
         detalhe=f"Leiaute {item['codigo']} excluído permanentemente.",

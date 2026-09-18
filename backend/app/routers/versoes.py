@@ -1,13 +1,19 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import VersaoArquivoListaResponse, VersaoArquivoResumo
 from persistencia.versoes_db import listar_versoes, obter_caminho_download
 
-router = APIRouter(prefix="/versoes", tags=["versoes"])
+# Versões aparecem na tela Alterações — mesma permissão.
+router = APIRouter(
+    prefix="/versoes",
+    tags=["versoes"],
+    dependencies=[Depends(exigir_rota("alteracoes"))],
+)
 
 
 @router.get("", response_model=VersaoArquivoListaResponse)

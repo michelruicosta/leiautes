@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
-from app.deps.auth import exigir_rota
+from app.deps.auth import exigir_rota, exigir_usuario
 from app.models.schemas import (
     PermissoesPerfilResponse,
     PermissoesPerfilUpdateRequest,
@@ -12,8 +12,8 @@ from app.models.schemas import (
     UsuarioResumo,
     UsuarioUpdateRequest,
 )
-from app.services.auth_senha import validar_politica_senha
-from app.services.auth_sessao import hash_senha
+from app.services.auth_senha import hash_senha, validar_politica_senha
+from persistencia.auditoria_db import registrar_log
 from persistencia.usuarios_db import (
     atualizar_senha_usuario,
     atualizar_usuario,
@@ -24,7 +24,6 @@ from persistencia.usuarios_db import (
     obter_usuario,
     salvar_permissoes_perfis,
 )
-from persistencia.auditoria_db import registrar_log
 
 router = APIRouter(
     prefix="/usuarios",
@@ -43,7 +42,10 @@ def listar() -> UsuarioListaResponse:
 
 
 @router.post("", response_model=UsuarioResumo)
-def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
+def criar(
+    payload: UsuarioCreateRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> UsuarioResumo:
     data = payload.model_dump()
     senha = (data.pop("senha_inicial") or "").strip()
     if senha:
@@ -58,6 +60,7 @@ def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
     if not item:
         raise HTTPException(status_code=500, detail="Falha ao criar usuário")
     registrar_log(
+        usuario=usuario["email"],
         pagina="Usuários e perfis",
         acao="Criação",
         detalhe=f"Usuário {item['email']} criado com perfil {item['perfil_codigo']}.",
@@ -66,7 +69,11 @@ def criar(payload: UsuarioCreateRequest) -> UsuarioResumo:
 
 
 @router.put("/{usuario_id}", response_model=UsuarioResumo)
-def atualizar(usuario_id: int, payload: UsuarioUpdateRequest) -> UsuarioResumo:
+def atualizar(
+    usuario_id: int,
+    payload: UsuarioUpdateRequest,
+    usuario: dict = Depends(exigir_usuario),
+) -> UsuarioResumo:
     data = payload.model_dump(exclude_unset=True)
     nova_senha = (data.pop("nova_senha", None) or "").strip()
     antes = obter_usuario(usuario_id)
@@ -84,6 +91,7 @@ def atualizar(usuario_id: int, payload: UsuarioUpdateRequest) -> UsuarioResumo:
     elif antes and not antes["ativo"] and item["ativo"]:
         acao = "Ativação"
     registrar_log(
+        usuario=usuario["email"],
         pagina="Usuários e perfis",
         acao=acao,
         detalhe=f"Usuário {item['email']} atualizado.",
@@ -92,13 +100,17 @@ def atualizar(usuario_id: int, payload: UsuarioUpdateRequest) -> UsuarioResumo:
 
 
 @router.delete("/{usuario_id}", status_code=status.HTTP_204_NO_CONTENT, response_model=None)
-def excluir(usuario_id: int) -> None:
+def excluir(
+    usuario_id: int,
+    usuario: dict = Depends(exigir_usuario),
+) -> None:
     item = obter_usuario(usuario_id)
     if not item:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     if not excluir_usuario(usuario_id):
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
     registrar_log(
+        usuario=usuario["email"],
         pagina="Usuários e perfis",
         acao="Exclusão",
         detalhe=f"Usuário {item['email']} excluído permanentemente.",
@@ -113,8 +125,10 @@ def obter_permissoes() -> PermissoesPerfilResponse:
 @router.put("/perfis/permissoes", response_model=PermissoesPerfilResponse)
 def salvar_permissoes(
     payload: PermissoesPerfilUpdateRequest,
+    usuario: dict = Depends(exigir_usuario),
 ) -> PermissoesPerfilResponse:
     registrar_log(
+        usuario=usuario["email"],
         pagina="Usuários e perfis",
         acao="Edição",
         detalhe="Permissões dos perfis atualizadas.",

@@ -3,12 +3,17 @@ from __future__ import annotations
 
 import json
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
+from app.deps.auth import exigir_rota
 from app.models.schemas import AlteracaoResumo, DashboardResponse, ExecucaoResumo
 from persistencia.execucoes_db import resumo_dashboard
 
-router = APIRouter(prefix="/dashboard", tags=["dashboard"])
+router = APIRouter(
+    prefix="/dashboard",
+    tags=["dashboard"],
+    dependencies=[Depends(exigir_rota("dashboard"))],
+)
 
 
 def _json_list(valor: str | None) -> list[str]:

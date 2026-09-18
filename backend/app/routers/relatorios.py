@@ -1,12 +1,18 @@
 # -*- coding: utf-8 -*-
 from __future__ import annotations
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 
+from app.deps.auth import exigir_rota
 from app.services.relatorio_excel import gerar_relatorio_alteracoes_xlsx
 
-router = APIRouter(prefix="/relatorios", tags=["relatorios"])
+# Relatório é baixado na tela Alterações — mesma permissão.
+router = APIRouter(
+    prefix="/relatorios",
+    tags=["relatorios"],
+    dependencies=[Depends(exigir_rota("alteracoes"))],
+)
 
 
 @router.get("/alteracoes.xlsx")

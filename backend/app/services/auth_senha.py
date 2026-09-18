@@ -3,10 +3,17 @@ from __future__ import annotations
 
 import re
 
+import bcrypt
+
 _RE_MAIUSCULA = re.compile(r"[A-Z]")
 _RE_MINUSCULA = re.compile(r"[a-z]")
 _RE_NUMERO = re.compile(r"\d")
 _RE_ESPECIAL = re.compile(r"[!@#$%^&*(),.?\":{}|<>_\-+=\[\]\\;/]")
+
+
+def hash_senha(senha: str) -> str:
+    """Gera hash bcrypt — uso exclusivo do admin ao criar/editar usuários."""
+    return bcrypt.hashpw(senha.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
 def validar_politica_senha(senha: str) -> str | None:

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends
 
-from app.deps.auth import exigir_rota
+from app.deps.auth import exigir_rota, exigir_usuario
 from app.models.schemas import ConfiguracoesResponse, ConfiguracoesUpdateRequest
 from persistencia.auditoria_db import registrar_log
 from persistencia.config_db import listar_configuracoes, salvar_configuracoes
@@ -23,9 +23,11 @@ def obter_configuracoes() -> ConfiguracoesResponse:
 @router.put("", response_model=ConfiguracoesResponse)
 def atualizar_configuracoes(
     payload: ConfiguracoesUpdateRequest,
+    usuario: dict = Depends(exigir_usuario),
 ) -> ConfiguracoesResponse:
     configuracoes = salvar_configuracoes(payload.configuracoes)
     registrar_log(
+        usuario=usuario["email"],
         pagina="Configurações",
         acao="Edição",
         detalhe=f"{len(payload.configuracoes)} parâmetro(s) atualizado(s).",
