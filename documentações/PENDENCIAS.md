@@ -1,6 +1,6 @@
 # Pendências — Leiautes Bacen
 
-**Atualizado:** 2026-09-18 20:30
+**Atualizado:** 2026-09-18 23:55
 **Regra:** este arquivo lista **só o que ainda falta**. O que já foi feito está em `REGISTRO_CORRECOES.md`.
 
 Checklist antigo de fases (não usar como “onde paramos”): `documentacao/CHECKLIST_IMPLEMENTACAO.md`.
@@ -11,7 +11,7 @@ Origem dos itens A01-x: auditoria OWASP A01 (controle de acesso) de 18/09/2026 �
 
 ## 🔴 URGENTE
 
-- **A01-1/2/4/5/8/9/11/13 — Publicar no servidor.** Tudo corrigido e verificado neste PC em 18/09. **O site no ar está desatualizado até publicar.** Passos: `git push` → VPS: `git pull && systemctl restart leiautes_bacen-api` → adicionar ao `.env` de produção: `ENVIRONMENT=production` e `CORS_ALLOW_ORIGINS=https://finaudapps.com.br,https://www.finaudapps.com.br,https://admin.finaudapps.com.br,https://leiautes-bacen.finaudapps.com.br,https://www.leiautes-bacen.finaudapps.com.br`. Depois conferir: `/api/dashboard` sem login = 401; SSO continua entrando; `/api/docs` = 404; `/api/auth/login` = 404; auditoria mostra e-mail real de quem editou.
+- **A01 — Fechar a conferência da publicação (só no navegador).** Publicado na VPS em 18/09 22:43 e conferido de fora (401/404 certos, commit `9ea0bf6`, `.env` com as duas variáveis). **Falta:** Michel entrar pelo portal SSO e fazer uma edição pequena em Administração; depois conferir que a auditoria grava o e-mail real (não `gestor@finaud.com.br`). Até 18/09 23:40 ninguém tinha entrado desde o restart.
 
 ---
 

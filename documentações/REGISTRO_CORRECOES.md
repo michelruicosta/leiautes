@@ -30,6 +30,18 @@ Histórico vivo de tudo que foi corrigido. Ler antes de qualquer correção.
 
 <!-- Entradas mais recentes primeiro -->
 
+### 2026-09-18 23:55 — reportlab 4.4.3 → 5.0.1 (PR #6 do Dependabot) + publicação A01 confirmada na VPS
+
+**🔎 Em miúdos:** o robô do GitHub propôs atualizar a biblioteca que gera PDF; foi conferida, testada e aceita. De quebra, confirmado que as correções de segurança A01 já estão rodando no site.
+**Problema:** PR #6 aberto com salto de versão maior (4 → 5), compatibilidade "unknown"; e o Dependabot reclamava que a etiqueta `dependabot` não existe no repositório.
+**Causa raiz:** atualização de rotina (sem falha de segurança envolvida); `dependabot.yml` pedia etiqueta que nunca foi criada.
+**Correção:**
+- PR #6 aceito (squash, commit `d4945fc`): `requirements.txt` → `reportlab==5.0.1`; `backend/requirements-api.txt` → `reportlab~=5.0.1`.
+- `.github/dependabot.yml`: removido o bloco `labels` (etiqueta inexistente).
+- Único uso do reportlab no projeto: `scripts/simular_alteracoes_tipos.py` (`_pdf`). A API não importa reportlab. A VPS segue com 4.4.10 instalada até o próximo `pip install -r`.
+**Validação:** ✅ VALIDADO — pacote conferido no PyPI (ReportLab Inc., BSD, 0 vulnerabilidades, Python ≥3.9); `pip-audit` sem achados; em venv isolado com 5.0.1 as mesmas chamadas do script (`Canvas`/`drawString`/`save`) geraram PDF e o texto foi lido de volta com pypdf.
+**Publicação A01 na VPS:** ✅ commit `9ea0bf6` no servidor, `ENVIRONMENT=production` e `CORS_ALLOW_ORIGINS` no `.env`, serviço reiniciado 18/09 22:43; de fora: `/api/dashboard` = 401, `/api/docs` e `/api/openapi.json` = 404, `/api/auth/login` = 404. ⚠️ PENDENTE (só no navegador): entrar pelo SSO e fazer uma edição para ver o e-mail real na auditoria — até 23:40 ninguém tinha entrado desde o restart.
+
 ### 2026-09-18 20:30 — Correções A01-2/4/5/8/9/11/13 + remoção do login local
 
 **🔎 Em miúdos:** login com senha local, recuperar senha e alterar senha foram removidos do servidor. Só o portal SSO dá acesso. Junto com isso: usuário inativo já não é reativado pelo portal; operador não tem mais acesso ao robô por padrão; cada ação na trilha de auditoria passa a gravar quem realmente fez; /docs e /openapi.json somem em produção; CORS vem do .env.
