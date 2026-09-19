@@ -8,7 +8,6 @@ import {
   type ReactNode,
 } from "react";
 import {
-  loginAuth,
   logoutAuth,
   obterUsuarioAtual,
   type UsuarioAuth,
@@ -32,7 +31,6 @@ export function urlPortalApps(): string {
 type AuthContextValue = {
   usuario: UsuarioAuth | null;
   carregando: boolean;
-  entrar: (email: string, senha: string) => Promise<void>;
   sair: () => Promise<void>;
   recarregar: () => Promise<void>;
 };
@@ -64,11 +62,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     })();
   }, [recarregar]);
 
-  const entrar = useCallback(async (email: string, senha: string) => {
-    const resposta = await loginAuth(email, senha);
-    setUsuario(resposta.usuario);
-  }, []);
-
   const sair = useCallback(async () => {
     try {
       await logoutAuth();
@@ -79,8 +72,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ usuario, carregando, entrar, sair, recarregar }),
-    [usuario, carregando, entrar, sair, recarregar],
+    () => ({ usuario, carregando, sair, recarregar }),
+    [usuario, carregando, sair, recarregar],
   );
 
   return (

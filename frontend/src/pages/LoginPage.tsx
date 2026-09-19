@@ -1,7 +1,4 @@
-import { type FormEvent, useState } from "react";
-import { ApiError } from "../api/client";
-import CampoSenha from "../components/CampoSenha";
-import { useAuth, urlPortalApps } from "../context/AuthContext";
+import { urlPortalApps } from "../context/AuthContext";
 
 function CabecalhoLoginLeiautes() {
   return (
@@ -20,80 +17,22 @@ function CabecalhoLoginLeiautes() {
   );
 }
 
+/** Sem login local: o acesso vem só da sessão do portal Finaud (SSO). */
 export default function LoginPage() {
-  const { entrar } = useAuth();
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState<string | null>(null);
-  const [enviando, setEnviando] = useState(false);
-
-  const onLogin = async (e: FormEvent) => {
-    e.preventDefault();
-    setErro(null);
-    setEnviando(true);
-    try {
-      await entrar(email.trim(), senha);
-    } catch (err) {
-      setErro(
-        err instanceof ApiError
-          ? err.message
-          : "Não foi possível entrar. Tente novamente.",
-      );
-    } finally {
-      setEnviando(false);
-    }
-  };
-
   return (
     <div className="login-shell login-shell-finaud">
-      <form
-        className="login-card login-card-finaud"
-        onSubmit={(e) => void onLogin(e)}
-      >
+      <div className="login-card login-card-finaud">
         <CabecalhoLoginLeiautes />
 
-        <div className="field">
-          <label className="field-label" htmlFor="login-email">
-            E-mail
-          </label>
-          <input
-            id="login-email"
-            className="field-input"
-            type="email"
-            autoComplete="username"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            onInvalid={(e) => {
-              e.currentTarget.setCustomValidity("Informe seu e-mail.");
-            }}
-            onInput={(e) => e.currentTarget.setCustomValidity("")}
-          />
-        </div>
+        <p className="login-finaud-sub login-finaud-aviso">
+          Sua sessão no portal Finaud não foi encontrada ou expirou. Entre pelo
+          portal e abra o Leiautes Bacen de lá.
+        </p>
 
-        <CampoSenha
-          id="login-senha"
-          label="Senha"
-          autoComplete="current-password"
-          value={senha}
-          onChange={setSenha}
-          required
-        />
-
-        {erro && <p className="login-erro">{erro}</p>}
-
-        <button
-          type="submit"
-          className="btn-primary login-submit"
-          disabled={enviando}
-        >
-          {enviando ? "Entrando…" : "Entrar"}
-        </button>
-
-        <a className="login-portal-link" href={urlPortalApps()}>
-          Portal de apps
+        <a className="btn-primary login-submit" href={urlPortalApps()}>
+          Entrar pelo portal
         </a>
-      </form>
+      </div>
     </div>
   );
 }

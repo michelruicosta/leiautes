@@ -30,6 +30,19 @@ Histórico vivo de tudo que foi corrigido. Ler antes de qualquer correção.
 
 <!-- Entradas mais recentes primeiro -->
 
+### 2026-09-19 00:30 — Tela de login ainda pedia e-mail e senha (sobra da remoção do login local)
+
+**🔎 Em miúdos:** o servidor já não aceita senha local desde 18/09, mas a tela do site continuava mostrando os campos de e-mail e senha. Quem caía nela digitava a senha e recebia "Not Found". Agora a tela só avisa que a sessão do portal não foi encontrada e oferece o botão "Entrar pelo portal".
+**Problema:** Michel abriu o site sem sessão do portal, viu o formulário de senha, tentou entrar e recebeu "Not Found" (log da VPS: `GET /auth/me` 401 → `POST /auth/login` 404).
+**Causa raiz:** a correção A01-2/11 removeu os endpoints `/auth/login`, `/auth/recuperar-senha` e `/auth/alterar-senha` só no backend; o frontend não foi tocado (e o `dist` da VPS é de 31/08).
+**Correção:**
+- `frontend/src/pages/LoginPage.tsx`: formulário removido; fica aviso + link "Entrar pelo portal" (`urlPortalApps()`).
+- `frontend/src/api/auth.ts`: removidos `loginAuth`, `recuperarSenhaAuth`, `alterarSenhaAuth` e `LoginResponse`.
+- `frontend/src/context/AuthContext.tsx`: removido `entrar`.
+- `frontend/src/pages/AlterarSenhaPage.tsx`: apagada via `git rm` (ninguém importava).
+- `frontend/src/styles/global.css`: estilo do link-botão e do aviso.
+**Validação:** ⚠️ VALIDAÇÃO PENDENTE — neste PC: `npm run build` sem erros e tela conferida em `localhost:5177`. Falta publicar o frontend na VPS (build + `dist`) e Michel conferir no site: sem sessão → aparece só o botão do portal; com sessão do portal → abre direto o painel.
+
 ### 2026-09-18 23:55 — reportlab 4.4.3 → 5.0.1 (PR #6 do Dependabot) + publicação A01 confirmada na VPS
 
 **🔎 Em miúdos:** o robô do GitHub propôs atualizar a biblioteca que gera PDF; foi conferida, testada e aceita. De quebra, confirmado que as correções de segurança A01 já estão rodando no site.

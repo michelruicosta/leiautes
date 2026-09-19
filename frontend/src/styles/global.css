@@ -542,6 +542,19 @@ textarea {
   margin-top: 0.5rem;
 }
 
+.login-finaud-aviso {
+  text-align: center;
+  line-height: 1.5;
+}
+
+a.login-submit {
+  display: block;
+  box-sizing: border-box;
+  margin-top: 1.25rem;
+  text-align: center;
+  text-decoration: none;
+}
+
 .login-erro {
   color: var(--danger);
   font-size: 0.9rem;
