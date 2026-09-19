@@ -53,7 +53,7 @@ Histórico vivo de tudo que foi corrigido. Ler antes de qualquer correção.
 - `.github/dependabot.yml`: removido o bloco `labels` (etiqueta inexistente).
 - Único uso do reportlab no projeto: `scripts/simular_alteracoes_tipos.py` (`_pdf`). A API não importa reportlab. A VPS segue com 4.4.10 instalada até o próximo `pip install -r`.
 **Validação:** ✅ VALIDADO — pacote conferido no PyPI (ReportLab Inc., BSD, 0 vulnerabilidades, Python ≥3.9); `pip-audit` sem achados; em venv isolado com 5.0.1 as mesmas chamadas do script (`Canvas`/`drawString`/`save`) geraram PDF e o texto foi lido de volta com pypdf.
-**Publicação A01 na VPS:** ✅ commit `9ea0bf6` no servidor, `ENVIRONMENT=production` e `CORS_ALLOW_ORIGINS` no `.env`, serviço reiniciado 18/09 22:43; de fora: `/api/dashboard` = 401, `/api/docs` e `/api/openapi.json` = 404, `/api/auth/login` = 404. ⚠️ PENDENTE (só no navegador): entrar pelo SSO e fazer uma edição para ver o e-mail real na auditoria — até 23:40 ninguém tinha entrado desde o restart.
+**Publicação A01 na VPS:** ✅ commit `9ea0bf6` no servidor, `ENVIRONMENT=production` e `CORS_ALLOW_ORIGINS` no `.env`, serviço reiniciado 18/09 22:43; de fora: `/api/dashboard` = 401, `/api/docs` e `/api/openapi.json` = 404, `/api/auth/login` = 404. ✅ SSO conferido em 19/09 00:40 (Michel entrou pelo portal; log da VPS: `/auth/me` e `/dashboard` = 200). ⚠️ Falta só ver o e-mail real na auditoria na próxima edição em Administração (item 🟡 no PENDENCIAS).
 
 ### 2026-09-18 20:30 — Correções A01-2/4/5/8/9/11/13 + remoção do login local
 

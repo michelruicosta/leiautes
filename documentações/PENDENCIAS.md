@@ -1,6 +1,6 @@
 # Pendências — Leiautes Bacen
 
-**Atualizado:** 2026-09-19 00:30
+**Atualizado:** 2026-09-19 00:45
 **Regra:** este arquivo lista **só o que ainda falta**. O que já foi feito está em `REGISTRO_CORRECOES.md`.
 
 Checklist antigo de fases (não usar como “onde paramos”): `documentacao/CHECKLIST_IMPLEMENTACAO.md`.
@@ -11,13 +11,13 @@ Origem dos itens A01-x: auditoria OWASP A01 (controle de acesso) de 18/09/2026 �
 
 ## 🔴 URGENTE
 
-- **A01 — Fechar a conferência da publicação (só no navegador).** Publicado na VPS em 18/09 22:43 e conferido de fora (401/404 certos, commit `9ea0bf6`, `.env` com as duas variáveis). **Falta:** Michel entrar pelo portal SSO e fazer uma edição pequena em Administração; depois conferir que a auditoria grava o e-mail real (não `gestor@finaud.com.br`). Até 18/09 23:40 ninguém tinha entrado desde o restart.
-
 - **Publicar o frontend sem a tela de senha.** Corrigido neste PC em 19/09 (ver REGISTRO). O site no ar ainda mostra e-mail/senha e responde "Not Found" ao tentar entrar. Falta: push + gerar o `dist` na VPS (o `dist` de lá é de 31/08) e conferir no navegador.
 
 ---
 
 ## 🟡 DESTE APP
+
+- **A01-8 — Ver o e-mail real na auditoria em produção.** Publicação A01 conferida em 19/09 (401/404 certos; SSO entrou: `/auth/me` e `/dashboard` = 200 no log da VPS). Só falta este ponto: na próxima edição real em Administração, conferir que a linha nova da auditoria traz o e-mail de quem editou, e não `gestor@finaud.com.br`. Não precisa de teste dedicado.
 
 - **Sobra de senha local em Usuários e perfis.** A tela (`frontend/src/pages/UsuariosPage.tsx`, opção "definir senha no app") e o backend (`backend/app/routers/usuarios.py`: `senha_inicial` / `nova_senha`) ainda gravam senha local, que não serve mais para nada desde a remoção do login em 18/09. Remover dos dois lados e decidir o que fazer com a coluna `senha_hash`.
 
